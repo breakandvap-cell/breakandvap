@@ -42,7 +42,7 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   const page = doc.addPage([595.28, 841.89]); // A4
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const { width, height } = page.size();
+  const { width, height } = page.getSize();
   const marginX = 40;
   const black = rgb(0.1, 0.1, 0.1);
   const gray = rgb(0.4, 0.4, 0.4);
