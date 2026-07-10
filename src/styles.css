@@ -144,10 +144,13 @@
   }
 
   body {
-    background-color: var(--color-background);
+    background-color: transparent;
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+  }
+  html {
+    background-color: #090909;
   }
 
   h1, h2, h3, h4 {
