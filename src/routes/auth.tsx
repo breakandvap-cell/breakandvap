@@ -31,6 +31,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -46,12 +47,21 @@ function AuthPage() {
     setBusy(true);
     try {
       if (tab === "signup") {
+        const normalizedPhone = normalizeFrPhone(phone);
+        if (!normalizedPhone) {
+          toast.error("Téléphone invalide", {
+            description:
+              "Merci de saisir un numéro de téléphone français valide (ex. 06 12 34 56 78).",
+          });
+          setBusy(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName || null },
+            data: { full_name: fullName || null, phone: normalizedPhone },
           },
         });
         if (error) throw error;
