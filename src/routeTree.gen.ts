@@ -10,13 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as PanierRouteImport } from './routes/panier'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as BoutiqueRouteImport } from './routes/boutique'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProduitSlugRouteImport } from './routes/produit.$slug'
+import { Route as CommandeOrderNumberRouteImport } from './routes/commande.$orderNumber'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PanierRoute = PanierRouteImport.update({
+  id: '/panier',
+  path: '/panier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BoutiqueRoute = BoutiqueRouteImport.update({
@@ -34,38 +47,77 @@ const ProduitSlugRoute = ProduitSlugRouteImport.update({
   path: '/produit/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CommandeOrderNumberRoute = CommandeOrderNumberRouteImport.update({
+  id: '/commande/$orderNumber',
+  path: '/commande/$orderNumber',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/boutique': typeof BoutiqueRoute
+  '/checkout': typeof CheckoutRoute
+  '/panier': typeof PanierRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/boutique': typeof BoutiqueRoute
+  '/checkout': typeof CheckoutRoute
+  '/panier': typeof PanierRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/boutique': typeof BoutiqueRoute
+  '/checkout': typeof CheckoutRoute
+  '/panier': typeof PanierRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/boutique' | '/sitemap.xml' | '/produit/$slug'
+  fullPaths:
+    | '/'
+    | '/boutique'
+    | '/checkout'
+    | '/panier'
+    | '/sitemap.xml'
+    | '/commande/$orderNumber'
+    | '/produit/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/boutique' | '/sitemap.xml' | '/produit/$slug'
-  id: '__root__' | '/' | '/boutique' | '/sitemap.xml' | '/produit/$slug'
+  to:
+    | '/'
+    | '/boutique'
+    | '/checkout'
+    | '/panier'
+    | '/sitemap.xml'
+    | '/commande/$orderNumber'
+    | '/produit/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/boutique'
+    | '/checkout'
+    | '/panier'
+    | '/sitemap.xml'
+    | '/commande/$orderNumber'
+    | '/produit/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BoutiqueRoute: typeof BoutiqueRoute
+  CheckoutRoute: typeof CheckoutRoute
+  PanierRoute: typeof PanierRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  CommandeOrderNumberRoute: typeof CommandeOrderNumberRoute
   ProduitSlugRoute: typeof ProduitSlugRoute
 }
 
@@ -76,6 +128,20 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/panier': {
+      id: '/panier'
+      path: '/panier'
+      fullPath: '/panier'
+      preLoaderRoute: typeof PanierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/boutique': {
@@ -99,13 +165,23 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProduitSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/commande/$orderNumber': {
+      id: '/commande/$orderNumber'
+      path: '/commande/$orderNumber'
+      fullPath: '/commande/$orderNumber'
+      preLoaderRoute: typeof CommandeOrderNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BoutiqueRoute: BoutiqueRoute,
+  CheckoutRoute: CheckoutRoute,
+  PanierRoute: PanierRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  CommandeOrderNumberRoute: CommandeOrderNumberRoute,
   ProduitSlugRoute: ProduitSlugRoute,
 }
 export const routeTree = rootRouteImport

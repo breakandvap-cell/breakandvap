@@ -6,6 +6,9 @@ import {
 } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { useCart } from "@/lib/cart";
 import {
   CATEGORY_LABELS,
   STOCK_LABELS,
@@ -76,6 +79,8 @@ function ProductDetail() {
   const { slug } = Route.useParams();
   const router = useRouter();
   const { data: product } = useSuspenseQuery(productBySlugQueryOptions(slug));
+  const cart = useCart();
+  const [qty, setQty] = useState(1);
   if (!product) {
     // Guard for TS; loader already threw notFound.
     return <ProductNotFound />;
@@ -161,17 +166,61 @@ function ProductDetail() {
               <SpecRow label="Référence" value={product.slug} />
             </dl>
 
-            <button
-              disabled={product.stock_status === "out_of_stock"}
-              className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {product.stock_status === "out_of_stock"
-                ? "Produit épuisé"
-                : "Ajouter au panier (bientôt)"}
-            </button>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Le tunnel de commande sera activé à l'étape suivante du projet.
-            </p>
+            {product.stock_status !== "out_of_stock" ? (
+              <div className="mt-6 flex items-center gap-3">
+                <div className="inline-flex items-center rounded-md border border-border bg-card">
+                  <button
+                    type="button"
+                    onClick={() => setQty((q) => Math.max(1, q - 1))}
+                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    aria-label="Diminuer la quantité"
+                  >
+                    −
+                  </button>
+                  <span className="w-8 text-center text-sm font-medium">
+                    {qty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setQty((q) => Math.min(product.stock, q + 1))
+                    }
+                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    aria-label="Augmenter la quantité"
+                  >
+                    +
+                  </button>
+                </div>
+                <button
+                  onClick={() => {
+                    cart.add(
+                      {
+                        productId: product.id,
+                        slug: product.slug,
+                        name: product.name,
+                        priceCents: product.price_cents,
+                        photo: product.photos?.[0] ?? null,
+                        maxStock: product.stock,
+                      },
+                      qty,
+                    );
+                    toast.success("Ajouté au panier", {
+                      description: `${qty} × ${product.name}`,
+                    });
+                  }}
+                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                >
+                  Ajouter au panier
+                </button>
+              </div>
+            ) : (
+              <button
+                disabled
+                className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground opacity-50"
+              >
+                Produit épuisé
+              </button>
+            )}
 
             {product.coa_url ? (
               <a
