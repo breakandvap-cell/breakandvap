@@ -122,9 +122,11 @@ function CheckoutPage() {
                   className="input"
                 />
               </Field>
-              <Field label="Téléphone">
+              <Field label="Téléphone" required>
                 <input
                   type="tel"
+                  required
+                  minLength={6}
                   maxLength={30}
                   value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}

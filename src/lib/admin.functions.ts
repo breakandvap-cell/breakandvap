@@ -242,3 +242,187 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
     await logAction(context.userId, "order.update", "order", data.id, { status: data.status });
     return { ok: true };
   });
+
+// ---------- Historique commandes (recherche + filtres) ----------
+
+const searchOrdersSchema = z.object({
+  status: orderStatusSchema.optional(),
+  q: z.string().trim().max(160).optional().or(z.literal("")),
+  from: z.string().trim().max(40).optional().or(z.literal("")),
+  to: z.string().trim().max(40).optional().or(z.literal("")),
+});
+
+export const adminSearchOrders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => searchOrdersSchema.parse(d ?? {}))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Résoudre les user_ids qui matchent la recherche texte (nom/email profil).
+    let matchedUserIds: string[] | null = null;
+    const q = (data.q ?? "").trim();
+    if (q) {
+      const like = `%${q.replace(/[%_]/g, "")}%`;
+      const { data: profs } = await supabaseAdmin
+        .from("profiles")
+        .select("id")
+        .or(`full_name.ilike.${like},email.ilike.${like}`);
+      matchedUserIds = (profs ?? []).map((p) => p.id);
+    }
+
+    let query = supabaseAdmin
+      .from("orders")
+      .select(
+        "id, order_number, status, total_cents, currency, created_at, guest_email, user_id, tracking_number",
+      )
+      .order("created_at", { ascending: false })
+      .limit(500);
+
+    if (data.status) query = query.eq("status", data.status);
+    if (data.from) query = query.gte("created_at", new Date(data.from).toISOString());
+    if (data.to) {
+      const end = new Date(data.to);
+      end.setHours(23, 59, 59, 999);
+      query = query.lte("created_at", end.toISOString());
+    }
+    if (q) {
+      const like = `%${q.replace(/[%_]/g, "")}%`;
+      const ors = [`order_number.ilike.${like}`, `guest_email.ilike.${like}`];
+      if (matchedUserIds && matchedUserIds.length > 0) {
+        ors.push(`user_id.in.(${matchedUserIds.join(",")})`);
+      }
+      query = query.or(ors.join(","));
+    }
+
+    const { data: orders, error } = await query;
+    if (error) throw new Error(error.message);
+    const rows = orders ?? [];
+
+    // Enrichir avec articles + profils clients.
+    const orderIds = rows.map((r) => r.id);
+    const userIds = Array.from(
+      new Set(rows.map((r) => r.user_id).filter((v): v is string => Boolean(v))),
+    );
+
+    const [itemsRes, profRes] = await Promise.all([
+      orderIds.length
+        ? supabaseAdmin
+            .from("order_items")
+            .select("order_id, product_name, quantity")
+            .in("order_id", orderIds)
+        : Promise.resolve({ data: [], error: null } as const),
+      userIds.length
+        ? supabaseAdmin
+            .from("profiles")
+            .select("id, full_name, email, phone")
+            .in("id", userIds)
+        : Promise.resolve({ data: [], error: null } as const),
+    ]);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
+    if (profRes.error) throw new Error(profRes.error.message);
+
+    const itemsByOrder = new Map<string, { product_name: string; quantity: number }[]>();
+    for (const it of itemsRes.data ?? []) {
+      const arr = itemsByOrder.get(it.order_id) ?? [];
+      arr.push({ product_name: it.product_name, quantity: it.quantity });
+      itemsByOrder.set(it.order_id, arr);
+    }
+    const profById = new Map(
+      (profRes.data ?? []).map((p) => [p.id, p]),
+    );
+
+    return rows.map((o) => {
+      const prof = o.user_id ? profById.get(o.user_id) : null;
+      return {
+        ...o,
+        items: itemsByOrder.get(o.id) ?? [],
+        customer_name: prof?.full_name ?? null,
+        customer_email: prof?.email ?? o.guest_email ?? null,
+        customer_phone: prof?.phone ?? null,
+      };
+    });
+  });
+
+// ---------- Annuaire clients ----------
+
+export const adminListCustomers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ q: z.string().trim().max(160).optional().or(z.literal("")) }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    let pq = supabaseAdmin
+      .from("profiles")
+      .select("id, full_name, email, phone, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    const q = (data.q ?? "").trim();
+    if (q) {
+      const like = `%${q.replace(/[%_]/g, "")}%`;
+      pq = pq.or(`full_name.ilike.${like},email.ilike.${like},phone.ilike.${like}`);
+    }
+    const { data: profiles, error } = await pq;
+    if (error) throw new Error(error.message);
+    const rows = profiles ?? [];
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((r) => r.id);
+    const { data: orders, error: oErr } = await supabaseAdmin
+      .from("orders")
+      .select("user_id, total_cents, created_at")
+      .in("user_id", ids);
+    if (oErr) throw new Error(oErr.message);
+
+    const stats = new Map<string, { count: number; total: number; last: string | null }>();
+    for (const o of orders ?? []) {
+      if (!o.user_id) continue;
+      const s = stats.get(o.user_id) ?? { count: 0, total: 0, last: null };
+      s.count += 1;
+      s.total += o.total_cents;
+      if (!s.last || new Date(o.created_at) > new Date(s.last)) s.last = o.created_at;
+      stats.set(o.user_id, s);
+    }
+    return rows.map((r) => {
+      const s = stats.get(r.id) ?? { count: 0, total: 0, last: null };
+      return {
+        id: r.id,
+        full_name: r.full_name,
+        email: r.email,
+        phone: r.phone,
+        created_at: r.created_at,
+        orders_count: s.count,
+        total_spent_cents: s.total,
+        last_order_at: s.last,
+      };
+    });
+  });
+
+export const adminGetCustomer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [prof, orders] = await Promise.all([
+      supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email, phone, created_at")
+        .eq("id", data.id)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("orders")
+        .select(
+          "id, order_number, status, total_cents, currency, created_at, tracking_number",
+        )
+        .eq("user_id", data.id)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (prof.error) throw new Error(prof.error.message);
+    if (orders.error) throw new Error(orders.error.message);
+    if (!prof.data) throw new Error("Client introuvable.");
+    return { profile: prof.data, orders: orders.data ?? [] };
+  });
