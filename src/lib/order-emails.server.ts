@@ -49,8 +49,14 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
     | ((name: string, to: string, opts?: { templateData?: unknown; idempotencyKey?: string }) => Promise<{ sent: boolean }>)
     | null = null;
   try {
-    const mod = await import("@/lib/email-templates/send-email" as string);
-    sendTemplateEmail = (mod as { sendTemplateEmail: typeof sendTemplateEmail }).sendTemplateEmail!;
+    // Chemin construit à l'exécution pour éviter la résolution statique du bundler
+    // tant que le helper n'est pas scaffoldé (domaine expéditeur non configuré).
+    const specifier = ["@", "lib", "email-templates", "send-email"].join("/").replace("@/", "@/");
+    const dynamicImport = new Function("s", "return import(s)") as (s: string) => Promise<unknown>;
+    const mod = (await dynamicImport(specifier)) as {
+      sendTemplateEmail: typeof sendTemplateEmail;
+    };
+    sendTemplateEmail = mod.sendTemplateEmail!;
   } catch {
     // Templates non scaffoldés (domaine expéditeur pas encore configuré).
     console.warn("[email] send helper unavailable — configure email domain to enable order confirmation emails");
