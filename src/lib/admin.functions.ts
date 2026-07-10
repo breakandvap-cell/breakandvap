@@ -223,12 +223,12 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch: Record<string, unknown> = {
+    const patch = {
       status: data.status,
       tracking_number: data.tracking_number || null,
+      ...(data.status === "expediee" ? { shipped_at: new Date().toISOString() } : {}),
     };
-    if (data.status === "expediee") patch.shipped_at = new Date().toISOString();
-    const { error } = await supabaseAdmin.from("orders").update(patch).eq("id", data.id);
+    const { error } = await supabaseAdmin.from("orders").update(patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
     await logAction(context.userId, "order.update", "order", data.id, { status: data.status });
     return { ok: true };
