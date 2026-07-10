@@ -117,9 +117,42 @@ function AdminLink() {
 export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-border">
-      <div className="mx-auto max-w-6xl px-4 py-8 text-xs text-muted-foreground">
-        © {new Date().getFullYear()} SAS Break and Vap. La nicotine crée une forte
-        dépendance. Vente strictement interdite aux mineurs.
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="grid gap-8 sm:grid-cols-3 text-sm">
+          <div>
+            <div className="font-semibold text-foreground">Break and Vap</div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              CBD, e-liquides et accessoires de vape depuis 2018. Boutiques au
+              Creusot et à Montceau-les-Mines.
+            </p>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Boutique
+            </div>
+            <ul className="mt-3 space-y-1 text-muted-foreground">
+              <li><Link to="/boutique" className="hover:text-foreground">Catalogue</Link></li>
+              <li><Link to="/livraison-retours" className="hover:text-foreground">Livraison & retours</Link></li>
+              <li><Link to="/contact" className="hover:text-foreground">Contact</Link></li>
+              <li><Link to="/a-propos" className="hover:text-foreground">À propos</Link></li>
+            </ul>
+          </div>
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Informations légales
+            </div>
+            <ul className="mt-3 space-y-1 text-muted-foreground">
+              <li><Link to="/mentions-legales" className="hover:text-foreground">Mentions légales</Link></li>
+              <li><Link to="/cgv" className="hover:text-foreground">CGV</Link></li>
+              <li><Link to="/confidentialite" className="hover:text-foreground">Confidentialité</Link></li>
+              <li><Link to="/cookies" className="hover:text-foreground">Cookies</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-8 border-t border-border pt-6 text-xs text-muted-foreground">
+          © {new Date().getFullYear()} SAS Break and Vap. La nicotine crée une
+          forte dépendance. Vente strictement interdite aux mineurs.
+        </div>
       </div>
     </footer>
   );
