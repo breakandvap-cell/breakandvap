@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProduitSlugRouteImport } from './routes/produit.$slug'
 import { Route as CommandeOrderNumberRouteImport } from './routes/commande.$orderNumber'
 import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
 import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_authenticated/compte.commandes'
 import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
 
@@ -77,6 +78,11 @@ const AuthenticatedCompteRoute = AuthenticatedCompteRouteImport.update({
   path: '/compte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCompteCommandesRoute =
   AuthenticatedCompteCommandesRouteImport.update({
     id: '/commandes',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin': typeof AuthenticatedAdminRouteRoute
   '/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
@@ -112,6 +119,7 @@ export interface FileRoutesByTo {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin': typeof AuthenticatedAdminRouteRoute
   '/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
@@ -128,6 +136,7 @@ export interface FileRoutesById {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteRoute
   '/_authenticated/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
@@ -144,6 +153,7 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/admin'
     | '/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
@@ -158,6 +168,7 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/admin'
     | '/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
@@ -173,6 +184,7 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/_authenticated/admin'
     | '/_authenticated/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
@@ -272,6 +284,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCompteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/compte/commandes': {
       id: '/_authenticated/compte/commandes'
       path: '/commandes'
@@ -303,10 +322,12 @@ const AuthenticatedCompteRouteWithChildren =
   AuthenticatedCompteRoute._addFileChildren(AuthenticatedCompteRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRoute
   AuthenticatedCompteRoute: typeof AuthenticatedCompteRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRoute,
   AuthenticatedCompteRoute: AuthenticatedCompteRouteWithChildren,
 }
 
