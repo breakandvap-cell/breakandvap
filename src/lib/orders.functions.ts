@@ -1,5 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
+import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
 
 const orderInputSchema = z.object({
   email: z.string().trim().email().max(255),
@@ -31,6 +34,27 @@ export const createOrder = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import(
       "@/integrations/supabase/client.server"
     );
+
+    // Optional auth: link the order to the signed-in user if a bearer token
+    // is present. Guest checkouts still work.
+    let userId: string | null = null;
+    const authHeader = getRequestHeader("authorization");
+    if (authHeader?.toLowerCase().startsWith("bearer ")) {
+      const token = authHeader.slice(7).trim();
+      if (token) {
+        try {
+          const anon = createClient<Database>(
+            process.env.SUPABASE_URL!,
+            process.env.SUPABASE_PUBLISHABLE_KEY!,
+            { auth: { persistSession: false, autoRefreshToken: false } },
+          );
+          const { data: userData } = await anon.auth.getUser(token);
+          userId = userData.user?.id ?? null;
+        } catch {
+          userId = null;
+        }
+      }
+    }
 
     // Load canonical product data server-side (never trust client prices).
     const ids = data.items.map((i) => i.productId);
@@ -84,7 +108,8 @@ export const createOrder = createServerFn({ method: "POST" })
     const { data: order, error: orderErr } = await supabaseAdmin
       .from("orders")
       .insert({
-        guest_email: data.email,
+        guest_email: userId ? null : data.email,
+        user_id: userId,
         total_cents: totalCents,
         currency,
         status: "a_preparer",
