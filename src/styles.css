@@ -203,6 +203,22 @@
     linear-gradient(180deg, #0d0f0d 0%, #090a09 45%, #060706 100%);
 }
 
+/* Signature boutique photo — cannabis leaves, neon shelves, vapor */
+.home-ambient__photo {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+  opacity: 0.55;
+  mix-blend-mode: screen;
+}
+@media (max-width: 640px) {
+  .home-ambient__photo { opacity: 0.4; background-position: right center; }
+}
+
 /* Very fine grain to evoke brushed metal / premium paper */
 .home-ambient__grain {
   position: absolute;
