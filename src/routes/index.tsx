@@ -8,17 +8,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <main className="home-ambient relative min-h-screen overflow-hidden text-foreground">
-      {/* Ambient premium background layers — decorative, aria-hidden */}
-      <div aria-hidden className="home-ambient__bg" />
-      <div aria-hidden className="home-ambient__grain" />
-      <div aria-hidden className="home-ambient__halo home-ambient__halo--1" />
-      <div aria-hidden className="home-ambient__halo home-ambient__halo--2" />
-      <div aria-hidden className="home-ambient__halo home-ambient__halo--3" />
-      <div aria-hidden className="home-ambient__smoke home-ambient__smoke--a" />
-      <div aria-hidden className="home-ambient__smoke home-ambient__smoke--b" />
-      <div aria-hidden className="home-ambient__vignette" />
-
+    <main className="relative min-h-screen text-foreground">
       <div className="relative z-10">
       <SiteHeader />
 

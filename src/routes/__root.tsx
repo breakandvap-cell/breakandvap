@@ -15,6 +15,7 @@ import { AgeGate } from "../components/age-gate";
 import { CartProvider } from "../lib/cart";
 import { Toaster } from "../components/ui/sonner";
 import { AuthProvider } from "../lib/auth-context";
+import { SiteAmbient } from "../components/site-ambient";
 
 function NotFoundComponent() {
   return (
@@ -139,6 +140,7 @@ function RootComponent() {
       <AuthProvider>
         <CartProvider>
           <AgeGate>
+            <SiteAmbient />
             {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
             <Outlet />
             <Toaster />

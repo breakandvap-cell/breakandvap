@@ -14,7 +14,7 @@ export function SiteHeader() {
           Vente réservée aux adultes de 18 ans et plus
         </div>
       </div>
-      <header className="border-b border-border bg-background">
+      <header className="border-b border-border bg-background/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
           <Link to="/" className="flex items-center gap-3" aria-label="Break & Vap CBD — Accueil">
             <img
@@ -31,16 +31,16 @@ export function SiteHeader() {
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link
               to="/boutique"
-              activeProps={{ className: "text-foreground font-medium" }}
-              className="transition-colors hover:text-foreground"
+              activeProps={{ className: "nav-link nav-link--active" }}
+              inactiveProps={{ className: "nav-link" }}
             >
               Boutique
             </Link>
             <Link
               to="/"
               activeOptions={{ exact: true }}
-              activeProps={{ className: "text-foreground font-medium" }}
-              className="transition-colors hover:text-foreground"
+              activeProps={{ className: "nav-link nav-link--active" }}
+              inactiveProps={{ className: "nav-link" }}
             >
               Accueil
             </Link>
@@ -59,8 +59,8 @@ function CartLink() {
   return (
     <Link
       to="/panier"
-      activeProps={{ className: "text-foreground font-medium" }}
-      className="relative inline-flex items-center gap-1 transition-colors hover:text-foreground"
+      activeProps={{ className: "nav-link nav-link--active nav-link--icon" }}
+      inactiveProps={{ className: "nav-link nav-link--icon" }}
       aria-label="Voir le panier"
     >
       <ShoppingBag className="h-4 w-4" />
@@ -86,8 +86,8 @@ function AccountLink() {
   return (
     <Link
       to={user ? "/compte" : "/auth"}
-      activeProps={{ className: "text-foreground font-medium" }}
-      className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+      activeProps={{ className: "nav-link nav-link--active nav-link--icon" }}
+      inactiveProps={{ className: "nav-link nav-link--icon" }}
       aria-label={user ? "Mon compte" : "Se connecter"}
     >
       <User className="h-4 w-4" />
