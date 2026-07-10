@@ -15,9 +15,13 @@ import { Route as PanierRouteImport } from './routes/panier'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as BoutiqueRouteImport } from './routes/boutique'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProduitSlugRouteImport } from './routes/produit.$slug'
 import { Route as CommandeOrderNumberRouteImport } from './routes/commande.$orderNumber'
+import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
+import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_authenticated/compte.commandes'
+import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -49,6 +53,10 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -64,6 +72,23 @@ const CommandeOrderNumberRoute = CommandeOrderNumberRouteImport.update({
   path: '/commande/$orderNumber',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedCompteRoute = AuthenticatedCompteRouteImport.update({
+  id: '/compte',
+  path: '/compte',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCompteCommandesRoute =
+  AuthenticatedCompteCommandesRouteImport.update({
+    id: '/commandes',
+    path: '/commandes',
+    getParentRoute: () => AuthenticatedCompteRoute,
+  } as any)
+const AuthenticatedCompteAdressesRoute =
+  AuthenticatedCompteAdressesRouteImport.update({
+    id: '/adresses',
+    path: '/adresses',
+    getParentRoute: () => AuthenticatedCompteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -73,8 +98,11 @@ export interface FileRoutesByFullPath {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
+  '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
+  '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -84,20 +112,27 @@ export interface FileRoutesByTo {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
+  '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
+  '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/boutique': typeof BoutiqueRoute
   '/checkout': typeof CheckoutRoute
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_authenticated/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
+  '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
+  '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,8 +144,11 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
+    | '/compte/adresses'
+    | '/compte/commandes'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -120,23 +158,31 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
+    | '/compte/adresses'
+    | '/compte/commandes'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/auth'
     | '/boutique'
     | '/checkout'
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/_authenticated/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
+    | '/_authenticated/compte/adresses'
+    | '/_authenticated/compte/commandes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   BoutiqueRoute: typeof BoutiqueRoute
   CheckoutRoute: typeof CheckoutRoute
@@ -191,6 +237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -212,11 +265,57 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommandeOrderNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/compte': {
+      id: '/_authenticated/compte'
+      path: '/compte'
+      fullPath: '/compte'
+      preLoaderRoute: typeof AuthenticatedCompteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/compte/commandes': {
+      id: '/_authenticated/compte/commandes'
+      path: '/commandes'
+      fullPath: '/compte/commandes'
+      preLoaderRoute: typeof AuthenticatedCompteCommandesRouteImport
+      parentRoute: typeof AuthenticatedCompteRoute
+    }
+    '/_authenticated/compte/adresses': {
+      id: '/_authenticated/compte/adresses'
+      path: '/adresses'
+      fullPath: '/compte/adresses'
+      preLoaderRoute: typeof AuthenticatedCompteAdressesRouteImport
+      parentRoute: typeof AuthenticatedCompteRoute
+    }
   }
 }
 
+interface AuthenticatedCompteRouteChildren {
+  AuthenticatedCompteAdressesRoute: typeof AuthenticatedCompteAdressesRoute
+  AuthenticatedCompteCommandesRoute: typeof AuthenticatedCompteCommandesRoute
+}
+
+const AuthenticatedCompteRouteChildren: AuthenticatedCompteRouteChildren = {
+  AuthenticatedCompteAdressesRoute: AuthenticatedCompteAdressesRoute,
+  AuthenticatedCompteCommandesRoute: AuthenticatedCompteCommandesRoute,
+}
+
+const AuthenticatedCompteRouteWithChildren =
+  AuthenticatedCompteRoute._addFileChildren(AuthenticatedCompteRouteChildren)
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedCompteRoute: typeof AuthenticatedCompteRouteWithChildren
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedCompteRoute: AuthenticatedCompteRouteWithChildren,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   BoutiqueRoute: BoutiqueRoute,
   CheckoutRoute: CheckoutRoute,
