@@ -1,5 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ShieldCheck, Store, Truck, Leaf } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Store, Truck, Leaf } from "lucide-react";
+import { SiteFooter, SiteHeader } from "@/components/site-header";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -8,34 +9,7 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="w-full border-b border-border bg-primary text-primary-foreground">
-        <div className="mx-auto flex max-w-6xl items-center justify-center gap-2 px-4 py-2 text-xs uppercase tracking-wide">
-          <ShieldCheck className="h-3.5 w-3.5" />
-          Vente réservée aux adultes de 18 ans et plus
-        </div>
-      </div>
-
-      <header className="border-b border-border">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
-          <div className="flex items-baseline gap-2">
-            <span
-              className="text-2xl font-semibold tracking-tight"
-              style={{ fontFamily: "var(--font-serif)" }}
-            >
-              Break <span style={{ color: "var(--accent)" }}>&amp;</span> Vap
-            </span>
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              — depuis 2018
-            </span>
-          </div>
-          <nav className="hidden gap-6 text-sm text-muted-foreground sm:flex">
-            <span>Boutique</span>
-            <span>Nos magasins</span>
-            <span>À propos</span>
-            <span>Contact</span>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       <section className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
         <div className="max-w-3xl">
@@ -51,6 +25,22 @@ function Index() {
             nos équipes depuis plus de cinq ans. Commande en ligne le matin,
             colis déposé à La Poste le soir.
           </p>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              to="/boutique"
+              className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+            >
+              Découvrir le catalogue
+            </Link>
+            <Link
+              to="/boutique"
+              search={{ categorie: "cbd" }}
+              className="inline-flex items-center justify-center rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              Voir les produits CBD
+            </Link>
+          </div>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Feature
@@ -71,19 +61,14 @@ function Index() {
           </div>
 
           <p className="mt-12 text-xs text-muted-foreground">
-            Fondations techniques posées (Étape 1/7) — vérification d'âge,
-            catalogue, panier, compte client et espace admin arrivent aux
-            prochaines étapes.
+            Étapes 1 à 3/7 livrées : fondations, vérification d'âge, catalogue
+            et fiches produits. Panier, compte client et espace admin arrivent
+            aux prochaines étapes.
           </p>
         </div>
       </section>
 
-      <footer className="border-t border-border">
-        <div className="mx-auto max-w-6xl px-4 py-8 text-xs text-muted-foreground">
-          © {new Date().getFullYear()} SAS Break and Vap. La nicotine crée
-          une forte dépendance. Vente strictement interdite aux mineurs.
-        </div>
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
