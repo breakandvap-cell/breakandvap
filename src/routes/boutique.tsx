@@ -49,7 +49,12 @@ function BoutiquePage() {
   const { data: products } = useSuspenseQuery(productsQueryOptions(categorie));
 
   const setCategory = (next?: ProductCategory) =>
-    navigate({ search: (prev) => ({ ...prev, categorie: next }) });
+    navigate({
+      search: (prev: { categorie?: ProductCategory }) => ({
+        ...prev,
+        categorie: next,
+      }),
+    });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
