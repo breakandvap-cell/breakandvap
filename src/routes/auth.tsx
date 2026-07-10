@@ -296,3 +296,15 @@ function translateAuthError(msg: string): string {
     return "Confirmez votre email avant de vous connecter.";
   return msg;
 }
+
+export function normalizeFrPhone(input: string): string | null {
+  const raw = (input ?? "").trim();
+  if (!raw) return null;
+  const digits = raw.replace(/[\s.\-()]/g, "");
+  let national: string | null = null;
+  if (/^0[1-9]\d{8}$/.test(digits)) national = digits;
+  else if (/^\+33[1-9]\d{8}$/.test(digits)) national = "0" + digits.slice(3);
+  else if (/^0033[1-9]\d{8}$/.test(digits)) national = "0" + digits.slice(4);
+  if (!national) return null;
+  return national.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
+}
