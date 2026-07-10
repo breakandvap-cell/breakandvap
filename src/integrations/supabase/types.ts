@@ -14,16 +14,329 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      addresses: {
+        Row: {
+          city: string
+          country: string
+          created_at: string
+          full_name: string
+          id: string
+          is_default: boolean
+          label: string | null
+          line1: string
+          line2: string | null
+          phone: string | null
+          postal_code: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city: string
+          country?: string
+          created_at?: string
+          full_name: string
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          line1: string
+          line2?: string | null
+          phone?: string | null
+          postal_code: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          country?: string
+          created_at?: string
+          full_name?: string
+          id?: string
+          is_default?: boolean
+          label?: string | null
+          line1?: string
+          line2?: string | null
+          phone?: string | null
+          postal_code?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      admin_action_log: {
+        Row: {
+          action: string
+          admin_id: string | null
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+        }
+        Insert: {
+          action: string
+          admin_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          product_id: string | null
+          product_name: string
+          quantity: number
+          unit_price_cents: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          product_id?: string | null
+          product_name: string
+          quantity: number
+          unit_price_cents: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          product_id?: string | null
+          product_name?: string
+          quantity?: number
+          unit_price_cents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          created_at: string
+          currency: string
+          guest_email: string | null
+          id: string
+          order_number: string
+          paid_at: string | null
+          payment_provider: string | null
+          payment_transaction_id: string | null
+          shipped_at: string | null
+          shipping_address: Json
+          status: Database["public"]["Enums"]["order_status"]
+          total_cents: number
+          tracking_number: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          guest_email?: string | null
+          id?: string
+          order_number?: string
+          paid_at?: string | null
+          payment_provider?: string | null
+          payment_transaction_id?: string | null
+          shipped_at?: string | null
+          shipping_address: Json
+          status?: Database["public"]["Enums"]["order_status"]
+          total_cents: number
+          tracking_number?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          guest_email?: string | null
+          id?: string
+          order_number?: string
+          paid_at?: string | null
+          payment_provider?: string | null
+          payment_transaction_id?: string | null
+          shipped_at?: string | null
+          shipping_address?: Json
+          status?: Database["public"]["Enums"]["order_status"]
+          total_cents?: number
+          tracking_number?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          category: Database["public"]["Enums"]["product_category"]
+          cbd_percent: number | null
+          coa_url: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          health_warnings: string | null
+          id: string
+          is_published: boolean
+          name: string
+          nicotine_mg: number | null
+          photos: string[]
+          price_cents: number
+          slug: string
+          stock: number
+          stock_status: Database["public"]["Enums"]["stock_status"]
+          subcategory: string | null
+          thc_percent: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["product_category"]
+          cbd_percent?: number | null
+          coa_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          health_warnings?: string | null
+          id?: string
+          is_published?: boolean
+          name: string
+          nicotine_mg?: number | null
+          photos?: string[]
+          price_cents: number
+          slug: string
+          stock?: number
+          stock_status?: Database["public"]["Enums"]["stock_status"]
+          subcategory?: string | null
+          thc_percent?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["product_category"]
+          cbd_percent?: number | null
+          coa_url?: string | null
+          created_at?: string
+          currency?: string
+          description?: string | null
+          health_warnings?: string | null
+          id?: string
+          is_published?: boolean
+          name?: string
+          nicotine_mg?: number | null
+          photos?: string[]
+          price_cents?: number
+          slug?: string
+          stock?: number
+          stock_status?: Database["public"]["Enums"]["stock_status"]
+          subcategory?: string | null
+          thc_percent?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          age_verification_status: Database["public"]["Enums"]["age_verification_status"]
+          age_verified_at: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          age_verification_status?: Database["public"]["Enums"]["age_verification_status"]
+          age_verified_at?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          age_verification_status?: Database["public"]["Enums"]["age_verification_status"]
+          age_verified_at?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      age_verification_status:
+        | "non_verifie"
+        | "en_attente"
+        | "verifie"
+        | "refuse"
+      app_role: "client" | "admin"
+      order_status: "a_preparer" | "expediee" | "livree" | "annulee"
+      product_category: "cbd" | "e_liquide" | "accessoire"
+      stock_status: "in_stock" | "low_stock" | "out_of_stock"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +463,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      age_verification_status: [
+        "non_verifie",
+        "en_attente",
+        "verifie",
+        "refuse",
+      ],
+      app_role: ["client", "admin"],
+      order_status: ["a_preparer", "expediee", "livree", "annulee"],
+      product_category: ["cbd", "e_liquide", "accessoire"],
+      stock_status: ["in_stock", "low_stock", "out_of_stock"],
+    },
   },
 } as const
