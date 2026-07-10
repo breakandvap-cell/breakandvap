@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldCheck } from "lucide-react";
+import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
 
 const STORAGE_KEY = "bnv_age_verified";
 const STORAGE_VALUE = "1";
@@ -81,11 +81,14 @@ function PromptScreen({
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/95 px-4 backdrop-blur-sm"
     >
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg sm:p-8">
-        <div
-          className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-full"
-          style={{ backgroundColor: "var(--secondary)", color: "var(--accent)" }}
-        >
-          <ShieldCheck className="h-5 w-5" />
+        <div className="mb-4 flex justify-center">
+          <img
+            src={logoAsset.url}
+            alt="Break & Vap CBD"
+            className="h-24 w-auto sm:h-28"
+            width={280}
+            height={180}
+          />
         </div>
         <h2
           id="age-gate-title"

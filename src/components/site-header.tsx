@@ -4,6 +4,7 @@ import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { isAdmin as isAdminFn } from "@/lib/admin.functions";
+import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
 
 export function SiteHeader() {
   return (
@@ -15,15 +16,16 @@ export function SiteHeader() {
       </div>
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
-          <Link to="/" className="flex items-baseline gap-2">
-            <span
-              className="text-2xl font-semibold tracking-tight"
-              style={{ fontFamily: "var(--font-serif)" }}
-            >
-              Break <span style={{ color: "var(--accent)" }}>&amp;</span> Vap
-            </span>
+          <Link to="/" className="flex items-center gap-3" aria-label="Break & Vap CBD — Accueil">
+            <img
+              src={logoAsset.url}
+              alt="Break & Vap CBD"
+              className="h-12 w-auto sm:h-14"
+              width={280}
+              height={180}
+            />
             <span className="hidden text-xs text-muted-foreground sm:inline">
-              — depuis 2018
+              depuis 2018
             </span>
           </Link>
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
@@ -120,7 +122,13 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="grid gap-8 sm:grid-cols-3 text-sm">
           <div>
-            <div className="font-semibold text-foreground">Break and Vap</div>
+            <img
+              src={logoAsset.url}
+              alt="Break & Vap CBD"
+              className="h-14 w-auto"
+              width={280}
+              height={180}
+            />
             <p className="mt-2 text-xs text-muted-foreground">
               CBD, e-liquides et accessoires de vape depuis 2018. Boutiques au
               Creusot et à Montceau-les-Mines.
