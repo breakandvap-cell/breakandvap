@@ -9,6 +9,7 @@ const orderInputSchema = z.object({
   shipping: z.object({
     fullName: z.string().trim().min(2).max(120),
     phone: z.string().trim().min(6).max(30).optional().or(z.literal("")),
+
     line1: z.string().trim().min(3).max(200),
     line2: z.string().trim().max(200).optional().or(z.literal("")),
     postalCode: z.string().trim().min(3).max(20),
