@@ -14,7 +14,7 @@ export function SiteHeader() {
           Vente réservée aux adultes de 18 ans et plus
         </div>
       </div>
-      <header className="border-b border-border bg-background">
+      <header className="border-b border-border bg-background/70 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
           <Link to="/" className="flex items-center gap-3" aria-label="Break & Vap CBD — Accueil">
             <img
@@ -31,16 +31,16 @@ export function SiteHeader() {
           <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link
               to="/boutique"
-              activeProps={{ className: "text-foreground font-medium" }}
-              className="transition-colors hover:text-foreground"
+              activeProps={{ className: "nav-link nav-link--active" }}
+              inactiveProps={{ className: "nav-link" }}
             >
               Boutique
             </Link>
             <Link
               to="/"
               activeOptions={{ exact: true }}
-              activeProps={{ className: "text-foreground font-medium" }}
-              className="transition-colors hover:text-foreground"
+              activeProps={{ className: "nav-link nav-link--active" }}
+              inactiveProps={{ className: "nav-link" }}
             >
               Accueil
             </Link>
