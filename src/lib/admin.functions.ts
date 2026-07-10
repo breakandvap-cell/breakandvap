@@ -72,9 +72,18 @@ export const isAdmin = createServerFn({ method: "GET" })
 export const claimAdminIfNone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await context.supabase.rpc("claim_admin_if_none");
-    if (error) throw new Error(error.message);
-    return { claimed: Boolean(data) };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error: countErr } = await supabaseAdmin
+      .from("user_roles")
+      .select("user_id", { count: "exact", head: true })
+      .eq("role", "admin");
+    if (countErr) throw new Error(countErr.message);
+    if ((count ?? 0) > 0) return { claimed: false };
+    const { error: insErr } = await supabaseAdmin
+      .from("user_roles")
+      .insert({ user_id: context.userId, role: "admin" });
+    if (insErr) throw new Error(insErr.message);
+    return { claimed: true };
   });
 
 export const adminDashboard = createServerFn({ method: "GET" })
