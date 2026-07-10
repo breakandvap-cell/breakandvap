@@ -5,7 +5,7 @@ import { adminGetProduct, adminUpsertProduct, type ProductInput } from "@/lib/ad
 import { useState, useEffect, type FormEvent } from "react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/admin/produits/")({
+export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
   ssr: false,
   component: EditProduct,
 });
