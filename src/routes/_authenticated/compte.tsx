@@ -8,6 +8,9 @@ import {
 import { LogOut, MapPin, Package, User as UserIcon } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { isAdmin as isAdminFn } from "@/lib/admin.functions";
+import { ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/compte")({
   head: () => ({
@@ -24,6 +27,13 @@ function AccountLayout() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const isIndex = pathname === "/compte";
+  const { data: adminCheck } = useQuery({
+    queryKey: ["admin", "self-check", user?.id ?? "none"],
+    queryFn: () => isAdminFn(),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+  const isAdmin = !!adminCheck?.isAdmin;
 
   const handleSignOut = async () => {
     await signOut();
@@ -65,10 +75,15 @@ function AccountLayout() {
           <TabLink to="/compte/adresses" icon={<MapPin className="h-4 w-4" />}>
             Adresses
           </TabLink>
+          {isAdmin ? (
+            <TabLink to="/admin" icon={<ShieldCheck className="h-4 w-4" />}>
+              Espace admin
+            </TabLink>
+          ) : null}
         </nav>
 
         <div className="mt-8">
-          {isIndex ? <AccountDashboard /> : <Outlet />}
+          {isIndex ? <AccountDashboard isAdmin={isAdmin} /> : <Outlet />}
         </div>
       </main>
       <SiteFooter />
@@ -102,7 +117,7 @@ function TabLink({
   );
 }
 
-function AccountDashboard() {
+function AccountDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <DashCard
@@ -115,6 +130,13 @@ function AccountDashboard() {
         text="Gérez vos adresses de livraison."
         to="/compte/adresses"
       />
+      {isAdmin ? (
+        <DashCard
+          title="Espace admin"
+          text="Gérer les produits, commandes et clients."
+          to="/admin"
+        />
+      ) : null}
     </div>
   );
 }
