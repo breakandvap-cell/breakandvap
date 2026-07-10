@@ -32,11 +32,11 @@ function AdminLayout() {
 
 function AdminNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const links = [
+  const links: Array<{ to: "/admin" | "/admin/produits" | "/admin/commandes"; label: string; exact?: boolean }> = [
     { to: "/admin", label: "Tableau de bord", exact: true },
     { to: "/admin/produits", label: "Produits" },
     { to: "/admin/commandes", label: "Commandes" },
-  ] as const;
+  ];
   return (
     <div className="border-b border-border bg-card">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-4">
