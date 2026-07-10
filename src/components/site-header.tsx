@@ -75,6 +75,22 @@ function CartLink() {
   );
 }
 
+function AccountLink() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  return (
+    <Link
+      to={user ? "/compte" : "/auth"}
+      activeProps={{ className: "text-foreground font-medium" }}
+      className="inline-flex items-center gap-1 transition-colors hover:text-foreground"
+      aria-label={user ? "Mon compte" : "Se connecter"}
+    >
+      <User className="h-4 w-4" />
+      <span className="hidden sm:inline">{user ? "Compte" : "Connexion"}</span>
+    </Link>
+  );
+}
+
 export function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-border">
