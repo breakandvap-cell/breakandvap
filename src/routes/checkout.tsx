@@ -5,7 +5,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useCart } from "@/lib/cart";
-import { createOrder } from "@/lib/orders.functions";
+import { createOrder, type CreateOrderInput } from "@/lib/orders.functions";
 import { formatPrice } from "@/lib/products";
 
 export const Route = createFileRoute("/checkout")({
@@ -25,8 +25,7 @@ function CheckoutPage() {
   const createOrderFn = useServerFn(createOrder);
 
   const mutation = useMutation({
-    mutationFn: (input: Parameters<typeof createOrderFn>[0]["data"]) =>
-      createOrderFn({ data: input }),
+    mutationFn: (input: CreateOrderInput) => createOrderFn({ data: input }),
     onSuccess: (result) => {
       cart.clear();
       toast.success("Commande enregistrée", {
