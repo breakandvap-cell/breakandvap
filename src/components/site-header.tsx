@@ -1,4 +1,6 @@
 import { Link } from "@tanstack/react-router";
+import { ShoppingBag } from "lucide-react";
+import { useCart } from "@/lib/cart";
 
 export function SiteHeader() {
   return (
@@ -21,7 +23,7 @@ export function SiteHeader() {
               — depuis 2018
             </span>
           </Link>
-          <nav className="flex gap-6 text-sm text-muted-foreground">
+          <nav className="flex items-center gap-6 text-sm text-muted-foreground">
             <Link
               to="/boutique"
               activeProps={{ className: "text-foreground font-medium" }}
@@ -37,10 +39,37 @@ export function SiteHeader() {
             >
               Accueil
             </Link>
+            <CartLink />
           </nav>
         </div>
       </header>
     </>
+  );
+}
+
+function CartLink() {
+  const { count, hydrated } = useCart();
+  return (
+    <Link
+      to="/panier"
+      activeProps={{ className: "text-foreground font-medium" }}
+      className="relative inline-flex items-center gap-1 transition-colors hover:text-foreground"
+      aria-label="Voir le panier"
+    >
+      <ShoppingBag className="h-4 w-4" />
+      <span className="hidden sm:inline">Panier</span>
+      {hydrated && count > 0 ? (
+        <span
+          className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold"
+          style={{
+            backgroundColor: "var(--accent)",
+            color: "var(--accent-foreground)",
+          }}
+        >
+          {count}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
