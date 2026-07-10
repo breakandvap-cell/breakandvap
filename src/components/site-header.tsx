@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { ShoppingBag, User } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useAuth } from "@/lib/auth-context";
+import { useQuery } from "@tanstack/react-query";
+import { isAdmin as isAdminFn } from "@/lib/admin.functions";
 
 export function SiteHeader() {
   return (
@@ -42,6 +44,7 @@ export function SiteHeader() {
             </Link>
             <CartLink />
             <AccountLink />
+            <AdminLink />
           </nav>
         </div>
       </header>
@@ -87,6 +90,26 @@ function AccountLink() {
     >
       <User className="h-4 w-4" />
       <span className="hidden sm:inline">{user ? "Compte" : "Connexion"}</span>
+    </Link>
+  );
+}
+
+function AdminLink() {
+  const { user, loading } = useAuth();
+  const { data } = useQuery({
+    queryKey: ["admin", "self-check", user?.id ?? "none"],
+    queryFn: () => isAdminFn(),
+    enabled: !loading && !!user,
+    staleTime: 60_000,
+  });
+  if (!user || !data?.isAdmin) return null;
+  return (
+    <Link
+      to="/admin"
+      activeProps={{ className: "text-foreground font-medium" }}
+      className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs uppercase tracking-wide transition-colors hover:text-foreground"
+    >
+      Admin
     </Link>
   );
 }

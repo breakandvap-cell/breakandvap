@@ -20,8 +20,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProduitSlugRouteImport } from './routes/produit.$slug'
 import { Route as CommandeOrderNumberRouteImport } from './routes/commande.$orderNumber'
 import { Route as AuthenticatedCompteRouteImport } from './routes/_authenticated/compte'
+import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authenticated/admin/route'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_authenticated/compte.commandes'
 import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
+import { Route as AuthenticatedAdminProduitsRouteImport } from './routes/_authenticated/admin/produits'
+import { Route as AuthenticatedAdminCommandesRouteImport } from './routes/_authenticated/admin/commandes'
+import { Route as AuthenticatedAdminProduitsIdRouteImport } from './routes/_authenticated/admin/produits.$id'
+import { Route as AuthenticatedAdminCommandesIdRouteImport } from './routes/_authenticated/admin/commandes.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -77,6 +83,16 @@ const AuthenticatedCompteRoute = AuthenticatedCompteRouteImport.update({
   path: '/compte',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRouteRoute = AuthenticatedAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRouteRoute,
+} as any)
 const AuthenticatedCompteCommandesRoute =
   AuthenticatedCompteCommandesRouteImport.update({
     id: '/commandes',
@@ -89,6 +105,30 @@ const AuthenticatedCompteAdressesRoute =
     path: '/adresses',
     getParentRoute: () => AuthenticatedCompteRoute,
   } as any)
+const AuthenticatedAdminProduitsRoute =
+  AuthenticatedAdminProduitsRouteImport.update({
+    id: '/produits',
+    path: '/produits',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminCommandesRoute =
+  AuthenticatedAdminCommandesRouteImport.update({
+    id: '/commandes',
+    path: '/commandes',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminProduitsIdRoute =
+  AuthenticatedAdminProduitsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAdminProduitsRoute,
+  } as any)
+const AuthenticatedAdminCommandesIdRoute =
+  AuthenticatedAdminCommandesIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedAdminCommandesRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -98,11 +138,17 @@ export interface FileRoutesByFullPath {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
+  '/admin/commandes': typeof AuthenticatedAdminCommandesRouteWithChildren
+  '/admin/produits': typeof AuthenticatedAdminProduitsRouteWithChildren
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
+  '/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -115,8 +161,13 @@ export interface FileRoutesByTo {
   '/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
+  '/admin/commandes': typeof AuthenticatedAdminCommandesRouteWithChildren
+  '/admin/produits': typeof AuthenticatedAdminProduitsRouteWithChildren
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
+  '/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -128,11 +179,17 @@ export interface FileRoutesById {
   '/panier': typeof PanierRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteRouteWithChildren
   '/_authenticated/compte': typeof AuthenticatedCompteRouteWithChildren
   '/commande/$orderNumber': typeof CommandeOrderNumberRoute
   '/produit/$slug': typeof ProduitSlugRoute
+  '/_authenticated/admin/commandes': typeof AuthenticatedAdminCommandesRouteWithChildren
+  '/_authenticated/admin/produits': typeof AuthenticatedAdminProduitsRouteWithChildren
   '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
+  '/_authenticated/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -144,11 +201,17 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/admin'
     | '/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
+    | '/admin/commandes'
+    | '/admin/produits'
     | '/compte/adresses'
     | '/compte/commandes'
+    | '/admin/'
+    | '/admin/commandes/$id'
+    | '/admin/produits/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -161,8 +224,13 @@ export interface FileRouteTypes {
     | '/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
+    | '/admin/commandes'
+    | '/admin/produits'
     | '/compte/adresses'
     | '/compte/commandes'
+    | '/admin'
+    | '/admin/commandes/$id'
+    | '/admin/produits/$id'
   id:
     | '__root__'
     | '/'
@@ -173,11 +241,17 @@ export interface FileRouteTypes {
     | '/panier'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/_authenticated/admin'
     | '/_authenticated/compte'
     | '/commande/$orderNumber'
     | '/produit/$slug'
+    | '/_authenticated/admin/commandes'
+    | '/_authenticated/admin/produits'
     | '/_authenticated/compte/adresses'
     | '/_authenticated/compte/commandes'
+    | '/_authenticated/admin/'
+    | '/_authenticated/admin/commandes/$id'
+    | '/_authenticated/admin/produits/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -272,6 +346,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCompteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/compte/commandes': {
       id: '/_authenticated/compte/commandes'
       path: '/commandes'
@@ -286,8 +374,84 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCompteAdressesRouteImport
       parentRoute: typeof AuthenticatedCompteRoute
     }
+    '/_authenticated/admin/produits': {
+      id: '/_authenticated/admin/produits'
+      path: '/produits'
+      fullPath: '/admin/produits'
+      preLoaderRoute: typeof AuthenticatedAdminProduitsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/commandes': {
+      id: '/_authenticated/admin/commandes'
+      path: '/commandes'
+      fullPath: '/admin/commandes'
+      preLoaderRoute: typeof AuthenticatedAdminCommandesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/produits/$id': {
+      id: '/_authenticated/admin/produits/$id'
+      path: '/$id'
+      fullPath: '/admin/produits/$id'
+      preLoaderRoute: typeof AuthenticatedAdminProduitsIdRouteImport
+      parentRoute: typeof AuthenticatedAdminProduitsRoute
+    }
+    '/_authenticated/admin/commandes/$id': {
+      id: '/_authenticated/admin/commandes/$id'
+      path: '/$id'
+      fullPath: '/admin/commandes/$id'
+      preLoaderRoute: typeof AuthenticatedAdminCommandesIdRouteImport
+      parentRoute: typeof AuthenticatedAdminCommandesRoute
+    }
   }
 }
+
+interface AuthenticatedAdminCommandesRouteChildren {
+  AuthenticatedAdminCommandesIdRoute: typeof AuthenticatedAdminCommandesIdRoute
+}
+
+const AuthenticatedAdminCommandesRouteChildren: AuthenticatedAdminCommandesRouteChildren =
+  {
+    AuthenticatedAdminCommandesIdRoute: AuthenticatedAdminCommandesIdRoute,
+  }
+
+const AuthenticatedAdminCommandesRouteWithChildren =
+  AuthenticatedAdminCommandesRoute._addFileChildren(
+    AuthenticatedAdminCommandesRouteChildren,
+  )
+
+interface AuthenticatedAdminProduitsRouteChildren {
+  AuthenticatedAdminProduitsIdRoute: typeof AuthenticatedAdminProduitsIdRoute
+}
+
+const AuthenticatedAdminProduitsRouteChildren: AuthenticatedAdminProduitsRouteChildren =
+  {
+    AuthenticatedAdminProduitsIdRoute: AuthenticatedAdminProduitsIdRoute,
+  }
+
+const AuthenticatedAdminProduitsRouteWithChildren =
+  AuthenticatedAdminProduitsRoute._addFileChildren(
+    AuthenticatedAdminProduitsRouteChildren,
+  )
+
+interface AuthenticatedAdminRouteRouteChildren {
+  AuthenticatedAdminCommandesRoute: typeof AuthenticatedAdminCommandesRouteWithChildren
+  AuthenticatedAdminProduitsRoute: typeof AuthenticatedAdminProduitsRouteWithChildren
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+}
+
+const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
+  {
+    AuthenticatedAdminCommandesRoute:
+      AuthenticatedAdminCommandesRouteWithChildren,
+    AuthenticatedAdminProduitsRoute:
+      AuthenticatedAdminProduitsRouteWithChildren,
+    AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  }
+
+const AuthenticatedAdminRouteRouteWithChildren =
+  AuthenticatedAdminRouteRoute._addFileChildren(
+    AuthenticatedAdminRouteRouteChildren,
+  )
 
 interface AuthenticatedCompteRouteChildren {
   AuthenticatedCompteAdressesRoute: typeof AuthenticatedCompteAdressesRoute
@@ -303,10 +467,12 @@ const AuthenticatedCompteRouteWithChildren =
   AuthenticatedCompteRoute._addFileChildren(AuthenticatedCompteRouteChildren)
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRouteRoute: typeof AuthenticatedAdminRouteRouteWithChildren
   AuthenticatedCompteRoute: typeof AuthenticatedCompteRouteWithChildren
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRouteRoute: AuthenticatedAdminRouteRouteWithChildren,
   AuthenticatedCompteRoute: AuthenticatedCompteRouteWithChildren,
 }
 
