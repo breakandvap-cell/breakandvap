@@ -31,6 +31,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [busy, setBusy] = useState(false);
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -46,12 +47,21 @@ function AuthPage() {
     setBusy(true);
     try {
       if (tab === "signup") {
+        const normalizedPhone = normalizeFrPhone(phone);
+        if (!normalizedPhone) {
+          toast.error("Téléphone invalide", {
+            description:
+              "Merci de saisir un numéro de téléphone français valide (ex. 06 12 34 56 78).",
+          });
+          setBusy(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: window.location.origin,
-            data: { full_name: fullName || null },
+            data: { full_name: fullName || null, phone: normalizedPhone },
           },
         });
         if (error) throw error;
@@ -178,6 +188,27 @@ function AuthPage() {
                 />
               </label>
             ) : null}
+            {tab === "signup" ? (
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Téléphone *
+                </span>
+                <input
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  inputMode="tel"
+                  maxLength={20}
+                  placeholder="06 12 34 56 78"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input"
+                />
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  Numéro français (mobile ou fixe), utilisé pour la livraison.
+                </span>
+              </label>
+            ) : null}
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-muted-foreground">
                 Email
@@ -264,4 +295,16 @@ function translateAuthError(msg: string): string {
   if (msg.includes("Email not confirmed"))
     return "Confirmez votre email avant de vous connecter.";
   return msg;
+}
+
+export function normalizeFrPhone(input: string): string | null {
+  const raw = (input ?? "").trim();
+  if (!raw) return null;
+  const digits = raw.replace(/[\s.\-()]/g, "");
+  let national: string | null = null;
+  if (/^0[1-9]\d{8}$/.test(digits)) national = digits;
+  else if (/^\+33[1-9]\d{8}$/.test(digits)) national = "0" + digits.slice(3);
+  else if (/^0033[1-9]\d{8}$/.test(digits)) national = "0" + digits.slice(4);
+  if (!national) return null;
+  return national.replace(/(\d{2})(?=\d)/g, "$1 ").trim();
 }

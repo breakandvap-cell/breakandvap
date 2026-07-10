@@ -8,9 +8,13 @@ import {
 import { LogOut, MapPin, Package, User as UserIcon } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useAuth } from "@/lib/auth-context";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { isAdmin as isAdminFn } from "@/lib/admin.functions";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, PhoneCall } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { normalizeFrPhone } from "@/routes/auth";
+import { useState, type FormEvent } from "react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/compte")({
   head: () => ({
@@ -82,11 +86,114 @@ function AccountLayout() {
           ) : null}
         </nav>
 
+        <MissingPhoneBanner />
+
         <div className="mt-8">
           {isIndex ? <AccountDashboard isAdmin={isAdmin} /> : <Outlet />}
         </div>
       </main>
       <SiteFooter />
+    </div>
+  );
+}
+
+function MissingPhoneBanner() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [phone, setPhone] = useState("");
+
+  const { data: profile } = useQuery({
+    queryKey: ["me", "profile-phone", user?.id ?? "none"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const normalized = normalizeFrPhone(phone);
+      if (!normalized) throw new Error("Numéro invalide (ex. 06 12 34 56 78).");
+      const { error } = await supabase
+        .from("profiles")
+        .update({ phone: normalized })
+        .eq("id", user!.id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      toast.success("Téléphone enregistré");
+      setOpen(false);
+      qc.invalidateQueries({ queryKey: ["me", "profile-phone"] });
+    },
+    onError: (e: Error) => toast.error("Erreur", { description: e.message }),
+  });
+
+  if (!profile || profile.phone) return null;
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    save.mutate();
+  };
+
+  return (
+    <div className="mt-6 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm">
+      <div className="flex items-start gap-3">
+        <PhoneCall className="mt-0.5 h-5 w-5 text-amber-400" />
+        <div className="flex-1">
+          <p className="font-medium text-amber-100">
+            Complétez votre numéro de téléphone
+          </p>
+          <p className="mt-1 text-amber-100/80">
+            Le téléphone est désormais requis pour faciliter la livraison de vos commandes.
+            Merci de renseigner un numéro français valide.
+          </p>
+          {open ? (
+            <form onSubmit={onSubmit} className="mt-3 flex flex-wrap gap-2">
+              <input
+                type="tel"
+                required
+                inputMode="tel"
+                autoComplete="tel"
+                maxLength={20}
+                placeholder="06 12 34 56 78"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="input flex-1 min-w-[200px]"
+              />
+              <button
+                type="submit"
+                disabled={save.isPending}
+                className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground disabled:opacity-60"
+              >
+                {save.isPending ? "Enregistrement…" : "Enregistrer"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-md border border-border bg-card px-3 py-2 text-xs hover:bg-secondary"
+              >
+                Annuler
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setOpen(true)}
+              className="mt-3 inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+            >
+              Ajouter mon téléphone
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
