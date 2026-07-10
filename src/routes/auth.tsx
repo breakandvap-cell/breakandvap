@@ -188,6 +188,27 @@ function AuthPage() {
                 />
               </label>
             ) : null}
+            {tab === "signup" ? (
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Téléphone *
+                </span>
+                <input
+                  type="tel"
+                  required
+                  autoComplete="tel"
+                  inputMode="tel"
+                  maxLength={20}
+                  placeholder="06 12 34 56 78"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="input"
+                />
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  Numéro français (mobile ou fixe), utilisé pour la livraison.
+                </span>
+              </label>
+            ) : null}
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-muted-foreground">
                 Email
