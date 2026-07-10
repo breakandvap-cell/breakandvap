@@ -117,7 +117,7 @@ function TabLink({
   );
 }
 
-function AccountDashboard() {
+function AccountDashboard({ isAdmin = false }: { isAdmin?: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <DashCard
@@ -130,6 +130,13 @@ function AccountDashboard() {
         text="Gérez vos adresses de livraison."
         to="/compte/adresses"
       />
+      {isAdmin ? (
+        <DashCard
+          title="Espace admin"
+          text="Gérer les produits, commandes et clients."
+          to="/admin"
+        />
+      ) : null}
     </div>
   );
 }
