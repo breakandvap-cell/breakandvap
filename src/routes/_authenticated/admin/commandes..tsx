@@ -13,7 +13,7 @@ const opts = (id: string) =>
     queryFn: () => adminGetOrder({ data: { id } }),
   });
 
-export const Route = createFileRoute("/_authenticated/admin/commandes/$id")({
+export const Route = createFileRoute("/_authenticated/admin/commandes/")({
   ssr: false,
   loader: ({ context, params }) => context.queryClient.ensureQueryData(opts(params.id)),
   component: OrderDetail,
