@@ -183,6 +183,54 @@ export const adminDeleteProduct = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// ---------- Upload photo produit ----------
+
+const uploadPhotoSchema = z.object({
+  filename: z.string().trim().min(1).max(200),
+  contentType: z
+    .string()
+    .regex(/^image\/(png|jpe?g|webp|gif|avif)$/i, "Format d'image non supporté"),
+  base64: z.string().min(1),
+});
+
+const MAX_PHOTO_BYTES = 4 * 1024 * 1024; // 4 Mo
+
+export const adminUploadProductPhoto = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => uploadPhotoSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const cleanBase64 = data.base64.replace(/^data:[^;]+;base64,/, "");
+    const bytes = Buffer.from(cleanBase64, "base64");
+    if (bytes.length === 0) throw new Error("Fichier vide.");
+    if (bytes.length > MAX_PHOTO_BYTES) {
+      throw new Error("Image trop lourde (4 Mo max).");
+    }
+    const ext = (data.filename.split(".").pop() || "jpg")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .slice(0, 5) || "jpg";
+    const path = `products/${crypto.randomUUID()}.${ext}`;
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error: upErr } = await supabaseAdmin.storage
+      .from("product-photos")
+      .upload(path, bytes, {
+        contentType: data.contentType,
+        upsert: false,
+      });
+    if (upErr) throw new Error(`Upload échoué : ${upErr.message}`);
+
+    // Signed URL (10 ans) — le bucket est privé, on stocke une URL signée longue durée.
+    const { data: signed, error: signErr } = await supabaseAdmin.storage
+      .from("product-photos")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signErr || !signed?.signedUrl) {
+      throw new Error(signErr?.message || "URL signée indisponible.");
+    }
+    return { url: signed.signedUrl, path };
+  });
+
 export const adminListOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>

@@ -10,7 +10,7 @@ const listOptions = queryOptions({
   queryFn: () => adminListProducts(),
 });
 
-export const Route = createFileRoute("/_authenticated/admin/produits")({
+export const Route = createFileRoute("/_authenticated/admin/produits/")({
   ssr: false,
   loader: ({ context }) => context.queryClient.ensureQueryData(listOptions),
   component: ProductsList,
