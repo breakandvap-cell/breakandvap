@@ -187,3 +187,46 @@ export const listMyInvoices = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
+// Liste des factures pour l'admin, avec filtres période + recherche.
+export const adminListInvoices = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        from: z.string().optional(),
+        to: z.string().optional(),
+        q: z.string().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { data: isAdminRes } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdminRes) throw new Error("Accès refusé.");
+
+    let query = context.supabase
+      .from("invoices")
+      .select(
+        "id, number, issued_at, subtotal_cents, tax_cents, total_cents, currency, buyer, order_id, orders!inner(order_number, status)",
+      )
+      .order("issued_at", { ascending: false })
+      .limit(1000);
+
+    if (data.from) query = query.gte("issued_at", `${data.from}T00:00:00Z`);
+    if (data.to) query = query.lte("issued_at", `${data.to}T23:59:59Z`);
+
+    const q = (data.q ?? "").trim();
+    if (q.length >= 2) {
+      // Recherche numéro de facture OU nom client (JSONB buyer.full_name)
+      query = query.or(
+        `number.ilike.%${q}%,buyer->>full_name.ilike.%${q}%`,
+      );
+    }
+
+    const { data: rows, error } = await query;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
