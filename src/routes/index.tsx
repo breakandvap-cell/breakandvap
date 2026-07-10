@@ -8,7 +8,18 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="home-ambient relative min-h-screen overflow-hidden text-foreground">
+      {/* Ambient premium background layers — decorative, aria-hidden */}
+      <div aria-hidden className="home-ambient__bg" />
+      <div aria-hidden className="home-ambient__grain" />
+      <div aria-hidden className="home-ambient__halo home-ambient__halo--1" />
+      <div aria-hidden className="home-ambient__halo home-ambient__halo--2" />
+      <div aria-hidden className="home-ambient__halo home-ambient__halo--3" />
+      <div aria-hidden className="home-ambient__smoke home-ambient__smoke--a" />
+      <div aria-hidden className="home-ambient__smoke home-ambient__smoke--b" />
+      <div aria-hidden className="home-ambient__vignette" />
+
+      <div className="relative z-10">
       <SiteHeader />
 
       <section className="mx-auto max-w-6xl px-4 py-20 sm:py-28">
@@ -29,14 +40,14 @@ function Index() {
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               to="/boutique"
-              className="inline-flex items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="home-cta-primary inline-flex items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Découvrir le catalogue
             </Link>
             <Link
               to="/boutique"
               search={{ categorie: "cbd" }}
-              className="inline-flex items-center justify-center rounded-md border border-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-colors hover:bg-secondary"
+              className="home-cta-secondary inline-flex items-center justify-center rounded-md border border-border bg-card/70 px-5 py-3 text-sm font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-secondary"
             >
               Voir les produits CBD
             </Link>
@@ -69,6 +80,7 @@ function Index() {
       </section>
 
       <SiteFooter />
+      </div>
     </main>
   );
 }
@@ -83,7 +95,7 @@ function Feature({
   text: string;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-5">
+    <div className="home-feature-card rounded-lg border border-border bg-card/70 p-5 backdrop-blur-sm">
       <div
         className="mb-2 inline-flex h-7 w-7 items-center justify-center rounded-full"
         style={{ backgroundColor: "var(--secondary)", color: "var(--accent)" }}
