@@ -59,7 +59,12 @@ export async function sendOrderConfirmationEmail(orderId: string): Promise<void>
 
   if (!sendTemplateEmail) return;
 
-  await sendTemplateEmail("order-confirmation", recipient, {
+  const fn = sendTemplateEmail as (
+    name: string,
+    to: string,
+    opts?: { templateData?: unknown; idempotencyKey?: string },
+  ) => Promise<{ sent: boolean }>;
+  await fn("order-confirmation", recipient, {
     templateData: {
       orderNumber: order.order_number,
       totalLabel: `${(order.total_cents / 100).toFixed(2).replace(".", ",")} ${order.currency}`,
