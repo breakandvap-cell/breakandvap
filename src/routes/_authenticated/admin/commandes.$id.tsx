@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/products";
 import { StatusBadge } from "./index";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
+import { InvoiceDownloadButton } from "@/components/invoice-download-button";
 
 const opts = (id: string) =>
   queryOptions({
@@ -74,6 +75,10 @@ function OrderDetail() {
           </p>
         </div>
         <StatusBadge status={order.status} />
+      </div>
+
+      <div className="flex justify-end">
+        <InvoiceDownloadButton orderId={order.id} />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

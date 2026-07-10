@@ -42,6 +42,13 @@ function OrderConfirmationPage() {
             <li>Confirmation du règlement par notre équipe.</li>
             <li>Préparation puis dépôt à La Poste dans la journée.</li>
           </ol>
+          <p className="mt-4 text-xs">
+            Votre facture PDF est jointe à l'email de confirmation et reste
+            consultable à tout moment depuis{" "}
+            <Link to="/compte/commandes" className="underline hover:text-foreground">
+              votre espace client
+            </Link>.
+          </p>
         </div>
         <div className="mt-8 flex justify-center gap-3">
           <Link

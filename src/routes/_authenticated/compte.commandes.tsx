@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/products";
+import { InvoiceDownloadButton } from "@/components/invoice-download-button";
 
 export const Route = createFileRoute("/_authenticated/compte/commandes")({
   component: OrdersPage,
@@ -90,6 +91,9 @@ function OrdersPage() {
             <span className="text-base font-semibold">
               {formatPrice(o.total_cents, o.currency)}
             </span>
+          </div>
+          <div className="mt-3 flex justify-end">
+            <InvoiceDownloadButton orderId={o.id} />
           </div>
         </li>
       ))}

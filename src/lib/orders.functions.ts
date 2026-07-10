@@ -144,6 +144,23 @@ export const createOrder = createServerFn({ method: "POST" })
         .eq("id", p.id);
     }
 
+    // Génération automatique de la facture (numéro séquentiel + PDF + stockage).
+    // Best-effort : ne bloque pas la commande si la facture échoue.
+    try {
+      const { ensureInvoiceForOrderInternal } = await import("./invoices.functions");
+      await ensureInvoiceForOrderInternal(order.id);
+    } catch (e) {
+      console.error("[invoice] generation failed for order", order.id, e);
+    }
+
+    // Email de confirmation (activé une fois le domaine expéditeur configuré).
+    try {
+      const { sendOrderConfirmationEmail } = await import("./order-emails.server");
+      await sendOrderConfirmationEmail(order.id);
+    } catch (e) {
+      console.error("[email] order confirmation failed for order", order.id, e);
+    }
+
     return {
       orderId: order.id,
       orderNumber: order.order_number,

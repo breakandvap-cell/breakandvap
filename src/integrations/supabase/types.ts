@@ -92,6 +92,95 @@ export type Database = {
         }
         Relationships: []
       }
+      invoice_counters: {
+        Row: {
+          last_number: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          last_number?: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          last_number?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          buyer: Json
+          created_at: string
+          currency: string
+          id: string
+          issued_at: string
+          items: Json
+          number: string
+          order_id: string
+          pdf_generated_at: string | null
+          pdf_path: string | null
+          seller: Json
+          sequence: number
+          subtotal_cents: number
+          tax_cents: number
+          tax_rate: number
+          total_cents: number
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          buyer: Json
+          created_at?: string
+          currency?: string
+          id?: string
+          issued_at?: string
+          items: Json
+          number: string
+          order_id: string
+          pdf_generated_at?: string | null
+          pdf_path?: string | null
+          seller: Json
+          sequence: number
+          subtotal_cents: number
+          tax_cents: number
+          tax_rate: number
+          total_cents: number
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          buyer?: Json
+          created_at?: string
+          currency?: string
+          id?: string
+          issued_at?: string
+          items?: Json
+          number?: string
+          order_id?: string
+          pdf_generated_at?: string | null
+          pdf_path?: string | null
+          seller?: Json
+          sequence?: number
+          subtotal_cents?: number
+          tax_cents?: number
+          tax_rate?: number
+          total_cents?: number
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
@@ -319,6 +408,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_invoice_for_order: {
+        Args: {
+          _buyer: Json
+          _currency: string
+          _items: Json
+          _order_id: string
+          _seller: Json
+          _subtotal_cents: number
+          _tax_cents: number
+          _tax_rate: number
+          _total_cents: number
+        }
+        Returns: {
+          buyer: Json
+          created_at: string
+          currency: string
+          id: string
+          issued_at: string
+          items: Json
+          number: string
+          order_id: string
+          pdf_generated_at: string | null
+          pdf_path: string | null
+          seller: Json
+          sequence: number
+          subtotal_cents: number
+          tax_cents: number
+          tax_rate: number
+          total_cents: number
+          updated_at: string
+          year: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "invoices"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
