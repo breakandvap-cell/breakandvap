@@ -1,0 +1,1 @@
+UPDATE public.products SET empty_bottle_product_id=NULL WHERE id='814578fb-86f6-43ab-bb95-038b421236aa';
