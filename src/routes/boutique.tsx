@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodValidator } from "@tanstack/zod-adapter";
@@ -45,17 +45,17 @@ export const Route = createFileRoute("/boutique")({
   ),
 });
 
+type SearchCategory = Exclude<ProductCategory, "accessoire">;
+
 function BoutiquePage() {
   const { categorie } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = Route.useNavigate();
   const { data: products } = useSuspenseQuery(productsQueryOptions(categorie));
 
-  const setCategory = (next?: ProductCategory) =>
+  const setCategory = (next?: SearchCategory) =>
     navigate({
-      search: (prev: { categorie?: ProductCategory }) => ({
-        ...prev,
-        categorie: next,
-      }),
+      to: ".",
+      search: { categorie: next },
     });
 
   return (
@@ -79,15 +79,17 @@ function BoutiquePage() {
           <FilterPill active={!categorie} onClick={() => setCategory(undefined)}>
             Tout
           </FilterPill>
-          {CATEGORY_ORDER.map((cat) => (
-            <FilterPill
-              key={cat}
-              active={categorie === cat}
-              onClick={() => setCategory(cat)}
-            >
-              {CATEGORY_LABELS[cat]}
-            </FilterPill>
-          ))}
+          {CATEGORY_ORDER.filter((cat): cat is SearchCategory => cat !== "accessoire").map(
+            (cat) => (
+              <FilterPill
+                key={cat}
+                active={categorie === cat}
+                onClick={() => setCategory(cat)}
+              >
+                {CATEGORY_LABELS[cat]}
+              </FilterPill>
+            ),
+          )}
         </div>
 
         {products.length === 0 ? (

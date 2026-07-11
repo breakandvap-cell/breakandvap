@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { adminListProducts, adminDeleteProduct } from "@/lib/admin.functions";
@@ -45,7 +45,7 @@ const STATUS_LABELS: Record<NonNullable<ProductFilters["status"]>, string> = {
 
 function ProductsList() {
   const search = Route.useSearch();
-  const navigate = useNavigate({ from: Route.id });
+  const navigate = Route.useNavigate();
   const { data } = useSuspenseQuery(listOptions(search));
   const qc = useQueryClient();
   const del = useServerFn(adminDeleteProduct);
@@ -60,7 +60,8 @@ function ProductsList() {
 
   const setFilter = (patch: Partial<ProductFilters>) => {
     navigate({
-      search: (prev: ProductFilters) => ({ ...prev, ...patch }),
+      to: ".",
+      search: { ...search, ...patch },
       replace: true,
     });
   };
