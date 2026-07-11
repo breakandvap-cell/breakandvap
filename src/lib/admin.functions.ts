@@ -37,12 +37,24 @@ const productInputSchema = z.object({
         volume_ml: z.number().int().positive().max(10_000),
         price_cents: z.number().int().min(0).max(1_000_000),
         stock: z.number().int().min(0).max(100_000),
-        max_nicotine_mg: z.number().int().min(0).max(50),
+        // Ancien champ, gardé optionnel pour compatibilité rétro.
+        max_nicotine_mg: z.number().int().min(0).max(50).nullable().optional(),
+        // Taux de nicotine autorisés côté client pour cette variante.
+        available_nicotine_mg: z
+          .array(z.number().int().min(0).max(50))
+          .max(20)
+          .default([]),
+        // Mapping taux mg → nombre de boosters (uniquement volumes 50/100/200).
+        boosters_per_nicotine: z
+          .record(z.string(), z.number().int().min(0).max(20))
+          .default({}),
       }),
     )
     .max(20)
     .optional()
     .default([]),
+  // Indique que ce produit est LE booster de nicotine de référence (unique).
+  is_nicotine_booster: z.boolean().optional().default(false),
 });
 export type ProductInput = z.infer<typeof productInputSchema>;
 
@@ -189,8 +201,20 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       nicotine_mg: data.nicotine_mg ?? null,
       health_warnings: data.health_warnings || null,
       coa_url: data.coa_url || null,
+      is_nicotine_booster:
+        data.category === "accessoire_vape" ? Boolean(data.is_nicotine_booster) : false,
       updated_by: context.userId,
     };
+    // Un seul booster de nicotine dans tout le catalogue : on retire le flag
+    // des autres produits avant d'appliquer.
+    if (payload.is_nicotine_booster) {
+      const clearQ = supabaseAdmin
+        .from("products")
+        .update({ is_nicotine_booster: false })
+        .eq("is_nicotine_booster", true);
+      if (data.id) await clearQ.neq("id", data.id);
+      else await clearQ;
+    }
     let productId: string;
     if (data.id) {
       const { data: row, error } = await supabaseAdmin.from("products").update(payload).eq("id", data.id).select("id").single();
@@ -228,7 +252,12 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           volume_ml: v.volume_ml,
           price_cents: v.price_cents,
           stock: v.stock,
-          max_nicotine_mg: v.max_nicotine_mg,
+          max_nicotine_mg:
+            v.available_nicotine_mg && v.available_nicotine_mg.length > 0
+              ? Math.max(...v.available_nicotine_mg)
+              : (v.max_nicotine_mg ?? 0),
+          available_nicotine_mg: v.available_nicotine_mg ?? [],
+          boosters_per_nicotine: (v.boosters_per_nicotine ?? {}) as never,
         };
         if (v.id) {
           const { error } = await supabaseAdmin
