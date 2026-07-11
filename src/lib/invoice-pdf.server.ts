@@ -1,6 +1,7 @@
 // Génération de PDF de facture, edge-compatible via pdf-lib.
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { INVOICE_SELLER } from "./invoice-config";
+import { itemDescription, lineTaxBreakdown, productRef } from "./order-item-format";
 
 export type InvoiceItem = {
   product_name: string;
@@ -9,6 +10,9 @@ export type InvoiceItem = {
   base_price_cents?: number | null;
   boosters_count?: number | null;
   booster_unit_price_cents?: number | null;
+  nicotine_mg?: number | null;
+  volume_ml?: number | null;
+  flavor?: string | null;
 };
 
 export type InvoiceBuyer = {
@@ -131,76 +135,96 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
     gray,
   );
 
-  // Tableau articles
+  // Tableau articles (colonnes façon facture pro)
   y -= 30;
-  const colX = {
-    name: marginX,
-    qty: width - marginX - 220,
-    unit: width - marginX - 150,
-    total: width - marginX - 70,
+  const tableRight = width - marginX;
+  // Positions X : Réf | Description | PU TTC | Qté | HT | TVA | TTC
+  const col = {
+    ref: marginX + 2,
+    desc: marginX + 62,
+    pu: tableRight - 220,
+    qty: tableRight - 165,
+    ht: tableRight - 130,
+    tva: tableRight - 70,
+    ttc: tableRight - 4,
   };
   page.drawRectangle({
     x: marginX,
     y: y - 4,
     width: width - marginX * 2,
-    height: 20,
+    height: 18,
     color: rgb(0.95, 0.95, 0.95),
   });
-  draw("Désignation", colX.name + 4, y + 4, 9, bold);
-  draw("Qté", colX.qty, y + 4, 9, bold);
-  draw("PU TTC", colX.unit, y + 4, 9, bold);
-  draw("Total TTC", colX.total, y + 4, 9, bold);
-  y -= 12;
+  const drawRight = (text: string, xRight: number, yy: number, size = 8, f = font, color = black) => {
+    const w = f.widthOfTextAtSize(text, size);
+    page.drawText(text, { x: xRight - w, y: yy, size, font: f, color });
+  };
+  draw("Réf", col.ref, y + 4, 8, bold);
+  draw("Description", col.desc, y + 4, 8, bold);
+  drawRight("PU TTC", col.pu, y + 4, 8, bold);
+  drawRight("Qté", col.qty, y + 4, 8, bold);
+  drawRight("HT", col.ht, y + 4, 8, bold);
+  drawRight("TVA", col.tva, y + 4, 8, bold);
+  drawRight("TTC", col.ttc, y + 4, 8, bold);
+  y -= 10;
 
+  const descMaxChars = 46;
+  const totals = { ht: 0, tva: 0, ttc: 0 };
   for (const it of data.items) {
-    y -= 16;
-    // Truncate name
-    const name = it.product_name.length > 55 ? it.product_name.slice(0, 52) + "…" : it.product_name;
-    draw(name, colX.name + 4, y, 10);
-    draw(String(it.quantity), colX.qty, y, 10);
-    draw(formatMoney(it.unit_price_cents, data.currency), colX.unit, y, 10);
-    draw(
-      formatMoney(it.unit_price_cents * it.quantity, data.currency),
-      colX.total,
-      y,
-      10,
-    );
+    y -= 14;
+    const ref = productRef(it.product_name, it.volume_ml);
+    let desc = itemDescription(it);
+    if (desc.length > descMaxChars) desc = desc.slice(0, descMaxChars - 1) + "…";
+    const b = lineTaxBreakdown(it.unit_price_cents, it.quantity, data.tax_rate);
+    totals.ht += b.ht;
+    totals.tva += b.tva;
+    totals.ttc += b.ttc;
+
+    draw(ref, col.ref, y, 8, bold);
+    draw(desc, col.desc, y, 9);
+    drawRight(formatMoney(it.unit_price_cents, data.currency), col.pu, y, 9);
+    drawRight(String(it.quantity), col.qty, y, 9);
+    drawRight(formatMoney(b.ht, data.currency), col.ht, y, 9);
+    drawRight(formatMoney(b.tva, data.currency), col.tva, y, 9);
+    drawRight(formatMoney(b.ttc, data.currency), col.ttc, y, 9);
+
     if (
       it.boosters_count &&
       it.boosters_count > 0 &&
       it.booster_unit_price_cents != null &&
       it.base_price_cents != null
     ) {
-      y -= 12;
+      y -= 10;
       const detail = `dont flacon ${formatMoney(it.base_price_cents, data.currency)} + ${it.boosters_count} booster${it.boosters_count > 1 ? "s" : ""} × ${formatMoney(it.booster_unit_price_cents, data.currency)}`;
-      draw(detail, colX.name + 4, y, 8, font, gray);
+      draw(detail, col.desc, y, 7, font, gray);
     }
     page.drawLine({
       start: { x: marginX, y: y - 4 },
-      end: { x: width - marginX, y: y - 4 },
+      end: { x: tableRight, y: y - 4 },
       thickness: 0.3,
       color: line,
     });
   }
 
-  // Totaux
-  y -= 30;
-  const totalsX = width - marginX - 220;
-  const totalsValX = width - marginX - 70;
-  draw("Total HT", totalsX, y, 10);
-  draw(formatMoney(data.subtotal_cents, data.currency), totalsValX, y, 10);
-  y -= 14;
-  draw(`TVA (${data.tax_rate.toFixed(2).replace(".", ",")} %)`, totalsX, y, 10);
-  draw(formatMoney(data.tax_cents, data.currency), totalsValX, y, 10);
-  y -= 14;
+  // Totaux (utilise la somme des lignes, cohérente avec l'affichage détaillé)
+  y -= 24;
+  const labelRight = tableRight - 90;
+  const valRight = tableRight - 4;
+  draw("Sous-total HT", labelRight - 60, y, 9);
+  drawRight(formatMoney(totals.ht, data.currency), valRight, y, 9);
+  y -= 13;
+  draw(`TVA (${data.tax_rate.toFixed(2).replace(".", ",")} %)`, labelRight - 60, y, 9);
+  drawRight(formatMoney(totals.tva, data.currency), valRight, y, 9);
+  y -= 6;
   page.drawLine({
-    start: { x: totalsX, y: y + 8 },
-    end: { x: width - marginX, y: y + 8 },
+    start: { x: labelRight - 60, y },
+    end: { x: valRight, y },
     thickness: 0.5,
     color: line,
   });
-  draw("Total TTC", totalsX, y - 4, 12, bold);
-  draw(formatMoney(data.total_cents, data.currency), totalsValX, y - 4, 12, bold);
+  y -= 14;
+  draw("Total TTC", labelRight - 60, y, 11, bold);
+  drawRight(formatMoney(data.total_cents, data.currency), valRight, y, 11, bold);
 
   // Mentions légales bas de page
   const footerY = 60;
