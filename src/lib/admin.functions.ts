@@ -191,16 +191,82 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       coa_url: data.coa_url || null,
       updated_by: context.userId,
     };
+    let productId: string;
     if (data.id) {
       const { data: row, error } = await supabaseAdmin.from("products").update(payload).eq("id", data.id).select("id").single();
       if (error) throw new Error(error.message);
-      await logAction(context.userId, "product.update", "product", row.id, { name: data.name });
-      return { id: row.id };
+      productId = row.id;
+      await logAction(context.userId, "product.update", "product", productId, { name: data.name });
+    } else {
+      const { data: row, error } = await supabaseAdmin.from("products").insert(payload).select("id").single();
+      if (error) throw new Error(error.message);
+      productId = row.id;
+      await logAction(context.userId, "product.create", "product", productId, { name: data.name });
     }
-    const { data: row, error } = await supabaseAdmin.from("products").insert(payload).select("id").single();
+
+    // Sync variants (only meaningful for e-liquide, but we simply replace whatever
+    // set was submitted so admins can freely add/remove volumes).
+    const submittedVariants = data.variants ?? [];
+    if (data.category === "e_liquide") {
+      // Fetch current variants to compute delete set
+      const { data: existingVariants } = await supabaseAdmin
+        .from("product_variants")
+        .select("id")
+        .eq("product_id", productId);
+      const submittedIds = new Set(
+        submittedVariants.filter((v) => v.id).map((v) => v.id as string),
+      );
+      const toDelete = (existingVariants ?? [])
+        .filter((v) => !submittedIds.has(v.id))
+        .map((v) => v.id);
+      if (toDelete.length > 0) {
+        await supabaseAdmin.from("product_variants").delete().in("id", toDelete);
+      }
+      for (const v of submittedVariants) {
+        const row = {
+          product_id: productId,
+          volume_ml: v.volume_ml,
+          price_cents: v.price_cents,
+          stock: v.stock,
+          max_nicotine_mg: v.max_nicotine_mg,
+        };
+        if (v.id) {
+          const { error } = await supabaseAdmin
+            .from("product_variants")
+            .update(row)
+            .eq("id", v.id);
+          if (error) throw new Error(`Variante ${v.volume_ml} ml : ${error.message}`);
+        } else {
+          const { error } = await supabaseAdmin
+            .from("product_variants")
+            .insert(row);
+          if (error) throw new Error(`Variante ${v.volume_ml} ml : ${error.message}`);
+        }
+      }
+    } else {
+      // Non e-liquide products should never carry variants; clean up if any.
+      await supabaseAdmin.from("product_variants").delete().eq("product_id", productId);
+    }
+
+    return { id: productId };
+  });
+
+// Fetch variants for a product (admin editor)
+export const adminListVariants = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { productId: string }) =>
+    z.object({ productId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("product_variants")
+      .select("*")
+      .eq("product_id", data.productId)
+      .order("volume_ml", { ascending: true });
     if (error) throw new Error(error.message);
-    await logAction(context.userId, "product.create", "product", row.id, { name: data.name });
-    return { id: row.id };
+    return rows ?? [];
   });
 
 export const adminDeleteProduct = createServerFn({ method: "POST" })
