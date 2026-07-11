@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
 
 type FormState = ProductInput;
 type FormVariant = NonNullable<FormState["variants"]>[number];
+type FormFlavor = NonNullable<FormState["flavors"]>[number];
 
 const ADMIN_CATEGORIES = [
   "cbd",
@@ -52,6 +53,7 @@ const empty: FormState = {
   coa_url: "",
   variants: [],
   is_nicotine_booster: false,
+  flavors: [],
 };
 
 function slugify(input: string) {
@@ -94,10 +96,23 @@ function EditProduct() {
   const [uploading, setUploading] = useState(false);
   // Variantes = option activable. Décochée par défaut : produit à prix/stock uniques.
   const [hasVariants, setHasVariants] = useState<boolean>(false);
+  // Variantes de goût = option activable, indépendante des variantes de volume.
+  const [hasFlavors, setHasFlavors] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (existing) {
+      const rawFlavors = Array.isArray((existing as { flavors?: unknown }).flavors)
+        ? ((existing as { flavors: unknown[] }).flavors as Array<{ name?: unknown; stock?: unknown }>)
+            .map((f) => ({
+              name: typeof f?.name === "string" ? f.name : "",
+              stock:
+                typeof f?.stock === "number" && Number.isFinite(f.stock)
+                  ? Math.max(0, Math.trunc(f.stock))
+                  : 0,
+            }))
+            .filter((f) => f.name.trim().length > 0)
+        : [];
       setForm({
         id: existing.id,
         name: existing.name,
@@ -121,9 +136,11 @@ function EditProduct() {
         coa_url: existing.coa_url ?? "",
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+        flavors: rawFlavors,
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
       setSlugTouched(true);
+      if (rawFlavors.length > 0) setHasFlavors(true);
     }
   }, [existing]);
 
@@ -241,6 +258,26 @@ function EditProduct() {
     return errs;
   }, [form.category, form.variants, hasVariants]);
 
+  const flavorErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (!hasFlavors) return errs;
+    const flavors = form.flavors ?? [];
+    if (flavors.length === 0) {
+      errs.push("Ajoute au moins un goût, ou décoche l'option « plusieurs goûts ».");
+    }
+    const seen = new Set<string>();
+    for (const [i, f] of flavors.entries()) {
+      const name = (f.name ?? "").trim();
+      if (!name) errs.push(`Goût #${i + 1} : nom manquant.`);
+      else if (seen.has(name.toLowerCase()))
+        errs.push(`Goût « ${name} » : ce goût est en doublon.`);
+      else seen.add(name.toLowerCase());
+      if (!Number.isInteger(f.stock) || f.stock < 0)
+        errs.push(`Goût « ${name || "?"} » : stock invalide.`);
+    }
+    return errs;
+  }, [hasFlavors, form.flavors]);
+
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
     onSuccess: async () => {
@@ -307,11 +344,21 @@ function EditProduct() {
       toast.error(variantErrors[0]);
       return;
     }
+    if (flavorErrors.length > 0) {
+      toast.error(flavorErrors[0]);
+      return;
+    }
     // Si l'option variantes n'est pas activée, on n'envoie aucune variante,
     // même si le formulaire en contenait (édition ultérieure).
     const payload: FormState = {
       ...form,
       variants: form.category === "e_liquide" && hasVariants ? form.variants ?? [] : [],
+      flavors: hasFlavors
+        ? (form.flavors ?? []).map((f) => ({
+            name: f.name.trim(),
+            stock: Math.max(0, Math.trunc(f.stock)),
+          }))
+        : [],
     };
     m.mutate(payload);
   }
@@ -472,6 +519,30 @@ function EditProduct() {
               )}
             </div>
           )}
+
+          <div className="space-y-3">
+            <label className="flex items-start gap-2 rounded-md border border-border bg-background/30 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={hasFlavors}
+                onChange={(e) => setHasFlavors(e.target.checked)}
+              />
+              <span>
+                <strong>Ce produit a plusieurs goûts.</strong>{" "}
+                Coche cette case si le produit se décline en plusieurs
+                saveurs (ex. Fraise, Menthe, Fruits rouges…). Chaque goût
+                dispose de son propre stock. Indépendant du volume et du taux
+                de nicotine, et ne modifie pas le prix.
+              </span>
+            </label>
+            {hasFlavors && (
+              <FlavorsEditor
+                flavors={form.flavors ?? []}
+                onChange={(fs) => setForm((f) => ({ ...f, flavors: fs }))}
+              />
+            )}
+          </div>
 
           <Field label="Sous-catégorie (optionnel)">
             <input
@@ -683,6 +754,17 @@ function EditProduct() {
           </div>
         )}
 
+        {flavorErrors.length > 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            <p className="mb-1 font-medium">Vérifie les goûts :</p>
+            <ul className="list-inside list-disc space-y-0.5">
+              {flavorErrors.map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <button
             type="submit"
@@ -691,7 +773,8 @@ function EditProduct() {
               uploading ||
               missing.length > 0 ||
               cbdErrors.length > 0 ||
-              variantErrors.length > 0
+              variantErrors.length > 0 ||
+              flavorErrors.length > 0
             }
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
@@ -981,6 +1064,113 @@ function VariantBlock({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+function FlavorsEditor({
+  flavors,
+  onChange,
+}: {
+  flavors: FormFlavor[];
+  onChange: (next: FormFlavor[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  const addFlavor = () => {
+    const name = draft.trim();
+    if (!name) return;
+    const exists = flavors.some(
+      (f) => f.name.trim().toLowerCase() === name.toLowerCase(),
+    );
+    if (exists) {
+      toast.error("Ce goût est déjà dans la liste.");
+      return;
+    }
+    onChange([...flavors, { name, stock: 0 }]);
+    setDraft("");
+  };
+
+  const update = (idx: number, patch: Partial<FormFlavor>) =>
+    onChange(flavors.map((f, i) => (i === idx ? { ...f, ...patch } : f)));
+  const remove = (idx: number) =>
+    onChange(flavors.filter((_, i) => i !== idx));
+
+  return (
+    <div className="space-y-3 rounded-md border border-border bg-background/40 p-4">
+      <div>
+        <h3 className="text-sm font-medium">
+          Goûts disponibles <span className="text-destructive">*</span>
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Tape le nom d'un goût puis clique sur « Ajouter ». Indique le stock
+          propre à chaque goût — les goûts à 0 seront grisés côté boutique.
+        </p>
+      </div>
+
+      <div className="flex gap-2">
+        <input
+          className="input flex-1"
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              addFlavor();
+            }
+          }}
+          placeholder="Ex. Fraise, Menthe, Tabac blond…"
+          maxLength={80}
+        />
+        <button
+          type="button"
+          onClick={addFlavor}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-2 text-xs hover:bg-secondary"
+        >
+          <Plus className="h-3.5 w-3.5" /> Ajouter
+        </button>
+      </div>
+
+      {flavors.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border/70 bg-background/30 p-4 text-center text-xs text-muted-foreground">
+          Aucun goût pour l'instant.
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-md border border-border">
+          {flavors.map((f, idx) => (
+            <li key={idx} className="flex items-center gap-3 p-2">
+              <input
+                className="input flex-1"
+                type="text"
+                value={f.name}
+                onChange={(e) => update(idx, { name: e.target.value })}
+                maxLength={80}
+              />
+              <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span>Stock :</span>
+                <input
+                  className="input h-8 w-20 px-2 py-1 text-xs"
+                  type="number"
+                  min={0}
+                  value={f.stock}
+                  onChange={(e) =>
+                    update(idx, { stock: Number(e.target.value) || 0 })
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="inline-flex items-center justify-center rounded-md border border-border p-2 text-destructive hover:bg-destructive/10"
+                aria-label="Supprimer ce goût"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

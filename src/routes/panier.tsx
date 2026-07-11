@@ -55,11 +55,14 @@ function CartPage() {
                     >
                       {item.name}
                     </Link>
-                    {(item.volumeMl || item.nicotineMg != null) && (
+                    {(item.volumeMl || item.nicotineMg != null || item.flavor) && (
                       <span className="text-[11px] text-muted-foreground">
                         {item.volumeMl ? `${item.volumeMl} ml` : ""}
                         {item.volumeMl && item.nicotineMg != null ? " · " : ""}
                         {item.nicotineMg != null ? `${item.nicotineMg} mg` : ""}
+                        {item.flavor
+                          ? `${item.volumeMl || item.nicotineMg != null ? " · " : ""}${item.flavor}`
+                          : ""}
                       </span>
                     )}
                     <span className="mt-1 text-xs text-muted-foreground">

@@ -34,6 +34,24 @@ export const NICOTINE_STEPS_MG_BOOSTER = [0, 3, 6, 9] as const;
 // Ancienne constante (compat rétro : maximum atteignable avec boosters).
 export const NICOTINE_STEPS_MG = NICOTINE_STEPS_MG_BOOSTER;
 
+export type ProductFlavor = { name: string; stock: number };
+
+export function parseFlavors(raw: unknown): ProductFlavor[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ProductFlavor[] = [];
+  for (const f of raw) {
+    if (!f || typeof f !== "object") continue;
+    const name = (f as { name?: unknown }).name;
+    const stock = (f as { stock?: unknown }).stock;
+    if (typeof name !== "string" || !name.trim()) continue;
+    const s = typeof stock === "number" && Number.isFinite(stock)
+      ? Math.max(0, Math.trunc(stock))
+      : 0;
+    out.push({ name: name.trim(), stock: s });
+  }
+  return out;
+}
+
 export function nicotineChoicesForVolume(volumeMl: number): readonly number[] {
   return volumeMl === 10 ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
 }

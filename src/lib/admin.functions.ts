@@ -55,6 +55,16 @@ const productInputSchema = z.object({
     .default([]),
   // Indique que ce produit est LE booster de nicotine de référence (unique).
   is_nicotine_booster: z.boolean().optional().default(false),
+  flavors: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(80),
+        stock: z.number().int().min(0).max(100_000),
+      }),
+    )
+    .max(50)
+    .optional()
+    .default([]),
 });
 export type ProductInput = z.infer<typeof productInputSchema>;
 
@@ -203,6 +213,7 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       coa_url: data.coa_url || null,
       is_nicotine_booster:
         data.category === "accessoire_vape" ? Boolean(data.is_nicotine_booster) : false,
+      flavors: (data.flavors ?? []) as never,
       updated_by: context.userId,
     };
     // Un seul booster de nicotine dans tout le catalogue : on retire le flag

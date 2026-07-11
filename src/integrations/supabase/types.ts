@@ -335,6 +335,7 @@ export type Database = {
           created_at: string
           currency: string
           description: string | null
+          flavors: Json
           health_warnings: string | null
           id: string
           is_nicotine_booster: boolean
@@ -358,6 +359,7 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          flavors?: Json
           health_warnings?: string | null
           id?: string
           is_nicotine_booster?: boolean
@@ -381,6 +383,7 @@ export type Database = {
           created_at?: string
           currency?: string
           description?: string | null
+          flavors?: Json
           health_warnings?: string | null
           id?: string
           is_nicotine_booster?: boolean

@@ -20,6 +20,8 @@ import {
   nicotineBoosterQueryOptions,
   computeVariantPrice,
   boostersNeeded,
+  parseFlavors,
+  type ProductFlavor,
   type ProductRow,
 } from "@/lib/products";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
@@ -96,6 +98,14 @@ function ProductDetail() {
   const { data: product } = useSuspenseQuery(productBySlugQueryOptions(slug));
   const cart = useCart();
   const [qty, setQty] = useState(1);
+  const flavors = useMemo(
+    () => parseFlavors(product?.flavors),
+    [product?.flavors],
+  );
+  const [flavor, setFlavor] = useState<string | null>(() => {
+    const first = flavors.find((f) => f.stock > 0);
+    return first?.name ?? null;
+  });
   if (!product) {
     // Guard for TS; loader already threw notFound.
     return <ProductNotFound />;
@@ -115,6 +125,14 @@ function ProductDetail() {
   }
   const stock = STOCK_LABELS[product.stock_status];
   const photo = product.photos?.[0];
+  const hasFlavors = flavors.length > 0;
+  const selectedFlavor = hasFlavors
+    ? flavors.find((f) => f.name === flavor) ?? null
+    : null;
+  const flavorOK = !hasFlavors || (selectedFlavor !== null && selectedFlavor.stock > 0);
+  const maxStock = hasFlavors
+    ? Math.min(product.stock, selectedFlavor?.stock ?? 0)
+    : product.stock;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -194,6 +212,18 @@ function ProductDetail() {
 
             {product.stock_status !== "out_of_stock" ? (
               <div className="mt-6 flex items-center gap-3">
+                {hasFlavors && (
+                  <FlavorPicker
+                    flavors={flavors}
+                    selected={flavor}
+                    onSelect={setFlavor}
+                  />
+                )}
+              </div>
+            ) : null}
+
+            {product.stock_status !== "out_of_stock" ? (
+              <div className="mt-4 flex items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
@@ -209,7 +239,7 @@ function ProductDetail() {
                   <button
                     type="button"
                     onClick={() =>
-                      setQty((q) => Math.min(product.stock, q + 1))
+                      setQty((q) => Math.min(maxStock, q + 1))
                     }
                     className="px-3 py-2 text-sm hover:bg-secondary"
                     aria-label="Augmenter la quantité"
@@ -218,26 +248,34 @@ function ProductDetail() {
                   </button>
                 </div>
                 <button
+                  disabled={!flavorOK}
                   onClick={() => {
+                    if (!flavorOK) return;
+                    const displayName = hasFlavors && flavor
+                      ? `${product.name} — ${flavor}`
+                      : product.name;
                     cart.add(
                       {
-                        key: product.id,
+                        key: hasFlavors && flavor
+                          ? `${product.id}:flavor:${flavor}`
+                          : product.id,
                         productId: product.id,
                         slug: product.slug,
-                        name: product.name,
+                        name: displayName,
+                        flavor: hasFlavors ? flavor : null,
                         priceCents: product.price_cents,
                         photo: product.photos?.[0] ?? null,
-                        maxStock: product.stock,
+                        maxStock,
                       },
                       qty,
                     );
                     toast.success("Ajouté au panier", {
-                      description: `${qty} × ${product.name}`,
+                      description: `${qty} × ${displayName}`,
                     });
                   }}
-                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
-                  Ajouter au panier
+                  {hasFlavors && !flavor ? "Choisir un goût" : "Ajouter au panier"}
                 </button>
               </div>
             ) : (
@@ -308,6 +346,16 @@ function EliquideDetail({
   );
   const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
   const photo = product.photos?.[0];
+  const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
+  const hasFlavors = flavors.length > 0;
+  const [flavor, setFlavor] = useState<string | null>(() => {
+    const first = flavors.find((f) => f.stock > 0);
+    return first?.name ?? null;
+  });
+  const selectedFlavor = hasFlavors
+    ? flavors.find((f) => f.name === flavor) ?? null
+    : null;
+  const flavorOK = !hasFlavors || (selectedFlavor !== null && selectedFlavor.stock > 0);
 
   const availableVolumes = useMemo(
     () => [...variants].sort((a, b) => a.volume_ml - b.volume_ml),
@@ -348,6 +396,12 @@ function EliquideDetail({
     variant && nicotine !== null && variant.volume_ml !== 10
       ? boostersNeeded(variant, nicotine)
       : 0;
+
+  const effectiveStock = variant
+    ? hasFlavors
+      ? Math.min(variant.stock, selectedFlavor?.stock ?? 0)
+      : variant.stock
+    : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -498,10 +552,18 @@ function EliquideDetail({
                     </div>
                   )}
                 </div>
+
+                {hasFlavors && (
+                  <FlavorPicker
+                    flavors={flavors}
+                    selected={flavor}
+                    onSelect={setFlavor}
+                  />
+                )}
               </div>
             )}
 
-            {variant && variant.stock > 0 ? (
+            {variant && effectiveStock > 0 ? (
               <div className="mt-6 flex items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
@@ -518,7 +580,7 @@ function EliquideDetail({
                   <button
                     type="button"
                     onClick={() =>
-                      setQty((q) => Math.min(variant.stock, q + 1))
+                      setQty((q) => Math.min(effectiveStock, q + 1))
                     }
                     className="px-3 py-2 text-sm hover:bg-secondary"
                     aria-label="Augmenter la quantité"
@@ -527,23 +589,25 @@ function EliquideDetail({
                   </button>
                 </div>
                 <button
-                  disabled={nicotine === null || !nicotineOK}
+                  disabled={nicotine === null || !nicotineOK || !flavorOK}
                   onClick={() => {
-                    if (nicotine === null || !nicotineOK) return;
-                    const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg`;
+                    if (nicotine === null || !nicotineOK || !flavorOK) return;
+                    const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
+                    const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
                     const unitPrice = computeVariantPrice(variant, nicotine, boosterPrice);
                     cart.add(
                       {
-                        key: `${product.id}:${variant.id}:${nicotine}`,
+                        key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
                         productId: product.id,
                         variantId: variant.id,
                         volumeMl: variant.volume_ml,
                         nicotineMg: nicotine,
+                        flavor: hasFlavors ? flavor : null,
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
                         photo: product.photos?.[0] ?? null,
-                        maxStock: variant.stock,
+                        maxStock: effectiveStock,
                       },
                       qty,
                     );
@@ -555,6 +619,8 @@ function EliquideDetail({
                 >
                   {nicotine === null
                     ? "Choisir un taux de nicotine"
+                    : hasFlavors && !flavor
+                    ? "Choisir un goût"
                     : "Ajouter au panier"}
                 </button>
               </div>
@@ -563,7 +629,9 @@ function EliquideDetail({
                 disabled
                 className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground opacity-50"
               >
-                Volume épuisé
+                {hasFlavors && selectedFlavor && selectedFlavor.stock <= 0
+                  ? "Goût épuisé"
+                  : "Volume épuisé"}
               </button>
             ) : null}
 
@@ -593,6 +661,45 @@ function EliquideDetail({
         </div>
       </main>
       <SiteFooter />
+    </div>
+  );
+}
+function FlavorPicker({
+  flavors,
+  selected,
+  onSelect,
+}: {
+  flavors: ProductFlavor[];
+  selected: string | null;
+  onSelect: (name: string) => void;
+}) {
+  return (
+    <div className="w-full">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Goût
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {flavors.map((f) => {
+          const outOfStock = f.stock <= 0;
+          const isSelected = f.name === selected;
+          return (
+            <button
+              key={f.name}
+              type="button"
+              disabled={outOfStock}
+              onClick={() => onSelect(f.name)}
+              className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                isSelected
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              } ${outOfStock ? "line-through opacity-50" : ""}`}
+            >
+              {f.name}
+              {outOfStock && " (épuisé)"}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
