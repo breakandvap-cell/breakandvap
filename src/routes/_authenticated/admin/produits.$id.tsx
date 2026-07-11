@@ -113,6 +113,35 @@ function EditProduct() {
     return errs;
   }, [form]);
 
+  // Validations spécifiques catégorie CBD.
+  const cbdErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (form.category !== "cbd") return errs;
+    const cbd = form.cbd_percent;
+    const thc = form.thc_percent;
+    if (cbd === null || cbd === undefined || Number.isNaN(cbd)) {
+      errs.push("Le taux de CBD est obligatoire (valeur numérique en %).");
+    } else if (!Number.isFinite(cbd) || cbd <= 0 || cbd > 100) {
+      errs.push("Le taux de CBD doit être un nombre compris entre 0,1 et 100 %.");
+    }
+    if (thc === null || thc === undefined || Number.isNaN(thc)) {
+      errs.push("Le taux de THC est obligatoire (0 autorisé) pour la conformité France.");
+    } else if (!Number.isFinite(thc) || thc < 0 || thc > 100) {
+      errs.push("Le taux de THC doit être un nombre positif compris entre 0 et 100 %.");
+    } else if (thc > 0.3) {
+      errs.push("Le taux de THC doit rester ≤ 0,3 % pour être vendu légalement en France.");
+    }
+    if (
+      cbd !== null && cbd !== undefined && !Number.isNaN(cbd) &&
+      thc !== null && thc !== undefined && !Number.isNaN(thc) &&
+      Number.isFinite(cbd) && Number.isFinite(thc) &&
+      thc > cbd
+    ) {
+      errs.push("Incohérence : le taux de THC ne peut pas être supérieur au taux de CBD.");
+    }
+    return errs;
+  }, [form.category, form.cbd_percent, form.thc_percent]);
+
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
     onSuccess: async () => {
@@ -169,6 +198,10 @@ function EditProduct() {
     e.preventDefault();
     if (missing.length > 0) {
       toast.error(`Champs obligatoires manquants : ${missing.join(", ")}.`);
+      return;
+    }
+    if (cbdErrors.length > 0) {
+      toast.error(cbdErrors[0]);
       return;
     }
     m.mutate(form);
