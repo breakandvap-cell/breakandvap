@@ -676,48 +676,6 @@ function EliquideDetail({
                           Passer à un flacon de {alternative200.volume_ml} ml à la place
                         </button>
                       )}
-                      {emptyBottle && emptyBottle.is_published && (
-                        <div className="mt-2 rounded-md border border-amber-400/60 bg-background/40 p-3 text-amber-50">
-                          <p className="text-xs">
-                            Voulez-vous ajouter un flacon vide{" "}
-                            <strong>{emptyBottle.name}</strong> (
-                            {formatPrice(emptyBottle.price_cents, emptyBottle.currency)})
-                            à votre commande pour atteindre ce dosage ?
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                cart.add(
-                                  {
-                                    key: `product:${emptyBottle.id}`,
-                                    productId: emptyBottle.id,
-                                    slug: emptyBottle.slug,
-                                    name: emptyBottle.name,
-                                    priceCents: emptyBottle.price_cents,
-                                    photo: emptyBottle.photos?.[0] ?? null,
-                                    maxStock: Math.max(1, emptyBottle.stock ?? 1),
-                                  },
-                                  1,
-                                );
-                                toast.success("Flacon vide ajouté au panier", {
-                                  description: emptyBottle.name,
-                                });
-                              }}
-                              className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                            >
-                              Oui, ajouter au panier
-                            </button>
-                            <Link
-                              to="/produit/$slug"
-                              params={{ slug: emptyBottle.slug }}
-                              className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                            >
-                              Non merci
-                            </Link>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                   {variant &&
