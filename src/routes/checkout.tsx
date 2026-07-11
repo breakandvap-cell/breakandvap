@@ -86,6 +86,7 @@ function CheckoutPage() {
       items: cart.items.map((i) => ({
         productId: i.productId,
         variantId: i.variantId ?? undefined,
+        nicotineMg: i.nicotineMg ?? undefined,
         quantity: i.quantity,
       })),
     });
