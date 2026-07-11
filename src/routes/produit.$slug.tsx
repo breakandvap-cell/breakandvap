@@ -848,8 +848,6 @@ function EliquideDetail({
         nicotine !== null &&
         nicotineOK &&
         exceedsCapacity &&
-        emptyBottle &&
-        emptyBottle.is_published &&
         bottleDismissedFor !== `${variant.id}:${nicotine}` && (
           <div
             role="dialog"
@@ -874,51 +872,78 @@ function EliquideDetail({
                 {(variantCapacity ?? 0) > 1 ? "s" : ""}, soit au maximum{" "}
                 <strong>{achievableMg ?? 0} mg</strong> de nicotine.
               </p>
-              <p className="mt-3 text-sm text-foreground">
-                Voulez-vous ajouter un flacon vide{" "}
-                <strong>{emptyBottle.name}</strong> (
-                {formatPrice(emptyBottle.price_cents, emptyBottle.currency)}) à
-                votre commande pour atteindre les {nicotine} mg souhaités ?
-                Le total du panier sera mis à jour automatiquement.
-              </p>
-              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setBottleDismissedFor(`${variant.id}:${nicotine}`)
-                  }
-                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                >
-                  Non merci
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    cart.add(
-                      {
-                        key: `product:${emptyBottle.id}`,
-                        productId: emptyBottle.id,
-                        slug: emptyBottle.slug,
-                        name: emptyBottle.name,
-                        priceCents: emptyBottle.price_cents,
-                        photo: emptyBottle.photos?.[0] ?? null,
-                        maxStock: Math.max(1, emptyBottle.stock ?? 1),
-                      },
-                      1,
-                    );
-                    toast.success("Flacon vide ajouté au panier", {
-                      description: `${emptyBottle.name} · ${formatPrice(
-                        emptyBottle.price_cents,
-                        emptyBottle.currency,
-                      )}`,
-                    });
-                    setBottleDismissedFor(`${variant.id}:${nicotine}`);
-                  }}
-                  className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  Oui, ajouter au panier
-                </button>
-              </div>
+              {hasEmptyBottleFallback ? (
+                <>
+                  <p className="mt-3 text-sm text-foreground">
+                    Voulez-vous ajouter un flacon vide{" "}
+                    <strong>{emptyBottle.name}</strong> (
+                    {formatPrice(emptyBottle.price_cents, emptyBottle.currency)}
+                    ) à votre commande pour atteindre les {nicotine} mg
+                    souhaités ? Le total du panier sera mis à jour
+                    automatiquement.
+                  </p>
+                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBottleDismissedFor(`${variant.id}:${nicotine}`)
+                      }
+                      className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                    >
+                      Non merci
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        cart.add(
+                          {
+                            key: `product:${emptyBottle.id}`,
+                            productId: emptyBottle.id,
+                            slug: emptyBottle.slug,
+                            name: emptyBottle.name,
+                            priceCents: emptyBottle.price_cents,
+                            photo: emptyBottle.photos?.[0] ?? null,
+                            maxStock: Math.max(1, emptyBottle.stock ?? 1),
+                          },
+                          1,
+                        );
+                        toast.success("Flacon vide ajouté au panier", {
+                          description: `${emptyBottle.name} · ${formatPrice(
+                            emptyBottle.price_cents,
+                            emptyBottle.currency,
+                          )}`,
+                        });
+                        setBottleDismissedFor(`${variant.id}:${nicotine}`);
+                      }}
+                      className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      Oui, ajouter au panier
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-3 text-sm text-foreground">
+                    Cette combinaison ({nicotine} mg sur{" "}
+                    {variant.volume_ml} ml) dépasse la capacité du flacon et
+                    aucun flacon vide n'est configuré pour ce produit. Vous ne
+                    pouvez donc pas l'ajouter au panier. Veuillez choisir un
+                    volume plus grand, un taux de nicotine plus faible, ou
+                    contactez-nous pour plus d'options.
+                  </p>
+                  <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setBottleDismissedFor(`${variant.id}:${nicotine}`)
+                      }
+                      className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      Compris
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
