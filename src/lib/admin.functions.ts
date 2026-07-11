@@ -281,6 +281,11 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           available_nicotine_mg: v.available_nicotine_mg ?? [],
           boosters_per_nicotine: (v.boosters_per_nicotine ?? {}) as never,
           nicotine_type: v.nicotine_type ?? "normale",
+          max_boosters:
+            typeof v.max_boosters === "number" && Number.isFinite(v.max_boosters)
+              ? Math.max(0, Math.trunc(v.max_boosters))
+              : null,
+          photo_url: v.photo_url ? v.photo_url : null,
         };
         if (v.id) {
           const { error } = await supabaseAdmin
