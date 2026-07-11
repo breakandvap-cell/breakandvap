@@ -264,7 +264,7 @@ function ProductDetail() {
                         name: displayName,
                         flavor: hasFlavors ? flavor : null,
                         priceCents: product.price_cents,
-                        photo: product.photos?.[0] ?? null,
+                        photo: selectedFlavor?.photo ?? product.photos?.[0] ?? null,
                         maxStock,
                       },
                       qty,
