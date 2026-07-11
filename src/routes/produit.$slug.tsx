@@ -343,6 +343,16 @@ function EliquideDetail({
   );
   const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
   const photo = product.photos?.[0];
+  const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
+  const hasFlavors = flavors.length > 0;
+  const [flavor, setFlavor] = useState<string | null>(() => {
+    const first = flavors.find((f) => f.stock > 0);
+    return first?.name ?? null;
+  });
+  const selectedFlavor = hasFlavors
+    ? flavors.find((f) => f.name === flavor) ?? null
+    : null;
+  const flavorOK = !hasFlavors || (selectedFlavor !== null && selectedFlavor.stock > 0);
 
   const availableVolumes = useMemo(
     () => [...variants].sort((a, b) => a.volume_ml - b.volume_ml),
@@ -383,6 +393,12 @@ function EliquideDetail({
     variant && nicotine !== null && variant.volume_ml !== 10
       ? boostersNeeded(variant, nicotine)
       : 0;
+
+  const effectiveStock = variant
+    ? hasFlavors
+      ? Math.min(variant.stock, selectedFlavor?.stock ?? 0)
+      : variant.stock
+    : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
