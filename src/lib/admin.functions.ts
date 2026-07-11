@@ -63,6 +63,10 @@ const productInputSchema = z.object({
     .default([]),
   // Indique que ce produit est LE booster de nicotine de référence (unique).
   is_nicotine_booster: z.boolean().optional().default(false),
+  // Liens optionnels vers d'autres produits « Accessoires Vape » utilisés
+  // pour personnaliser le calcul et les suggestions d'un e-liquide.
+  booster_product_id: z.string().uuid().nullable().optional(),
+  empty_bottle_product_id: z.string().uuid().nullable().optional(),
   flavors: z
     .array(
       z.object({
@@ -224,6 +228,10 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       coa_url: data.coa_url || null,
       is_nicotine_booster:
         data.category === "accessoire_vape" ? Boolean(data.is_nicotine_booster) : false,
+      booster_product_id:
+        data.category === "e_liquide" ? data.booster_product_id ?? null : null,
+      empty_bottle_product_id:
+        data.category === "e_liquide" ? data.empty_bottle_product_id ?? null : null,
       flavors: (data.flavors ?? []) as never,
       updated_by: context.userId,
     };
