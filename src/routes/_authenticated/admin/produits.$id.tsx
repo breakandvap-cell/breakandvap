@@ -143,6 +143,10 @@ function EditProduct() {
         coa_url: existing.coa_url ?? "",
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+        booster_product_id:
+          (existing as { booster_product_id?: string | null }).booster_product_id ?? null,
+        empty_bottle_product_id:
+          (existing as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null,
         flavors: rawFlavors,
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
