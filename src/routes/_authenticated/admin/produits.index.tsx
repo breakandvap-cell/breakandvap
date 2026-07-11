@@ -60,7 +60,7 @@ function ProductsList() {
 
   const setFilter = (patch: Partial<ProductFilters>) => {
     navigate({
-      search: (prev: ProductFilters) => ({ ...prev, ...patch }),
+      search: (prev) => ({ ...prev, ...patch }),
       replace: true,
     });
   };
