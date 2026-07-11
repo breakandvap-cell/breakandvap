@@ -631,3 +631,42 @@ function EliquideDetail({
     </div>
   );
 }
+function FlavorPicker({
+  flavors,
+  selected,
+  onSelect,
+}: {
+  flavors: ProductFlavor[];
+  selected: string | null;
+  onSelect: (name: string) => void;
+}) {
+  return (
+    <div className="w-full">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Goût
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {flavors.map((f) => {
+          const outOfStock = f.stock <= 0;
+          const isSelected = f.name === selected;
+          return (
+            <button
+              key={f.name}
+              type="button"
+              disabled={outOfStock}
+              onClick={() => onSelect(f.name)}
+              className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                isSelected
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              } ${outOfStock ? "line-through opacity-50" : ""}`}
+            >
+              {f.name}
+              {outOfStock && " (épuisé)"}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
