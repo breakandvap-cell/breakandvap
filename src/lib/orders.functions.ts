@@ -65,7 +65,10 @@ export const createOrder = createServerFn({ method: "POST" })
       .from("products")
       .select("id, name, price_cents, currency, stock, stock_status, is_published, flavors")
       .in("id", ids);
-    if (prodErr) throw new Error(prodErr.message);
+    if (prodErr) {
+      console.error("[checkout] products fetch failed:", prodErr);
+      throw new Error("Impossible de créer la commande, réessayez.");
+    }
     if (!products || products.length === 0) {
       throw new Error("Aucun produit valide dans le panier.");
     }
@@ -118,7 +121,10 @@ export const createOrder = createServerFn({ method: "POST" })
         .from("product_variants")
         .select("id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine")
         .in("id", variantIds);
-      if (vErr) throw new Error(vErr.message);
+      if (vErr) {
+        console.error("[checkout] variants fetch failed:", vErr);
+        throw new Error("Impossible de créer la commande, réessayez.");
+      }
       for (const v of variants ?? []) {
         variantMap.set(v.id, {
           id: v.id,
@@ -264,7 +270,8 @@ export const createOrder = createServerFn({ method: "POST" })
       .select("id, order_number, total_cents, currency")
       .single();
     if (orderErr || !order) {
-      throw new Error(orderErr?.message ?? "Création de commande impossible.");
+      console.error("[checkout] order insert failed:", orderErr);
+      throw new Error("Impossible de créer la commande, réessayez.");
     }
 
     const { error: itemsErr } = await supabaseAdmin.from("order_items").insert(
@@ -273,7 +280,8 @@ export const createOrder = createServerFn({ method: "POST" })
     if (itemsErr) {
       // Best-effort rollback: delete the order we just created.
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
-      throw new Error(itemsErr.message);
+      console.error("[checkout] order_items insert failed:", itemsErr);
+      throw new Error("Impossible de créer la commande, réessayez.");
     }
 
     // Decrement stocks (best-effort; not transactional but adequate at this scale).
