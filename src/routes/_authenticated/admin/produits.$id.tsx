@@ -1324,9 +1324,9 @@ function FlavorsEditor({
       ) : (
         <ul className="divide-y divide-border rounded-md border border-border">
           {flavors.map((f, idx) => (
-            <li key={idx} className="flex items-center gap-3 p-2">
+            <li key={idx} className="flex flex-wrap items-center gap-3 p-2">
               <input
-                className="input flex-1"
+                className="input flex-1 min-w-[150px]"
                 type="text"
                 value={f.name}
                 onChange={(e) => update(idx, { name: e.target.value })}
@@ -1344,6 +1344,10 @@ function FlavorsEditor({
                   }
                 />
               </label>
+              <VariantPhotoField
+                value={(f as FormFlavor & { photo?: string | null }).photo ?? null}
+                onChange={(url) => update(idx, { photo: url } as Partial<FormFlavor>)}
+              />
               <button
                 type="button"
                 onClick={() => remove(idx)}
