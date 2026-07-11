@@ -92,6 +92,8 @@ function EditProduct() {
   const [priceEuros, setPriceEuros] = useState<string>("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Variantes = option activable. Décochée par défaut : produit à prix/stock uniques.
+  const [hasVariants, setHasVariants] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -127,19 +129,21 @@ function EditProduct() {
 
   useEffect(() => {
     if (existingVariants) {
+      const list = existingVariants.map((v) => ({
+        id: v.id,
+        volume_ml: v.volume_ml,
+        price_cents: v.price_cents,
+        stock: v.stock,
+        max_nicotine_mg: v.max_nicotine_mg ?? null,
+        available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
+        boosters_per_nicotine:
+          (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
+      }));
       setForm((f) => ({
         ...f,
-        variants: existingVariants.map((v) => ({
-          id: v.id,
-          volume_ml: v.volume_ml,
-          price_cents: v.price_cents,
-          stock: v.stock,
-          max_nicotine_mg: v.max_nicotine_mg ?? null,
-          available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
-          boosters_per_nicotine:
-            (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
-        })),
+        variants: list,
       }));
+      if (list.length > 0) setHasVariants(true);
     }
   }, [existingVariants]);
 
@@ -191,7 +195,9 @@ function EditProduct() {
 
   const variantErrors = useMemo(() => {
     const errs: string[] = [];
-    if (form.category !== "e_liquide") return errs;
+    // Les variantes ne sont vérifiées que si l'admin a activé l'option
+    // « plusieurs formats » sur un e-liquide. Sinon on ignore complètement.
+    if (form.category !== "e_liquide" || !hasVariants) return errs;
     const variants = form.variants ?? [];
     if (variants.length === 0) {
       errs.push(
@@ -233,7 +239,7 @@ function EditProduct() {
       }
     }
     return errs;
-  }, [form.category, form.variants]);
+  }, [form.category, form.variants, hasVariants]);
 
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
@@ -301,7 +307,13 @@ function EditProduct() {
       toast.error(variantErrors[0]);
       return;
     }
-    m.mutate(form);
+    // Si l'option variantes n'est pas activée, on n'envoie aucune variante,
+    // même si le formulaire en contenait (édition ultérieure).
+    const payload: FormState = {
+      ...form,
+      variants: form.category === "e_liquide" && hasVariants ? form.variants ?? [] : [],
+    };
+    m.mutate(payload);
   }
 
   if (!isNew && loadingExisting) {
