@@ -6,6 +6,9 @@ export type InvoiceItem = {
   product_name: string;
   quantity: number;
   unit_price_cents: number;
+  base_price_cents?: number | null;
+  boosters_count?: number | null;
+  booster_unit_price_cents?: number | null;
 };
 
 export type InvoiceBuyer = {
@@ -162,6 +165,16 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
       y,
       10,
     );
+    if (
+      it.boosters_count &&
+      it.boosters_count > 0 &&
+      it.booster_unit_price_cents != null &&
+      it.base_price_cents != null
+    ) {
+      y -= 12;
+      const detail = `dont flacon ${formatMoney(it.base_price_cents, data.currency)} + ${it.boosters_count} booster${it.boosters_count > 1 ? "s" : ""} × ${formatMoney(it.booster_unit_price_cents, data.currency)}`;
+      draw(detail, colX.name + 4, y, 8, font, gray);
+    }
     page.drawLine({
       start: { x: marginX, y: y - 4 },
       end: { x: width - marginX, y: y - 4 },
