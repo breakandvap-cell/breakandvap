@@ -22,7 +22,7 @@ function OrdersPage() {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, order_number, status, total_cents, currency, created_at, tracking_number, order_items(product_name, quantity, unit_price_cents)",
+          "id, order_number, status, total_cents, currency, created_at, tracking_number, order_items(product_name, quantity, unit_price_cents, base_price_cents, boosters_count, booster_unit_price_cents, nicotine_mg, volume_ml, flavor)",
         )
         .order("created_at", { ascending: false });
       if (error) throw new Error(error.message);
@@ -74,11 +74,28 @@ function OrdersPage() {
           </div>
           <ul className="mt-4 space-y-1 text-sm">
             {o.order_items?.map((it, i) => (
-              <li key={i} className="flex justify-between text-muted-foreground">
-                <span>
-                  {it.quantity} × {it.product_name}
-                </span>
-                <span>{formatPrice(it.unit_price_cents * it.quantity, o.currency)}</span>
+              <li key={i} className="text-muted-foreground">
+                <div className="flex justify-between gap-4">
+                  <span>
+                    {it.quantity} × {it.product_name}
+                  </span>
+                  <span>
+                    {formatPrice(it.unit_price_cents * it.quantity, o.currency)}
+                  </span>
+                </div>
+                {it.boosters_count && it.boosters_count > 0 &&
+                it.booster_unit_price_cents != null &&
+                it.base_price_cents != null ? (
+                  <div className="ml-4 text-[11px]">
+                    Flacon {formatPrice(it.base_price_cents, o.currency)} + {it.boosters_count} booster
+                    {it.boosters_count > 1 ? "s" : ""} ×{" "}
+                    {formatPrice(it.booster_unit_price_cents, o.currency)} ={" "}
+                    {formatPrice(
+                      it.boosters_count * it.booster_unit_price_cents,
+                      o.currency,
+                    )}
+                  </div>
+                ) : null}
               </li>
             ))}
           </ul>
