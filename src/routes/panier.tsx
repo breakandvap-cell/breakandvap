@@ -68,6 +68,22 @@ function CartPage() {
                     <span className="mt-1 text-xs text-muted-foreground">
                       {formatPrice(item.priceCents)} l'unité
                     </span>
+                    {item.boostersCount && item.boostersCount > 0 &&
+                    item.boosterUnitPriceCents != null &&
+                    item.baseUnitPriceCents != null ? (
+                      <div className="mt-1 space-y-0.5 text-[11px] text-muted-foreground">
+                        <div>Prix flacon : {formatPrice(item.baseUnitPriceCents)}</div>
+                        <div>
+                          Boosters : {item.boostersCount} ×{" "}
+                          {formatPrice(item.boosterUnitPriceCents)} ={" "}
+                          {formatPrice(item.boostersCount * item.boosterUnitPriceCents)}
+                        </div>
+                        <div className="text-foreground">
+                          Total ligne :{" "}
+                          {formatPrice(item.priceCents * item.quantity)}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="mt-auto flex items-center justify-between pt-2">
                       <div className="inline-flex items-center rounded-md border border-border">
                         <button
