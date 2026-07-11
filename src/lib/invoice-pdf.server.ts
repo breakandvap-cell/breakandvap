@@ -143,15 +143,15 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   // Positions X : Réf | Description | PU TTC | Qté | HT | TVA | TTC
   const col = {
     ref: marginX + 2,
-    desc: marginX + 92,
-    pu: tableRight - 260,
-    qty: tableRight - 200,
-    ht: tableRight - 145,
-    tva: tableRight - 80,
+    desc: marginX + 82,
+    pu: tableRight - 205,
+    qty: tableRight - 155,
+    ht: tableRight - 115,
+    tva: tableRight - 60,
     ttc: tableRight - 4,
   };
   // Largeur disponible pour la description (jusqu'à la colonne PU, moins padding)
-  const descMaxWidth = col.pu - 60 - col.desc;
+  const descMaxWidth = col.pu - 55 - col.desc;
 
   const drawRight = (
     text: string,
