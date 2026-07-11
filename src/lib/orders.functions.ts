@@ -159,6 +159,12 @@ export const createOrder = createServerFn({ method: "POST" })
       product_name: string;
       quantity: number;
       unit_price_cents: number;
+      base_price_cents: number | null;
+      boosters_count: number;
+      booster_unit_price_cents: number | null;
+      nicotine_mg: number | null;
+      volume_ml: number | null;
+      flavor: string | null;
     }[] = [];
     const variantStockOps: { id: string; nextStock: number }[] = [];
 
@@ -208,6 +214,8 @@ export const createOrder = createServerFn({ method: "POST" })
           );
         }
         let unitPrice = v.price_cents;
+        let boostersUsed = 0;
+        let boosterUnitPrice: number | null = null;
         if (v.volume_ml !== 10 && nic > 0) {
           const boostersN =
             (v.boosters_per_nicotine ?? {})[String(nic)] ?? 0;
@@ -218,6 +226,8 @@ export const createOrder = createServerFn({ method: "POST" })
               );
             }
             unitPrice += boostersN * boosterUnitPriceCents;
+            boostersUsed = boostersN;
+            boosterUnitPrice = boosterUnitPriceCents;
           }
         }
         totalCents += unitPrice * line.quantity;
@@ -228,6 +238,12 @@ export const createOrder = createServerFn({ method: "POST" })
           product_name: `${p.name} — ${v.volume_ml} ml${nameSuffix}${flavorSuffix}`,
           quantity: line.quantity,
           unit_price_cents: unitPrice,
+          base_price_cents: v.price_cents,
+          boosters_count: boostersUsed,
+          booster_unit_price_cents: boosterUnitPrice,
+          nicotine_mg: nic,
+          volume_ml: v.volume_ml,
+          flavor: flavorLabel,
         });
         variantStockOps.push({
           id: v.id,
@@ -243,6 +259,12 @@ export const createOrder = createServerFn({ method: "POST" })
           product_name: flavorLabel ? `${p.name} — ${flavorLabel}` : p.name,
           quantity: line.quantity,
           unit_price_cents: p.price_cents,
+          base_price_cents: p.price_cents,
+          boosters_count: 0,
+          booster_unit_price_cents: null,
+          nicotine_mg: null,
+          volume_ml: null,
+          flavor: flavorLabel,
         });
       }
     }
