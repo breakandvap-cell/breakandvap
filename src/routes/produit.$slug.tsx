@@ -499,6 +499,7 @@ function EliquideDetail({
                           } ${outOfStock ? "line-through opacity-50" : ""}`}
                         >
                           {v.volume_ml} ml
+                          {v.nicotine_type === "sel" ? " · sel de nicotine" : ""}
                           {outOfStock && " (épuisé)"}
                         </button>
                       );
