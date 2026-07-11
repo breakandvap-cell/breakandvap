@@ -6,6 +6,7 @@ import {
   adminUpsertProduct,
   adminUploadProductPhoto,
   adminListVariants,
+  adminListProducts,
   type ProductInput,
 } from "@/lib/admin.functions";
 import {
@@ -53,6 +54,8 @@ const empty: FormState = {
   coa_url: "",
   variants: [],
   is_nicotine_booster: false,
+  booster_product_id: null,
+  empty_bottle_product_id: null,
   flavors: [],
 };
 
@@ -75,6 +78,15 @@ function EditProduct() {
   const save = useServerFn(adminUpsertProduct);
   const upload = useServerFn(adminUploadProductPhoto);
   const listVariantsFn = useServerFn(adminListVariants);
+  const listProductsFn = useServerFn(adminListProducts);
+
+  // Liste des accessoires vape pour les listes déroulantes « booster associé »
+  // et « flacon vide associé » sur les fiches e-liquides.
+  const { data: vapeAccessories } = useQuery({
+    queryKey: ["admin", "products", "accessoire_vape"],
+    queryFn: () => listProductsFn({ data: { category: "accessoire_vape" } }),
+    retry: false,
+  });
 
   const { data: existing, isLoading: loadingExisting, error: loadError } = useQuery({
     queryKey: ["admin", "product", id],
@@ -140,6 +152,10 @@ function EditProduct() {
         coa_url: existing.coa_url ?? "",
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+        booster_product_id:
+          (existing as { booster_product_id?: string | null }).booster_product_id ?? null,
+        empty_bottle_product_id:
+          (existing as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null,
         flavors: rawFlavors,
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
@@ -525,6 +541,54 @@ function EditProduct() {
                   variants={form.variants ?? []}
                   onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
                 />
+              )}
+              {hasVariants && (
+                <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4 sm:grid-cols-2">
+                  <Field
+                    label="Produit booster associé (optionnel)"
+                    hint="Booster de nicotine dont le prix sera utilisé pour calculer le total de ce e-liquide. Par défaut : le produit marqué « Booster de nicotine »."
+                  >
+                    <select
+                      className="input"
+                      value={form.booster_product_id ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          booster_product_id: e.target.value || null,
+                        })
+                      }
+                    >
+                      <option value="">— Par défaut (Booster de nicotine) —</option>
+                      {(vapeAccessories ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field
+                    label="Produit flacon vide associé (optionnel)"
+                    hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
+                  >
+                    <select
+                      className="input"
+                      value={form.empty_bottle_product_id ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          empty_bottle_product_id: e.target.value || null,
+                        })
+                      }
+                    >
+                      <option value="">— Aucun (pas de suggestion) —</option>
+                      {(vapeAccessories ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               )}
             </div>
           )}

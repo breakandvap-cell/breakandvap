@@ -4,7 +4,7 @@ import {
   notFound,
   useRouter,
 } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -18,6 +18,7 @@ import {
   productBySlugQueryOptions,
   productVariantsQueryOptions,
   nicotineBoosterQueryOptions,
+  productByIdQueryOptions,
   boostersNeeded,
   parseFlavors,
   type ProductFlavor,
@@ -344,6 +345,18 @@ function EliquideDetail({
     productVariantsQueryOptions(product.id),
   );
   const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
+  // Overrides éventuels : booster + flacon vide associés à cet e-liquide.
+  const boosterOverrideId =
+    (product as { booster_product_id?: string | null }).booster_product_id ?? null;
+  const emptyBottleId =
+    (product as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null;
+  const { data: boosterOverride } = useQuery(
+    productByIdQueryOptions(boosterOverrideId),
+  );
+  const { data: emptyBottle } = useQuery(
+    productByIdQueryOptions(emptyBottleId),
+  );
+  const effectiveBooster = boosterOverride ?? booster;
   const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
@@ -384,7 +397,9 @@ function EliquideDetail({
     nicotine !== null && variant !== null && allowedForVariant.has(nicotine);
 
   const boosterPrice =
-    booster && booster.is_published ? booster.price_cents : null;
+    effectiveBooster && effectiveBooster.is_published
+      ? effectiveBooster.price_cents
+      : null;
   // Fallback : si la table product_variants n'a pas de mapping
   // boosters_per_nicotine, on suppose la règle standard 1 booster = 3 mg.
   const boostersFor = useMemo(() => {
@@ -649,26 +664,56 @@ function EliquideDetail({
                         <strong>{achievableMg ?? 0} mg</strong> de nicotine, et
                         non <strong>{nicotine} mg</strong>.
                       </p>
-                      {alternative200 ? (
+                      {alternative200 && (
                         <button
                           type="button"
                           onClick={() => setSelectedVariantId(alternative200.id)}
                           className="inline-flex items-center gap-1 rounded-md border border-amber-400/60 bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-50 hover:bg-amber-500/30"
                         >
-                          Passer à un flacon de 200 ml à la place
+                          Passer à un flacon de {alternative200.volume_ml} ml à la place
                         </button>
-                      ) : (
-                        <p>
-                          Ou complétez avec un{" "}
-                          <Link
-                            to="/produit/$slug"
-                            params={{ slug: "flacon-vide-200ml" }}
-                            className="underline"
-                          >
-                            flacon vide 200 ml supplémentaire (1,90 €)
-                          </Link>{" "}
-                          pour diluer davantage votre e-liquide.
-                        </p>
+                      )}
+                      {emptyBottle && emptyBottle.is_published && (
+                        <div className="mt-2 rounded-md border border-amber-400/60 bg-background/40 p-3 text-amber-50">
+                          <p className="text-xs">
+                            Voulez-vous ajouter un flacon vide{" "}
+                            <strong>{emptyBottle.name}</strong> (
+                            {formatPrice(emptyBottle.price_cents, emptyBottle.currency)})
+                            à votre commande pour atteindre ce dosage ?
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                cart.add(
+                                  {
+                                    key: `product:${emptyBottle.id}`,
+                                    productId: emptyBottle.id,
+                                    slug: emptyBottle.slug,
+                                    name: emptyBottle.name,
+                                    priceCents: emptyBottle.price_cents,
+                                    photo: emptyBottle.photos?.[0] ?? null,
+                                    maxStock: Math.max(1, emptyBottle.stock ?? 1),
+                                  },
+                                  1,
+                                );
+                                toast.success("Flacon vide ajouté au panier", {
+                                  description: emptyBottle.name,
+                                });
+                              }}
+                              className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                            >
+                              Oui, ajouter au panier
+                            </button>
+                            <Link
+                              to="/produit/$slug"
+                              params={{ slug: emptyBottle.slug }}
+                              className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                            >
+                              Non merci
+                            </Link>
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
@@ -681,33 +726,32 @@ function EliquideDetail({
                     boosterPrice !== null && (
                       <div className="mt-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
                         <p className="text-foreground">
-                          {nicotine} mg de nicotine sur ce flacon de{" "}
-                          {variant.volume_ml} ml ={" "}
-                          <strong>{boostersCount}</strong> booster
-                          {boostersCount > 1 ? "s" : ""} ×{" "}
-                          {formatPrice(boosterPrice, product.currency)} ={" "}
+                          Prix du flacon ({variant.volume_ml} ml) :{" "}
                           <strong>
+                            {formatPrice(variant.price_cents, product.currency)}
+                          </strong>
+                        </p>
+                        <p className="mt-1">
+                          + {boostersCount} booster{boostersCount > 1 ? "s" : ""} de nicotine à{" "}
+                          {formatPrice(boosterPrice, product.currency)} ={" "}
+                          <strong className="text-foreground">
                             {formatPrice(
                               boostersCount * boosterPrice,
                               product.currency,
                             )}
                           </strong>
                         </p>
-                        <p className="mt-1">
-                          Prix flacon :{" "}
-                          {formatPrice(variant.price_cents, product.currency)} ·
-                          Boosters :{" "}
-                          {formatPrice(
-                            boostersCount * boosterPrice,
-                            product.currency,
-                          )}{" "}
-                          · Total unitaire :{" "}
-                          <strong className="text-foreground">
+                        <p className="mt-1 border-t border-border/60 pt-1 text-foreground">
+                          = Total :{" "}
+                          <strong>
                             {formatPrice(
                               variant.price_cents + boostersCount * boosterPrice,
                               product.currency,
                             )}
-                          </strong>
+                          </strong>{" "}
+                          <span className="text-muted-foreground">
+                            ({nicotine} mg sur {variant.volume_ml} ml)
+                          </span>
                         </p>
                       </div>
                     )}
