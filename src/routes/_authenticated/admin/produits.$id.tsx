@@ -6,6 +6,7 @@ import {
   adminUpsertProduct,
   adminUploadProductPhoto,
   adminListVariants,
+  adminListProducts,
   type ProductInput,
 } from "@/lib/admin.functions";
 import {
@@ -53,6 +54,8 @@ const empty: FormState = {
   coa_url: "",
   variants: [],
   is_nicotine_booster: false,
+  booster_product_id: null,
+  empty_bottle_product_id: null,
   flavors: [],
 };
 
