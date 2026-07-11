@@ -947,6 +947,19 @@ function VariantBlock({
     onUpdate({ boosters_per_nicotine: next });
   };
 
+  // Alerte capacité : liste des taux dont le nombre de boosters requis
+  // dépasse la capacité maximale déclarée du flacon.
+  const capacity =
+    typeof variant.max_boosters === "number" && variant.max_boosters >= 0
+      ? variant.max_boosters
+      : null;
+  const overCapacity =
+    !is10ml && capacity !== null
+      ? selected
+          .filter((mg) => mg > 0)
+          .filter((mg) => (boosters[String(mg)] ?? 0) > capacity)
+      : [];
+
   return (
     <div className="rounded-md border border-border bg-background/40 p-4">
       <div className="grid gap-3 sm:grid-cols-[150px_1fr_1fr_auto] sm:items-end">
@@ -1018,6 +1031,43 @@ function VariantBlock({
         >
           <Trash2 className="h-4 w-4" />
         </button>
+      </div>
+
+      {/* Photo optionnelle + capacité max de boosters pour ce volume. */}
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <VariantPhotoField
+          value={variant.photo_url ?? null}
+          onChange={(url) => onUpdate({ photo_url: url })}
+        />
+        {!is10ml && (
+          <label className="text-xs">
+            <span className="mb-1 block text-muted-foreground">
+              Capacité maximale de boosters de ce flacon
+            </span>
+            <input
+              className="input"
+              type="number"
+              min={0}
+              max={20}
+              placeholder="Ex. 2"
+              value={
+                typeof variant.max_boosters === "number"
+                  ? variant.max_boosters
+                  : ""
+              }
+              onChange={(e) =>
+                onUpdate({
+                  max_boosters:
+                    e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+            />
+            <span className="mt-1 block text-[11px] text-muted-foreground">
+              Nombre de boosters que le flacon peut physiquement contenir. Sert
+              à alerter le client si un taux nécessite plus de boosters.
+            </span>
+          </label>
+        )}
       </div>
 
       <div className="mt-3">
@@ -1097,6 +1147,107 @@ function VariantBlock({
             Accessoires Vape).
           </p>
         )}
+        {overCapacity.length > 0 && (
+          <div className="mt-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+            <strong>Attention :</strong> le(s) taux{" "}
+            {overCapacity.map((m) => `${m} mg`).join(", ")} nécessite(nt) plus
+            de boosters que la capacité déclarée du flacon ({capacity}). Le
+            client verra une alternative (flacon plus grand ou flacon vide
+            supplémentaire). Corrige la capacité si besoin.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function VariantPhotoField({
+  value,
+  onChange,
+}: {
+  value: string | null;
+  onChange: (url: string | null) => void;
+}) {
+  const upload = useServerFn(adminUploadProductPhoto);
+  const [busy, setBusy] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  async function onFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Format non supporté.");
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      toast.error("Image trop lourde (4 Mo max).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Lecture du fichier échouée."));
+        reader.readAsDataURL(file);
+      });
+      const res = await upload({
+        data: { filename: file.name, contentType: file.type, base64 },
+      });
+      onChange(res.url);
+      toast.success("Photo de la variante mise à jour.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+  return (
+    <div className="text-xs">
+      <span className="mb-1 block text-muted-foreground">
+        Photo spécifique à cette variante (optionnelle)
+      </span>
+      <div className="flex items-center gap-3">
+        {value ? (
+          <img
+            src={value}
+            alt="Aperçu variante"
+            className="h-14 w-14 rounded-md border border-border object-cover"
+          />
+        ) : (
+          <div className="h-14 w-14 rounded-md border border-dashed border-border/60 bg-background/30" />
+        )}
+        <div className="flex flex-col gap-1">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={onFile}
+          />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-secondary disabled:opacity-50"
+          >
+            {busy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Upload className="h-3.5 w-3.5" />
+            )}
+            {value ? "Remplacer" : "Ajouter"}
+          </button>
+          {value && (
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              className="text-[11px] text-destructive hover:underline"
+            >
+              Retirer la photo
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
