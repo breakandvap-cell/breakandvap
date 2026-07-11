@@ -1017,6 +1017,30 @@ function VariantBlock({
           Taux de nicotine disponibles pour ce volume
           {is10ml ? " (prix unique, quel que soit le taux)" : " (base + boosters)"}
         </p>
+        <div className="mb-3">
+          <span className="mb-1 block text-xs text-muted-foreground">
+            Type de nicotine
+          </span>
+          <div className="inline-flex overflow-hidden rounded-md border border-border text-xs">
+            {(["normale", "sel"] as const).map((t) => {
+              const active = (variant.nicotine_type ?? "normale") === t;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onUpdate({ nicotine_type: t })}
+                  className={`px-3 py-1.5 transition-colors ${
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t === "normale" ? "Nicotine normale" : "Sel de nicotine"}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {choices.map((mg) => {
             const on = selected.includes(mg);
