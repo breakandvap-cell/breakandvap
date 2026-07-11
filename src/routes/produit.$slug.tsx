@@ -909,6 +909,8 @@ function EliquideDetail({
                 >
                   {nicotine === null
                     ? "Choisir un taux de nicotine"
+                    : missingBooster
+                    ? "Booster indisponible"
                     : exceedsCapacity && !hasEmptyBottleFallback
                     ? "Combinaison indisponible"
                     : hasFlavors && !flavor
