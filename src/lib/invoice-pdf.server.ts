@@ -1,6 +1,7 @@
 // Génération de PDF de facture, edge-compatible via pdf-lib.
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { INVOICE_SELLER } from "./invoice-config";
+import { itemDescription, lineTaxBreakdown, productRef } from "./order-item-format";
 
 export type InvoiceItem = {
   product_name: string;
@@ -9,6 +10,9 @@ export type InvoiceItem = {
   base_price_cents?: number | null;
   boosters_count?: number | null;
   booster_unit_price_cents?: number | null;
+  nicotine_mg?: number | null;
+  volume_ml?: number | null;
+  flavor?: string | null;
 };
 
 export type InvoiceBuyer = {
