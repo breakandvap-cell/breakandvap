@@ -511,7 +511,7 @@ function EliquideDetail({
   }, [variant, variantCapacity]);
   const alternative200 = useMemo(() => {
     if (!exceedsCapacity || nicotine === null) return null;
-    const v200 = availableVolumes.find(
+    const v200 = volumesForType.find(
       (v) =>
         v.volume_ml === 200 &&
         v.id !== variant?.id &&
@@ -525,14 +525,15 @@ function EliquideDetail({
       ] ?? 0;
     if (cap !== null && needed > cap) return null;
     return v200;
-  }, [exceedsCapacity, nicotine, availableVolumes, variant]);
+  }, [exceedsCapacity, nicotine, volumesForType, variant]);
 
   const hasEmptyBottleFallback = emptyBottle && emptyBottle.is_published;
   const addDisabled =
     nicotine === null ||
     !nicotineOK ||
     !flavorOK ||
-    (exceedsCapacity && !hasEmptyBottleFallback);
+    (exceedsCapacity && !hasEmptyBottleFallback) ||
+    missingBooster;
 
 
   return (
