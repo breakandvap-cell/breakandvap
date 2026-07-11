@@ -48,8 +48,16 @@ const productInputSchema = z.object({
         boosters_per_nicotine: z
           .record(z.string(), z.number().int().min(0).max(20))
           .default({}),
-        // Type de nicotine : normale (par défaut) ou sel de nicotine.
-        nicotine_type: z.enum(["normale", "sel"]).optional().default("normale"),
+        // Type de nicotine (libre) : normale, sel, ice, ou tout nouveau type
+        // défini par l'admin. Sert à faire le lien avec le produit booster
+        // correspondant coché comme « booster de nicotine ».
+        nicotine_type: z
+          .string()
+          .trim()
+          .min(1)
+          .max(40)
+          .optional()
+          .default("normale"),
         // Capacité physique maximale de boosters que le flacon peut contenir.
         // Facultatif : si non renseigné, aucune limite n'est appliquée.
         max_boosters: z.number().int().min(0).max(20).nullable().optional(),
@@ -61,8 +69,12 @@ const productInputSchema = z.object({
     .max(20)
     .optional()
     .default([]),
-  // Indique que ce produit est LE booster de nicotine de référence (unique).
+  // Indique que ce produit est un booster de nicotine (plusieurs autorisés,
+  // un par type). Sert à identifier le prix de référence côté e-liquides.
   is_nicotine_booster: z.boolean().optional().default(false),
+  // Clé du type de booster (normale / sel / ice / …). Renseignée uniquement
+  // pour les accessoires vape marqués comme booster.
+  booster_type: z.string().trim().min(1).max(40).nullable().optional(),
   // Liens optionnels vers d'autres produits « Accessoires Vape » utilisés
   // pour personnaliser le calcul et les suggestions d'un e-liquide.
   booster_product_id: z.string().uuid().nullable().optional(),
@@ -228,6 +240,11 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       coa_url: data.coa_url || null,
       is_nicotine_booster:
         data.category === "accessoire_vape" ? Boolean(data.is_nicotine_booster) : false,
+      booster_type:
+        data.category === "accessoire_vape" && Boolean(data.is_nicotine_booster)
+          ? (data.booster_type ?? "normale").toString().trim().toLowerCase() ||
+            "normale"
+          : null,
       booster_product_id:
         data.category === "e_liquide" ? data.booster_product_id ?? null : null,
       empty_bottle_product_id:
@@ -235,16 +252,8 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       flavors: (data.flavors ?? []) as never,
       updated_by: context.userId,
     };
-    // Un seul booster de nicotine dans tout le catalogue : on retire le flag
-    // des autres produits avant d'appliquer.
-    if (payload.is_nicotine_booster) {
-      const clearQ = supabaseAdmin
-        .from("products")
-        .update({ is_nicotine_booster: false })
-        .eq("is_nicotine_booster", true);
-      if (data.id) await clearQ.neq("id", data.id);
-      else await clearQ;
-    }
+    // Plusieurs boosters simultanés sont désormais autorisés : le rôle n'est
+    // plus exclusif. La différenciation se fait via `booster_type`.
     let productId: string;
     if (data.id) {
       const { data: row, error } = await supabaseAdmin.from("products").update(payload).eq("id", data.id).select("id").single();

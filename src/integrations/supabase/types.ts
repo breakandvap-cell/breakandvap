@@ -306,7 +306,7 @@ export type Database = {
           id: string
           max_boosters: number | null
           max_nicotine_mg: number | null
-          nicotine_type: Database["public"]["Enums"]["nicotine_type"]
+          nicotine_type: string
           photo_url: string | null
           price_cents: number
           product_id: string
@@ -321,7 +321,7 @@ export type Database = {
           id?: string
           max_boosters?: number | null
           max_nicotine_mg?: number | null
-          nicotine_type?: Database["public"]["Enums"]["nicotine_type"]
+          nicotine_type?: string
           photo_url?: string | null
           price_cents: number
           product_id: string
@@ -336,7 +336,7 @@ export type Database = {
           id?: string
           max_boosters?: number | null
           max_nicotine_mg?: number | null
-          nicotine_type?: Database["public"]["Enums"]["nicotine_type"]
+          nicotine_type?: string
           photo_url?: string | null
           price_cents?: number
           product_id?: string
@@ -357,6 +357,7 @@ export type Database = {
       products: {
         Row: {
           booster_product_id: string | null
+          booster_type: string | null
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent: number | null
           coa_url: string | null
@@ -383,6 +384,7 @@ export type Database = {
         }
         Insert: {
           booster_product_id?: string | null
+          booster_type?: string | null
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
@@ -409,6 +411,7 @@ export type Database = {
         }
         Update: {
           booster_product_id?: string | null
+          booster_type?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
@@ -563,7 +566,6 @@ export type Database = {
         | "verifie"
         | "refuse"
       app_role: "client" | "admin"
-      nicotine_type: "normale" | "sel"
       order_status: "a_preparer" | "expediee" | "livree" | "annulee"
       product_category:
         | "cbd"
@@ -706,7 +708,6 @@ export const Constants = {
         "refuse",
       ],
       app_role: ["client", "admin"],
-      nicotine_type: ["normale", "sel"],
       order_status: ["a_preparer", "expediee", "livree", "annulee"],
       product_category: [
         "cbd",

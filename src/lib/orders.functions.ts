@@ -114,12 +114,15 @@ export const createOrder = createServerFn({ method: "POST" })
         stock: number;
         available_nicotine_mg: number[];
         boosters_per_nicotine: Record<string, number> | null;
+        nicotine_type: string;
       }
     >();
     if (variantIds.length > 0) {
       const { data: variants, error: vErr } = await supabaseAdmin
         .from("product_variants")
-        .select("id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine")
+        .select(
+          "id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine, nicotine_type",
+        )
         .in("id", variantIds);
       if (vErr) {
         console.error("[checkout] variants fetch failed:", vErr);
@@ -135,20 +138,32 @@ export const createOrder = createServerFn({ method: "POST" })
           available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
           boosters_per_nicotine:
             (v.boosters_per_nicotine as Record<string, number> | null) ?? null,
+          nicotine_type: ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
+            .toString()
+            .trim()
+            .toLowerCase() || "normale",
         });
       }
     }
 
-    // Load current booster reference price (used for e-liquides 50/100/200 ml).
-    let boosterUnitPriceCents: number | null = null;
+    // Charge les produits booster (un par type) : prix de référence appliqué
+    // aux e-liquides 50/100/200 ml selon le type de la variante commandée.
+    const boosterByType = new Map<string, { id: string; price_cents: number }>();
     {
-      const { data: booster } = await supabaseAdmin
+      const { data: boosters } = await supabaseAdmin
         .from("products")
-        .select("price_cents, is_published")
+        .select("id, price_cents, is_published, booster_type, created_at")
         .eq("is_nicotine_booster", true)
-        .maybeSingle();
-      if (booster && booster.is_published) {
-        boosterUnitPriceCents = booster.price_cents;
+        .order("created_at", { ascending: true });
+      for (const b of boosters ?? []) {
+        if (!b.is_published) continue;
+        const key = ((b as { booster_type?: string | null }).booster_type ?? "normale")
+          .toString()
+          .trim()
+          .toLowerCase() || "normale";
+        if (!boosterByType.has(key)) {
+          boosterByType.set(key, { id: b.id, price_cents: b.price_cents });
+        }
       }
     }
 
@@ -220,14 +235,15 @@ export const createOrder = createServerFn({ method: "POST" })
           const boostersN =
             (v.boosters_per_nicotine ?? {})[String(nic)] ?? 0;
           if (boostersN > 0) {
-            if (!boosterUnitPriceCents) {
+            const booster = boosterByType.get(v.nicotine_type);
+            if (!booster) {
               throw new Error(
-                `Le produit « Booster de nicotine » n'est pas disponible actuellement.`,
+                `Aucun booster de nicotine « ${v.nicotine_type} » disponible pour "${p.name}".`,
               );
             }
-            unitPrice += boostersN * boosterUnitPriceCents;
+            unitPrice += boostersN * booster.price_cents;
             boostersUsed = boostersN;
-            boosterUnitPrice = boosterUnitPriceCents;
+            boosterUnitPrice = booster.price_cents;
           }
         }
         totalCents += unitPrice * line.quantity;

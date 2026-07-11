@@ -14,6 +14,10 @@ import {
   NICOTINE_STEPS_MG_10ML,
   NICOTINE_STEPS_MG_BOOSTER,
   VOLUME_OPTIONS_ML,
+  BOOSTER_TYPE_PRESETS,
+  boosterTypeLabel,
+  boosterProductsQueryOptions,
+  normalizeBoosterTypeKey,
 } from "@/lib/products";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
@@ -54,6 +58,7 @@ const empty: FormState = {
   coa_url: "",
   variants: [],
   is_nicotine_booster: false,
+  booster_type: null,
   booster_product_id: null,
   empty_bottle_product_id: null,
   flavors: [],
@@ -152,6 +157,8 @@ function EditProduct() {
         coa_url: existing.coa_url ?? "",
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+        booster_type:
+          (existing as { booster_type?: string | null }).booster_type ?? null,
         booster_product_id:
           (existing as { booster_product_id?: string | null }).booster_product_id ?? null,
         empty_bottle_product_id:
@@ -544,28 +551,16 @@ function EditProduct() {
               )}
               {hasVariants && (
                 <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4 sm:grid-cols-2">
-                  <Field
-                    label="Produit booster associé (optionnel)"
-                    hint="Booster de nicotine dont le prix sera utilisé pour calculer le total de ce e-liquide. Par défaut : le produit marqué « Booster de nicotine »."
-                  >
-                    <select
-                      className="input"
-                      value={form.booster_product_id ?? ""}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          booster_product_id: e.target.value || null,
-                        })
-                      }
-                    >
-                      <option value="">— Par défaut (Booster de nicotine) —</option>
-                      {(vapeAccessories ?? []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                  <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Boosters de nicotine</p>
+                    <p className="mt-1">
+                      Chaque variante ci-dessous a son propre <em>type de
+                      nicotine</em> (Normal / Sel / Ice / …). Le prix booster
+                      appliqué est automatiquement celui du produit accessoire
+                      « Booster de nicotine » du même type. Aucun choix manuel
+                      n'est nécessaire ici.
+                    </p>
+                  </div>
                   <Field
                     label="Produit flacon vide associé (optionnel)"
                     hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
@@ -686,23 +681,11 @@ function EditProduct() {
           </label>
 
           {form.category === "accessoire_vape" && (
-            <label className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-200">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={Boolean(form.is_nicotine_booster)}
-                onChange={(e) =>
-                  setForm({ ...form, is_nicotine_booster: e.target.checked })
-                }
-              />
-              <span>
-                <strong>Ce produit est LE Booster de nicotine.</strong> Son prix
-                sera utilisé automatiquement pour calculer le prix des e-liquides
-                (50 / 100 / 200 ml) selon le nombre de boosters requis. Un seul
-                produit à la fois peut porter ce rôle : cocher ici retirera le
-                rôle des autres accessoires.
-              </span>
-            </label>
+            <BoosterRoleFields
+              checked={Boolean(form.is_nicotine_booster)}
+              type={form.booster_type}
+              onChange={(patch) => setForm({ ...form, ...patch })}
+            />
           )}
         </section>
 
@@ -893,6 +876,106 @@ function Field({
   );
 }
 
+
+function BoosterRoleFields({
+  checked,
+  type,
+  onChange,
+}: {
+  checked: boolean;
+  type: string | null | undefined;
+  onChange: (patch: Partial<FormState>) => void;
+}) {
+  const currentKey = normalizeBoosterTypeKey(type);
+  const isPreset = BOOSTER_TYPE_PRESETS.some((p) => p.key === currentKey);
+  const [customMode, setCustomMode] = useState<boolean>(
+    checked && !isPreset && Boolean(type),
+  );
+  useEffect(() => {
+    if (!checked) setCustomMode(false);
+  }, [checked]);
+  return (
+    <div className="mt-2 space-y-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-200">
+      <label className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={checked}
+          onChange={(e) =>
+            onChange({
+              is_nicotine_booster: e.target.checked,
+              booster_type: e.target.checked
+                ? type ?? "normale"
+                : null,
+            })
+          }
+        />
+        <span>
+          <strong>Ce produit est un booster de nicotine.</strong> Son prix sera
+          utilisé automatiquement pour calculer le total des e-liquides qui
+          utilisent le <em>même type de nicotine</em>. Plusieurs boosters
+          peuvent coexister (un par type).
+        </span>
+      </label>
+      {checked && (
+        <div className="space-y-2 rounded-md border border-amber-500/30 bg-background/30 p-3 text-foreground">
+          <p className="text-xs font-medium">Type de booster</p>
+          <div className="flex flex-wrap gap-2">
+            {BOOSTER_TYPE_PRESETS.map((p) => {
+              const active = !customMode && currentKey === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => {
+                    setCustomMode(false);
+                    onChange({ booster_type: p.key });
+                  }}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setCustomMode(true)}
+              className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                customMode
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              + Autre
+            </button>
+          </div>
+          {customMode && (
+            <input
+              className="input mt-1"
+              type="text"
+              maxLength={40}
+              placeholder="Nom du nouveau type (ex. hybride, no-nic…)"
+              value={type ?? ""}
+              onChange={(e) =>
+                onChange({
+                  booster_type: e.target.value.toLowerCase().slice(0, 40),
+                })
+              }
+            />
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Ce type doit correspondre exactement à celui choisi côté fiche
+            e-liquide (variantes de volume). Actuel : <strong>{boosterTypeLabel(type)}</strong>.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function VariantsEditor({
   variants,
@@ -1143,27 +1226,53 @@ function VariantBlock({
         </p>
         <div className="mb-3">
           <span className="mb-1 block text-xs text-muted-foreground">
-            Type de nicotine
+            Type de nicotine (détermine quel booster est utilisé)
           </span>
-          <div className="inline-flex overflow-hidden rounded-md border border-border text-xs">
-            {(["normale", "sel"] as const).map((t) => {
-              const active = (variant.nicotine_type ?? "normale") === t;
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {BOOSTER_TYPE_PRESETS.map((t) => {
+              const active =
+                normalizeBoosterTypeKey(variant.nicotine_type) === t.key;
               return (
                 <button
-                  key={t}
+                  key={t.key}
                   type="button"
-                  onClick={() => onUpdate({ nicotine_type: t })}
-                  className={`px-3 py-1.5 transition-colors ${
+                  onClick={() => onUpdate({ nicotine_type: t.key })}
+                  className={`rounded-md border px-3 py-1.5 transition-colors ${
                     active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:text-foreground"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {t === "normale" ? "Nicotine normale" : "Sel de nicotine"}
+                  {t.label}
                 </button>
               );
             })}
+            <label className="flex items-center gap-1 text-muted-foreground">
+              <span>ou</span>
+              <input
+                type="text"
+                className="input h-8 w-32 px-2 py-1 text-xs"
+                placeholder="type libre"
+                value={
+                  BOOSTER_TYPE_PRESETS.some(
+                    (p) => p.key === normalizeBoosterTypeKey(variant.nicotine_type),
+                  )
+                    ? ""
+                    : (variant.nicotine_type ?? "")
+                }
+                onChange={(e) =>
+                  onUpdate({
+                    nicotine_type:
+                      e.target.value.toLowerCase().slice(0, 40) || "normale",
+                  })
+                }
+              />
+            </label>
           </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Le prix booster utilisé sera celui de l'accessoire vape marqué
+            « booster de nicotine » avec ce même type.
+          </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {choices.map((mg) => {

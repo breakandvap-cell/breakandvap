@@ -34,6 +34,85 @@ export const NICOTINE_STEPS_MG_BOOSTER = [0, 3, 6, 9] as const;
 // Ancienne constante (compat rétro : maximum atteignable avec boosters).
 export const NICOTINE_STEPS_MG = NICOTINE_STEPS_MG_BOOSTER;
 
+// -------- Types de booster de nicotine --------
+// Le stockage est libre (text) : l'admin peut ajouter d'autres types plus tard.
+// Ces presets alimentent les puces par défaut dans le formulaire et la fiche
+// produit, mais un type inconnu s'affiche tel quel (majuscule d'attaque).
+export const BOOSTER_TYPE_PRESETS = [
+  { key: "normale", label: "Nicotine normale" },
+  { key: "sel", label: "Sel de nicotine" },
+  { key: "ice", label: "Ice" },
+] as const;
+
+export function normalizeBoosterTypeKey(input: string | null | undefined): string {
+  const s = (input ?? "").trim().toLowerCase();
+  if (!s) return "normale";
+  return s;
+}
+
+export function boosterTypeLabel(key: string | null | undefined): string {
+  const k = normalizeBoosterTypeKey(key);
+  const preset = BOOSTER_TYPE_PRESETS.find((p) => p.key === k);
+  if (preset) return preset.label;
+  return k.charAt(0).toUpperCase() + k.slice(1);
+}
+
+export type BoosterProduct = {
+  id: string;
+  name: string;
+  slug: string;
+  price_cents: number;
+  currency: string;
+  is_published: boolean;
+  stock_status: Database["public"]["Enums"]["stock_status"];
+  booster_type: string | null;
+  created_at: string;
+};
+
+export const boosterProductsQueryOptions = () =>
+  queryOptions({
+    queryKey: ["booster-products-by-type"] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select(
+          "id, name, slug, price_cents, currency, is_published, stock_status, booster_type, created_at",
+        )
+        .eq("is_nicotine_booster", true)
+        .order("created_at", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as BoosterProduct[];
+    },
+  });
+
+/** Premier booster publié pour chaque type (ordonné par created_at ASC). */
+export function boostersByType(
+  list: BoosterProduct[] | null | undefined,
+): Record<string, BoosterProduct> {
+  const map: Record<string, BoosterProduct> = {};
+  for (const b of list ?? []) {
+    if (!b.is_published) continue;
+    const key = normalizeBoosterTypeKey(b.booster_type);
+    if (!map[key]) map[key] = b;
+  }
+  return map;
+}
+
+/** Types de booster comptant plusieurs produits publiés (pour alerter l'admin). */
+export function duplicateBoosterTypes(
+  list: BoosterProduct[] | null | undefined,
+): Record<string, BoosterProduct[]> {
+  const groups: Record<string, BoosterProduct[]> = {};
+  for (const b of list ?? []) {
+    if (!b.is_published) continue;
+    const key = normalizeBoosterTypeKey(b.booster_type);
+    (groups[key] ||= []).push(b);
+  }
+  const dups: Record<string, BoosterProduct[]> = {};
+  for (const [k, v] of Object.entries(groups)) if (v.length > 1) dups[k] = v;
+  return dups;
+}
+
 export type ProductFlavor = { name: string; stock: number; photo: string | null };
 
 export function parseFlavors(raw: unknown): ProductFlavor[] {
