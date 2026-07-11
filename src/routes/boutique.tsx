@@ -45,9 +45,7 @@ export const Route = createFileRoute("/boutique")({
   ),
 });
 
-type SearchCategory = NonNullable<
-  typeof searchSchema.shape.categorie
->;
+type SearchCategory = Exclude<ProductCategory, "accessoire">;
 
 function BoutiquePage() {
   const { categorie } = Route.useSearch();
