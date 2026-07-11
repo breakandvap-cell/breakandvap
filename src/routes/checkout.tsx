@@ -85,6 +85,7 @@ function CheckoutPage() {
       },
       items: cart.items.map((i) => ({
         productId: i.productId,
+        variantId: i.variantId ?? undefined,
         quantity: i.quantity,
       })),
     });
@@ -208,10 +209,13 @@ function CheckoutPage() {
             <h2 className="text-lg font-semibold">Votre commande</h2>
             <ul className="mt-4 space-y-3 text-sm">
               {cart.items.map((it) => (
-                <li key={it.productId} className="flex justify-between gap-4">
+                <li key={it.key} className="flex justify-between gap-4">
                   <span className="min-w-0">
                     <span className="block truncate">{it.name}</span>
                     <span className="text-xs text-muted-foreground">
+                      {it.volumeMl ? `${it.volumeMl} ml` : ""}
+                      {it.volumeMl && it.nicotineMg != null ? " · " : ""}
+                      {it.nicotineMg != null ? `${it.nicotineMg} mg · ` : it.volumeMl ? " · " : ""}
                       × {it.quantity}
                     </span>
                   </span>
