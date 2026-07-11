@@ -78,6 +78,15 @@ function EditProduct() {
   const save = useServerFn(adminUpsertProduct);
   const upload = useServerFn(adminUploadProductPhoto);
   const listVariantsFn = useServerFn(adminListVariants);
+  const listProductsFn = useServerFn(adminListProducts);
+
+  // Liste des accessoires vape pour les listes déroulantes « booster associé »
+  // et « flacon vide associé » sur les fiches e-liquides.
+  const { data: vapeAccessories } = useQuery({
+    queryKey: ["admin", "products", "accessoire_vape"],
+    queryFn: () => listProductsFn({ data: { category: "accessoire_vape" } }),
+    retry: false,
+  });
 
   const { data: existing, isLoading: loadingExisting, error: loadError } = useQuery({
     queryKey: ["admin", "product", id],
