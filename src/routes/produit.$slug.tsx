@@ -347,19 +347,14 @@ function EliquideDetail({
   const { data: variants } = useSuspenseQuery(
     productVariantsQueryOptions(product.id),
   );
-  const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
-  // Overrides éventuels : booster + flacon vide associés à cet e-liquide.
-  const boosterOverrideId =
-    (product as { booster_product_id?: string | null }).booster_product_id ?? null;
+  const { data: boosterList } = useSuspenseQuery(boosterProductsQueryOptions());
+  const boosterMap = useMemo(() => boostersByType(boosterList), [boosterList]);
+  // Flacon vide associé à cet e-liquide (proposé si capacité dépassée).
   const emptyBottleId =
     (product as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null;
-  const { data: boosterOverride } = useQuery(
-    productByIdQueryOptions(boosterOverrideId),
-  );
   const { data: emptyBottle } = useQuery(
     productByIdQueryOptions(emptyBottleId),
   );
-  const effectiveBooster = boosterOverride ?? booster;
   const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
@@ -376,19 +371,76 @@ function EliquideDetail({
     [variants],
   );
 
+  // Types de nicotine proposés (uniques parmi les variantes).
+  const availableTypes = useMemo(() => {
+    const seen: string[] = [];
+    for (const v of availableVolumes) {
+      const k = normalizeBoosterTypeKey(
+        (v as { nicotine_type?: string | null }).nicotine_type,
+      );
+      if (!seen.includes(k)) seen.push(k);
+    }
+    return seen;
+  }, [availableVolumes]);
+  const [nicotineType, setNicotineType] = useState<string>(
+    () => availableTypes[0] ?? "normale",
+  );
+  // Volumes disponibles pour le type sélectionné.
+  const volumesForType = useMemo(
+    () =>
+      availableVolumes.filter(
+        (v) =>
+          normalizeBoosterTypeKey(
+            (v as { nicotine_type?: string | null }).nicotine_type,
+          ) === nicotineType,
+      ),
+    [availableVolumes, nicotineType],
+  );
+
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     () => {
-      const firstInStock = availableVolumes.find((v) => v.stock > 0);
-      return firstInStock?.id ?? availableVolumes[0]?.id ?? null;
+      const list = availableVolumes.filter(
+        (v) =>
+          normalizeBoosterTypeKey(
+            (v as { nicotine_type?: string | null }).nicotine_type,
+          ) === (availableTypes[0] ?? "normale"),
+      );
+      const firstInStock = list.find((v) => v.stock > 0);
+      return firstInStock?.id ?? list[0]?.id ?? availableVolumes[0]?.id ?? null;
     },
   );
+  // Quand le type change, réaligne la variante sélectionnée.
+  useEffect(() => {
+    if (volumesForType.length === 0) {
+      setSelectedVariantId(null);
+      return;
+    }
+    const stillOk = volumesForType.some((v) => v.id === selectedVariantId);
+    if (!stillOk) {
+      const firstInStock = volumesForType.find((v) => v.stock > 0);
+      setSelectedVariantId(firstInStock?.id ?? volumesForType[0].id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nicotineType, volumesForType.length]);
   const [nicotine, setNicotine] = useState<number | null>(null);
   // Suivi du couple (variante, taux) déjà refusé, pour ne pas rouvrir la pop-up
   // en boucle si le client a cliqué « Non merci ».
   const [bottleDismissedFor, setBottleDismissedFor] = useState<string | null>(null);
 
   const variant =
-    availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
+    volumesForType.find((v) => v.id === selectedVariantId) ?? null;
+  // Booster correspondant au type de la variante sélectionnée.
+  const effectiveBooster = variant
+    ? boosterMap[
+        normalizeBoosterTypeKey(
+          (variant as { nicotine_type?: string | null }).nicotine_type,
+        )
+      ] ?? null
+    : null;
+  const missingBooster =
+    variant !== null &&
+    variant.volume_ml !== 10 &&
+    effectiveBooster === null;
   const nicotineChoices = useMemo(() => {
     if (!variant) return NICOTINE_STEPS_MG_BOOSTER;
     return variant.volume_ml === 10
