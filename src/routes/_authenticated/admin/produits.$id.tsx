@@ -520,10 +520,21 @@ function EditProduct() {
           </div>
         )}
 
+        {cbdErrors.length > 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            <p className="mb-1 font-medium">Vérifie les taux CBD / THC :</p>
+            <ul className="list-inside list-disc space-y-0.5">
+              {cbdErrors.map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={m.isPending || uploading || missing.length > 0}
+            disabled={m.isPending || uploading || missing.length > 0 || cbdErrors.length > 0}
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
