@@ -386,15 +386,25 @@ function EliquideDetail({
 
   const boosterPrice =
     booster && booster.is_published ? booster.price_cents : null;
+  // Fallback : si la table product_variants n'a pas de mapping
+  // boosters_per_nicotine, on suppose la règle standard 1 booster = 3 mg.
+  const boostersFor = useMemo(() => {
+    return (mg: number) => {
+      if (!variant || variant.volume_ml === 10 || mg <= 0) return 0;
+      const n = boostersNeeded(variant, mg);
+      if (n > 0) return n;
+      return Math.ceil(mg / 3);
+    };
+  }, [variant]);
   const displayPrice = useMemo(() => {
     if (!variant) return null;
     const nic = nicotine ?? 0;
-    return computeVariantPrice(variant, nic, boosterPrice);
-  }, [variant, nicotine, boosterPrice]);
+    const n = boostersFor(nic);
+    if (variant.volume_ml === 10 || !n || !boosterPrice) return variant.price_cents;
+    return variant.price_cents + n * boosterPrice;
+  }, [variant, nicotine, boosterPrice, boostersFor]);
   const boostersCount =
-    variant && nicotine !== null && variant.volume_ml !== 10
-      ? boostersNeeded(variant, nicotine)
-      : 0;
+    variant && nicotine !== null ? boostersFor(nicotine) : 0;
 
   const effectiveStock = variant
     ? hasFlavors
@@ -501,6 +511,29 @@ function EliquideDetail({
               )}
             </div>
 
+            {variant && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Flacon {variant.volume_ml} ml :{" "}
+                {formatPrice(variant.price_cents, product.currency)}
+                {boostersCount > 0 && boosterPrice !== null ? (
+                  <>
+                    {" "}
+                    + {boostersCount} booster{boostersCount > 1 ? "s" : ""}
+                    {nicotine !== null ? ` (${nicotine} mg)` : ""} ×{" "}
+                    {formatPrice(boosterPrice, product.currency)} ={" "}
+                    <strong className="text-foreground">
+                      {formatPrice(
+                        variant.price_cents + boostersCount * boosterPrice,
+                        product.currency,
+                      )}
+                    </strong>
+                  </>
+                ) : nicotine !== null && nicotine === 0 && variant.volume_ml !== 10 ? (
+                  <> · sans booster</>
+                ) : null}
+              </p>
+            )}
+
             {product.description ? (
               <p className="mt-6 text-muted-foreground">{product.description}</p>
             ) : null}
@@ -557,6 +590,14 @@ function EliquideDetail({
                     {nicotineChoices.map((mg) => {
                       const disabled = !variant || !allowedForVariant.has(mg);
                       const selected = nicotine === mg;
+                      const nBoost =
+                        variant && variant.volume_ml !== 10 && mg > 0
+                          ? boostersFor(mg)
+                          : 0;
+                      const surcharge =
+                        nBoost > 0 && boosterPrice !== null
+                          ? nBoost * boosterPrice
+                          : 0;
                       return (
                         <button
                           key={mg}
@@ -568,13 +609,18 @@ function EliquideDetail({
                               ? `Indisponible en ${variant?.volume_ml ?? "?"} ml`
                               : undefined
                           }
-                          className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                          className={`flex min-w-[64px] flex-col items-center rounded-md border px-3 py-2 text-sm leading-tight transition-colors ${
                             selected
                               ? "border-primary bg-primary/10 text-foreground"
                               : "border-border text-muted-foreground hover:text-foreground"
                           } ${disabled ? "opacity-40" : ""}`}
                         >
-                          {mg} mg
+                          <span>{mg} mg</span>
+                          {surcharge > 0 ? (
+                            <span className="mt-0.5 text-[10px] font-medium text-accent-foreground/80">
+                              +{formatPrice(surcharge, product.currency)}
+                            </span>
+                          ) : null}
                         </button>
                       );
                     })}
@@ -709,11 +755,11 @@ function EliquideDetail({
                     if (nicotine === null || !nicotineOK || !flavorOK) return;
                     const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
                     const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
-                    const unitPrice = computeVariantPrice(variant, nicotine, boosterPrice);
-                    const boosters =
-                      variant.volume_ml !== 10
-                        ? boostersNeeded(variant, nicotine)
-                        : 0;
+                    const boosters = boostersFor(nicotine);
+                    const unitPrice =
+                      variant.volume_ml === 10 || !boosters || !boosterPrice
+                        ? variant.price_cents
+                        : variant.price_cents + boosters * boosterPrice;
                     cart.add(
                       {
                         key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
