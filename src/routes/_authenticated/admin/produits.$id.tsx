@@ -542,6 +542,54 @@ function EditProduct() {
                   onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
                 />
               )}
+              {hasVariants && (
+                <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4 sm:grid-cols-2">
+                  <Field
+                    label="Produit booster associé (optionnel)"
+                    hint="Booster de nicotine dont le prix sera utilisé pour calculer le total de ce e-liquide. Par défaut : le produit marqué « Booster de nicotine »."
+                  >
+                    <select
+                      className="input"
+                      value={form.booster_product_id ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          booster_product_id: e.target.value || null,
+                        })
+                      }
+                    >
+                      <option value="">— Par défaut (Booster de nicotine) —</option>
+                      {(vapeAccessories ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field
+                    label="Produit flacon vide associé (optionnel)"
+                    hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
+                  >
+                    <select
+                      className="input"
+                      value={form.empty_bottle_product_id ?? ""}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          empty_bottle_product_id: e.target.value || null,
+                        })
+                      }
+                    >
+                      <option value="">— Aucun (pas de suggestion) —</option>
+                      {(vapeAccessories ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
             </div>
           )}
 
