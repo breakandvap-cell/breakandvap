@@ -4,7 +4,7 @@ import {
   notFound,
   useRouter,
 } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
