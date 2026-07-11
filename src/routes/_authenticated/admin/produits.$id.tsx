@@ -855,6 +855,8 @@ function VariantsEditor({
         available_nicotine_mg: [],
         boosters_per_nicotine: {},
         nicotine_type: "normale",
+        max_boosters: null,
+        photo_url: null,
       },
     ]);
 
