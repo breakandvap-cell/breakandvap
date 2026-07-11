@@ -761,60 +761,51 @@ function EliquideDetail({
                     +
                   </button>
                 </div>
-                const hasEmptyBottleFallback =
-                  emptyBottle && emptyBottle.is_published;
-                const addDisabled =
-                  nicotine === null ||
-                  !nicotineOK ||
-                  !flavorOK ||
-                  (exceedsCapacity && !hasEmptyBottleFallback);
-                return (
-                  <button
-                    disabled={addDisabled}
-                    onClick={() => {
-                      if (addDisabled) return;
-                      const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
-                      const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
-                      const boosters = boostersFor(nicotine);
-                      const unitPrice =
-                        variant.volume_ml === 10 || !boosters || !boosterPrice
-                          ? variant.price_cents
-                          : variant.price_cents + boosters * boosterPrice;
-                      cart.add(
-                        {
-                          key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
-                          productId: product.id,
-                          variantId: variant.id,
-                          volumeMl: variant.volume_ml,
-                          nicotineMg: nicotine,
-                          flavor: hasFlavors ? flavor : null,
-                          slug: product.slug,
-                          name: displayName,
-                          priceCents: unitPrice,
-                          baseUnitPriceCents: variant.price_cents,
-                          boostersCount: boosters,
-                          boosterUnitPriceCents:
-                            boosters > 0 ? boosterPrice : null,
-                          photo: photo,
-                          maxStock: effectiveStock,
-                        },
-                        qty,
-                      );
-                      toast.success("Ajouté au panier", {
-                        description: `${qty} × ${displayName}`,
-                      });
-                    }}
-                    className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                  >
-                    {nicotine === null
-                      ? "Choisir un taux de nicotine"
-                      : exceedsCapacity && !hasEmptyBottleFallback
-                      ? "Combinaison indisponible"
-                      : hasFlavors && !flavor
-                      ? "Choisir un goût"
-                      : "Ajouter au panier"}
-                  </button>
-                );
+                <button
+                  disabled={addDisabled}
+                  onClick={() => {
+                    if (addDisabled) return;
+                    const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
+                    const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
+                    const boosters = boostersFor(nicotine);
+                    const unitPrice =
+                      variant.volume_ml === 10 || !boosters || !boosterPrice
+                        ? variant.price_cents
+                        : variant.price_cents + boosters * boosterPrice;
+                    cart.add(
+                      {
+                        key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
+                        productId: product.id,
+                        variantId: variant.id,
+                        volumeMl: variant.volume_ml,
+                        nicotineMg: nicotine,
+                        flavor: hasFlavors ? flavor : null,
+                        slug: product.slug,
+                        name: displayName,
+                        priceCents: unitPrice,
+                        baseUnitPriceCents: variant.price_cents,
+                        boostersCount: boosters,
+                        boosterUnitPriceCents:
+                          boosters > 0 ? boosterPrice : null,
+                        photo: photo,
+                        maxStock: effectiveStock,
+                      },
+                      qty,
+                    );
+                    toast.success("Ajouté au panier", {
+                      description: `${qty} × ${displayName}`,
+                    });
+                  }}
+                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {nicotine === null
+                    ? "Choisir un taux de nicotine"
+                    : exceedsCapacity && !hasEmptyBottleFallback
+                    ? "Combinaison indisponible"
+                    : hasFlavors && !flavor
+                    ? "Choisir un goût"
+                    : "Ajouter au panier"}
+                </button>
               </div>
             ) : variant ? (
               <button
