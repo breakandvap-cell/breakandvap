@@ -109,17 +109,28 @@ export const adminDashboard = createServerFn({ method: "GET" })
     };
   });
 
+const listProductsSchema = z.object({
+  category: z.enum(["cbd", "e_liquide", "accessoire"]).optional().or(z.literal("")),
+  status: z.enum(["published", "draft", "out_of_stock"]).optional().or(z.literal("")),
+});
+
 export const adminListProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) => listProductsSchema.parse(d ?? {}))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from("products")
       .select("id, name, slug, category, price_cents, currency, stock, stock_status, is_published, updated_at")
       .order("updated_at", { ascending: false });
+    if (data.category) q = q.eq("category", data.category);
+    if (data.status === "published") q = q.eq("is_published", true);
+    else if (data.status === "draft") q = q.eq("is_published", false);
+    else if (data.status === "out_of_stock") q = q.eq("stock_status", "out_of_stock");
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return rows ?? [];
   });
 
 export const adminGetProduct = createServerFn({ method: "GET" })

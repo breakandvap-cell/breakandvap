@@ -1,23 +1,47 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { adminListProducts, adminDeleteProduct } from "@/lib/admin.functions";
 import { formatPrice, CATEGORY_LABELS } from "@/lib/products";
 import { toast } from "sonner";
 
-const listOptions = queryOptions({
-  queryKey: ["admin", "products"],
-  queryFn: () => adminListProducts(),
-});
+type ProductFilters = {
+  category?: "" | "cbd" | "e_liquide" | "accessoire";
+  status?: "" | "published" | "draft" | "out_of_stock";
+};
+
+const listOptions = (filters: ProductFilters) =>
+  queryOptions({
+    queryKey: ["admin", "products", filters.category ?? "all", filters.status ?? "all"],
+    queryFn: () => adminListProducts({ data: filters }),
+  });
 
 export const Route = createFileRoute("/_authenticated/admin/produits/")({
   ssr: false,
-  loader: ({ context }) => context.queryClient.ensureQueryData(listOptions),
+  validateSearch: (search): ProductFilters => ({
+    category: ["cbd", "e_liquide", "accessoire"].includes(search.category as string)
+      ? (search.category as ProductFilters["category"])
+      : "",
+    status: ["published", "draft", "out_of_stock"].includes(search.status as string)
+      ? (search.status as ProductFilters["status"])
+      : "",
+  }),
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) => context.queryClient.ensureQueryData(listOptions(deps)),
   component: ProductsList,
 });
 
+const STATUS_LABELS: Record<NonNullable<ProductFilters["status"]>, string> = {
+  published: "Publiés",
+  draft: "Brouillons",
+  out_of_stock: "En rupture",
+  "": "Tous les statuts",
+};
+
 function ProductsList() {
-  const { data } = useSuspenseQuery(listOptions);
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.id });
+  const { data } = useSuspenseQuery(listOptions(search));
   const qc = useQueryClient();
   const del = useServerFn(adminDeleteProduct);
   const m = useMutation({
@@ -29,9 +53,16 @@ function ProductsList() {
     onError: (e) => toast.error((e as Error).message),
   });
 
+  const setFilter = (patch: Partial<ProductFilters>) => {
+    navigate({
+      search: (prev: ProductFilters) => ({ ...prev, ...patch }),
+      replace: true,
+    });
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Produits</h1>
         <Link
           to="/admin/produits/$id"
@@ -40,6 +71,51 @@ function ProductsList() {
         >
           + Nouveau produit
         </Link>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
+          <label htmlFor="category" className="text-sm text-muted-foreground">
+            Catégorie
+          </label>
+          <select
+            id="category"
+            value={search.category ?? ""}
+            onChange={(e) => setFilter({ category: e.target.value as ProductFilters["category"] })}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Toutes</option>
+            <option value="cbd">CBD</option>
+            <option value="e_liquide">E-liquides</option>
+            <option value="accessoire">Accessoires</option>
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label htmlFor="status" className="text-sm text-muted-foreground">
+            Statut
+          </label>
+          <select
+            id="status"
+            value={search.status ?? ""}
+            onChange={(e) => setFilter({ status: e.target.value as ProductFilters["status"] })}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="">Tous</option>
+            <option value="published">Publiés</option>
+            <option value="draft">Brouillons</option>
+            <option value="out_of_stock">En rupture</option>
+          </select>
+        </div>
+
+        {(search.category || search.status) && (
+          <button
+            onClick={() => setFilter({ category: "", status: "" })}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Réinitialiser
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto rounded-md border">
@@ -91,7 +167,7 @@ function ProductsList() {
             {data.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
-                  Aucun produit.
+                  Aucun produit ne correspond aux filtres.
                 </td>
               </tr>
             )}
