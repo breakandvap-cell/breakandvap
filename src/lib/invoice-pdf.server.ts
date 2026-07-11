@@ -1,5 +1,5 @@
 // Génération de PDF de facture, edge-compatible via pdf-lib.
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
 import { INVOICE_SELLER } from "./invoice-config";
 import { itemDescription, lineTaxBreakdown, productRef } from "./order-item-format";
 
@@ -46,17 +46,19 @@ function formatMoney(cents: number, currency: string): string {
 
 export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const page = doc.addPage([595.28, 841.89]); // A4
+  const pageSize: [number, number] = [595.28, 841.89]; // A4
+  let page = doc.addPage(pageSize);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const { width, height } = page.getSize();
   const marginX = 40;
+  const footerReserve = 90; // bas de page réservé pour les mentions légales
   const black = rgb(0.1, 0.1, 0.1);
   const gray = rgb(0.4, 0.4, 0.4);
   const line = rgb(0.85, 0.85, 0.85);
 
   let y = height - 50;
-  const draw = (text: string, x: number, yy: number, size = 10, f = font, color = black) =>
+  const draw = (text: string, x: number, yy: number, size = 10, f: PDFFont = font, color = black) =>
     page.drawText(text, { x, y: yy, size, font: f, color });
 
   // En-tête vendeur
@@ -141,62 +143,104 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   // Positions X : Réf | Description | PU TTC | Qté | HT | TVA | TTC
   const col = {
     ref: marginX + 2,
-    desc: marginX + 62,
-    pu: tableRight - 220,
-    qty: tableRight - 165,
-    ht: tableRight - 130,
-    tva: tableRight - 70,
+    desc: marginX + 82,
+    pu: tableRight - 225,
+    qty: tableRight - 170,
+    ht: tableRight - 120,
+    tva: tableRight - 60,
     ttc: tableRight - 4,
   };
-  page.drawRectangle({
-    x: marginX,
-    y: y - 4,
-    width: width - marginX * 2,
-    height: 18,
-    color: rgb(0.95, 0.95, 0.95),
-  });
-  const drawRight = (text: string, xRight: number, yy: number, size = 8, f = font, color = black) => {
+  // Largeur disponible pour la description (jusqu'à la colonne PU, moins padding)
+  const descMaxWidth = col.pu - 55 - col.desc;
+
+  const drawRight = (
+    text: string,
+    xRight: number,
+    yy: number,
+    size = 8,
+    f: PDFFont = font,
+    color = black,
+  ) => {
     const w = f.widthOfTextAtSize(text, size);
     page.drawText(text, { x: xRight - w, y: yy, size, font: f, color });
   };
-  draw("Réf", col.ref, y + 4, 8, bold);
-  draw("Description", col.desc, y + 4, 8, bold);
-  drawRight("PU TTC", col.pu, y + 4, 8, bold);
-  drawRight("Qté", col.qty, y + 4, 8, bold);
-  drawRight("HT", col.ht, y + 4, 8, bold);
-  drawRight("TVA", col.tva, y + 4, 8, bold);
-  drawRight("TTC", col.ttc, y + 4, 8, bold);
+  const drawRightOn = (
+    p: PDFPage,
+    text: string,
+    xRight: number,
+    yy: number,
+    size = 8,
+    f: PDFFont = font,
+    color = black,
+  ) => {
+    const w = f.widthOfTextAtSize(text, size);
+    p.drawText(text, { x: xRight - w, y: yy, size, font: f, color });
+  };
+  const clipToWidth = (text: string, maxWidth: number, size: number, f: PDFFont) => {
+    if (f.widthOfTextAtSize(text, size) <= maxWidth) return text;
+    const ell = "…";
+    let lo = 0;
+    let hi = text.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (f.widthOfTextAtSize(text.slice(0, mid) + ell, size) <= maxWidth) lo = mid;
+      else hi = mid - 1;
+    }
+    return text.slice(0, lo) + ell;
+  };
+  const drawTableHeader = (yy: number) => {
+    page.drawRectangle({
+      x: marginX,
+      y: yy - 4,
+      width: width - marginX * 2,
+      height: 18,
+      color: rgb(0.95, 0.95, 0.95),
+    });
+    draw("Réf", col.ref, yy + 4, 8, bold);
+    draw("Description", col.desc, yy + 4, 8, bold);
+    drawRight("PU TTC", col.pu, yy + 4, 8, bold);
+    drawRight("Qté", col.qty, yy + 4, 8, bold);
+    drawRight("HT", col.ht, yy + 4, 8, bold);
+    drawRight("TVA", col.tva, yy + 4, 8, bold);
+    drawRight("TTC", col.ttc, yy + 4, 8, bold);
+  };
+  drawTableHeader(y);
   y -= 10;
 
-  const descMaxChars = 46;
   const totals = { ht: 0, tva: 0, ttc: 0 };
   for (const it of data.items) {
+    const hasDetail =
+      !!(it.boosters_count && it.boosters_count > 0 &&
+        it.booster_unit_price_cents != null &&
+        it.base_price_cents != null);
+    const rowHeight = 14 + (hasDetail ? 10 : 0);
+    // Nouvelle page si la prochaine ligne dépasse la zone réservée
+    if (y - rowHeight < footerReserve + 20) {
+      page = doc.addPage(pageSize);
+      y = height - 50;
+      drawTableHeader(y);
+      y -= 10;
+    }
     y -= 14;
     const ref = productRef(it.product_name, it.volume_ml);
-    let desc = itemDescription(it);
-    if (desc.length > descMaxChars) desc = desc.slice(0, descMaxChars - 1) + "…";
+    const desc = clipToWidth(itemDescription(it), descMaxWidth, 9, font);
     const b = lineTaxBreakdown(it.unit_price_cents, it.quantity, data.tax_rate);
     totals.ht += b.ht;
     totals.tva += b.tva;
     totals.ttc += b.ttc;
 
-    draw(ref, col.ref, y, 8, bold);
-    draw(desc, col.desc, y, 9);
-    drawRight(formatMoney(it.unit_price_cents, data.currency), col.pu, y, 9);
-    drawRight(String(it.quantity), col.qty, y, 9);
-    drawRight(formatMoney(b.ht, data.currency), col.ht, y, 9);
-    drawRight(formatMoney(b.tva, data.currency), col.tva, y, 9);
-    drawRight(formatMoney(b.ttc, data.currency), col.ttc, y, 9);
+    page.drawText(ref, { x: col.ref, y, size: 8, font: bold, color: black });
+    page.drawText(desc, { x: col.desc, y, size: 9, font, color: black });
+    drawRightOn(page, formatMoney(it.unit_price_cents, data.currency), col.pu, y, 9);
+    drawRightOn(page, String(it.quantity), col.qty, y, 9);
+    drawRightOn(page, formatMoney(b.ht, data.currency), col.ht, y, 9);
+    drawRightOn(page, formatMoney(b.tva, data.currency), col.tva, y, 9);
+    drawRightOn(page, formatMoney(b.ttc, data.currency), col.ttc, y, 9);
 
-    if (
-      it.boosters_count &&
-      it.boosters_count > 0 &&
-      it.booster_unit_price_cents != null &&
-      it.base_price_cents != null
-    ) {
+    if (hasDetail) {
       y -= 10;
-      const detail = `dont flacon ${formatMoney(it.base_price_cents, data.currency)} + ${it.boosters_count} booster${it.boosters_count > 1 ? "s" : ""} × ${formatMoney(it.booster_unit_price_cents, data.currency)}`;
-      draw(detail, col.desc, y, 7, font, gray);
+      const detail = `dont flacon ${formatMoney(it.base_price_cents!, data.currency)} + ${it.boosters_count} booster${it.boosters_count! > 1 ? "s" : ""} × ${formatMoney(it.booster_unit_price_cents!, data.currency)}`;
+      page.drawText(detail, { x: col.desc, y, size: 7, font, color: gray });
     }
     page.drawLine({
       start: { x: marginX, y: y - 4 },
@@ -207,14 +251,19 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   }
 
   // Totaux (utilise la somme des lignes, cohérente avec l'affichage détaillé)
+  // Nouvelle page si les totaux ne tiennent pas
+  if (y - 80 < footerReserve + 20) {
+    page = doc.addPage(pageSize);
+    y = height - 50;
+  }
   y -= 24;
   const labelRight = tableRight - 90;
   const valRight = tableRight - 4;
-  draw("Sous-total HT", labelRight - 60, y, 9);
-  drawRight(formatMoney(totals.ht, data.currency), valRight, y, 9);
+  page.drawText("Sous-total HT", { x: labelRight - 60, y, size: 9, font, color: black });
+  drawRightOn(page, formatMoney(totals.ht, data.currency), valRight, y, 9);
   y -= 13;
-  draw(`TVA (${data.tax_rate.toFixed(2).replace(".", ",")} %)`, labelRight - 60, y, 9);
-  drawRight(formatMoney(totals.tva, data.currency), valRight, y, 9);
+  page.drawText(`TVA (${data.tax_rate.toFixed(2).replace(".", ",")} %)`, { x: labelRight - 60, y, size: 9, font, color: black });
+  drawRightOn(page, formatMoney(totals.tva, data.currency), valRight, y, 9);
   y -= 6;
   page.drawLine({
     start: { x: labelRight - 60, y },
@@ -223,35 +272,31 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
     color: line,
   });
   y -= 14;
-  draw("Total TTC", labelRight - 60, y, 11, bold);
-  drawRight(formatMoney(data.total_cents, data.currency), valRight, y, 11, bold);
+  page.drawText("Total TTC", { x: labelRight - 60, y, size: 11, font: bold, color: black });
+  drawRightOn(page, formatMoney(data.total_cents, data.currency), valRight, y, 11, bold);
 
-  // Mentions légales bas de page
-  const footerY = 60;
-  draw(
-    "TVA acquittée selon les débits. Pas d'escompte pour paiement anticipé.",
-    marginX,
-    footerY + 14,
-    8,
-    font,
-    gray,
-  );
-  draw(
-    `En cas de retard de paiement, indemnité forfaitaire de 40 € (art. L441-10 C. com.).`,
-    marginX,
-    footerY,
-    8,
-    font,
-    gray,
-  );
-  draw(
-    `${INVOICE_SELLER.company} · SIRET ${INVOICE_SELLER.siret} · TVA ${INVOICE_SELLER.vat_number}`,
-    marginX,
-    footerY - 14,
-    8,
-    font,
-    gray,
-  );
+  // Mentions légales bas de page — sur chaque page
+  const pages = doc.getPages();
+  pages.forEach((p, idx) => {
+    const footerY = 60;
+    p.drawText(
+      "TVA acquittée selon les débits. Pas d'escompte pour paiement anticipé.",
+      { x: marginX, y: footerY + 14, size: 8, font, color: gray },
+    );
+    p.drawText(
+      `En cas de retard de paiement, indemnité forfaitaire de 40 € (art. L441-10 C. com.).`,
+      { x: marginX, y: footerY, size: 8, font, color: gray },
+    );
+    p.drawText(
+      `${INVOICE_SELLER.company} · SIRET ${INVOICE_SELLER.siret} · TVA ${INVOICE_SELLER.vat_number}`,
+      { x: marginX, y: footerY - 14, size: 8, font, color: gray },
+    );
+    if (pages.length > 1) {
+      const pageLabel = `Page ${idx + 1} / ${pages.length}`;
+      const w = font.widthOfTextAtSize(pageLabel, 8);
+      p.drawText(pageLabel, { x: width - marginX - w, y: footerY - 14, size: 8, font, color: gray });
+    }
+  });
 
   return await doc.save();
 }
