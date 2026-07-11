@@ -682,7 +682,7 @@ function EliquideDetail({
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
-                        photo: product.photos?.[0] ?? null,
+                        photo: photo,
                         maxStock: effectiveStock,
                       },
                       qty,
