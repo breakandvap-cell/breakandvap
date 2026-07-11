@@ -50,6 +50,12 @@ const productInputSchema = z.object({
           .default({}),
         // Type de nicotine : normale (par défaut) ou sel de nicotine.
         nicotine_type: z.enum(["normale", "sel"]).optional().default("normale"),
+        // Capacité physique maximale de boosters que le flacon peut contenir.
+        // Facultatif : si non renseigné, aucune limite n'est appliquée.
+        max_boosters: z.number().int().min(0).max(20).nullable().optional(),
+        // Photo spécifique optionnelle qui remplace la photo principale
+        // lorsque cette variante est sélectionnée sur la fiche produit.
+        photo_url: z.string().url().nullable().optional().or(z.literal("")),
       }),
     )
     .max(20)
@@ -62,6 +68,9 @@ const productInputSchema = z.object({
       z.object({
         name: z.string().trim().min(1).max(80),
         stock: z.number().int().min(0).max(100_000),
+        // Photo optionnelle par goût : remplace la photo principale du
+        // produit quand ce goût est sélectionné côté boutique.
+        photo: z.string().url().nullable().optional().or(z.literal("")),
       }),
     )
     .max(50)
