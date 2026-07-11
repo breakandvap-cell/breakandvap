@@ -286,8 +286,10 @@ export type Database = {
           boosters_per_nicotine: Json
           created_at: string
           id: string
+          max_boosters: number | null
           max_nicotine_mg: number | null
           nicotine_type: Database["public"]["Enums"]["nicotine_type"]
+          photo_url: string | null
           price_cents: number
           product_id: string
           stock: number
@@ -299,8 +301,10 @@ export type Database = {
           boosters_per_nicotine?: Json
           created_at?: string
           id?: string
+          max_boosters?: number | null
           max_nicotine_mg?: number | null
           nicotine_type?: Database["public"]["Enums"]["nicotine_type"]
+          photo_url?: string | null
           price_cents: number
           product_id: string
           stock?: number
@@ -312,8 +316,10 @@ export type Database = {
           boosters_per_nicotine?: Json
           created_at?: string
           id?: string
+          max_boosters?: number | null
           max_nicotine_mg?: number | null
           nicotine_type?: Database["public"]["Enums"]["nicotine_type"]
+          photo_url?: string | null
           price_cents?: number
           product_id?: string
           stock?: number

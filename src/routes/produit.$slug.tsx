@@ -124,7 +124,6 @@ function ProductDetail() {
     );
   }
   const stock = STOCK_LABELS[product.stock_status];
-  const photo = product.photos?.[0];
   const hasFlavors = flavors.length > 0;
   const selectedFlavor = hasFlavors
     ? flavors.find((f) => f.name === flavor) ?? null
@@ -133,6 +132,7 @@ function ProductDetail() {
   const maxStock = hasFlavors
     ? Math.min(product.stock, selectedFlavor?.stock ?? 0)
     : product.stock;
+  const photo = selectedFlavor?.photo ?? product.photos?.[0] ?? null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -264,7 +264,7 @@ function ProductDetail() {
                         name: displayName,
                         flavor: hasFlavors ? flavor : null,
                         priceCents: product.price_cents,
-                        photo: product.photos?.[0] ?? null,
+                        photo: selectedFlavor?.photo ?? product.photos?.[0] ?? null,
                         maxStock,
                       },
                       qty,
@@ -345,7 +345,6 @@ function EliquideDetail({
     productVariantsQueryOptions(product.id),
   );
   const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
-  const photo = product.photos?.[0];
   const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
@@ -402,6 +401,49 @@ function EliquideDetail({
       ? Math.min(variant.stock, selectedFlavor?.stock ?? 0)
       : variant.stock
     : 0;
+
+  // Photo dynamique : la variante prime, puis le goût, sinon photo principale.
+  const photo =
+    (variant as { photo_url?: string | null } | null)?.photo_url ??
+    selectedFlavor?.photo ??
+    product.photos?.[0] ??
+    null;
+
+  // Capacité physique du flacon : au-delà, le taux reste sélectionnable mais
+  // on affiche une alerte + une alternative cliquable.
+  const variantCapacity =
+    variant && typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
+      ? (variant as { max_boosters: number }).max_boosters
+      : null;
+  const exceedsCapacity =
+    variant !== null &&
+    variant.volume_ml !== 10 &&
+    variantCapacity !== null &&
+    boostersCount > variantCapacity;
+  const achievableMg = useMemo(() => {
+    if (!variant || variantCapacity === null) return null;
+    const bpn = (variant.boosters_per_nicotine as Record<string, number> | null) ?? {};
+    const feasible = (variant.available_nicotine_mg ?? [])
+      .filter((mg) => mg === 0 || (bpn[String(mg)] ?? 0) <= variantCapacity);
+    return feasible.length > 0 ? Math.max(...feasible) : 0;
+  }, [variant, variantCapacity]);
+  const alternative200 = useMemo(() => {
+    if (!exceedsCapacity || nicotine === null) return null;
+    const v200 = availableVolumes.find(
+      (v) =>
+        v.volume_ml === 200 &&
+        v.id !== variant?.id &&
+        (v.available_nicotine_mg ?? []).includes(nicotine),
+    );
+    if (!v200) return null;
+    const cap = (v200 as { max_boosters?: number | null }).max_boosters ?? null;
+    const needed =
+      ((v200.boosters_per_nicotine as Record<string, number> | null) ?? {})[
+        String(nicotine)
+      ] ?? 0;
+    if (cap !== null && needed > cap) return null;
+    return v200;
+  }, [exceedsCapacity, nicotine, availableVolumes, variant]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -552,6 +594,39 @@ function EliquideDetail({
                       .
                     </div>
                   )}
+                  {variant && nicotine !== null && nicotineOK && exceedsCapacity && (
+                    <div className="mt-3 space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
+                      <p>
+                        Ce flacon de <strong>{variant.volume_ml} ml</strong> ne
+                        peut contenir que <strong>{variantCapacity}</strong>{" "}
+                        booster{(variantCapacity ?? 0) > 1 ? "s" : ""}, soit un
+                        maximum réel de{" "}
+                        <strong>{achievableMg ?? 0} mg</strong> de nicotine, et
+                        non <strong>{nicotine} mg</strong>.
+                      </p>
+                      {alternative200 ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVariantId(alternative200.id)}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-400/60 bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-50 hover:bg-amber-500/30"
+                        >
+                          Passer à un flacon de 200 ml à la place
+                        </button>
+                      ) : (
+                        <p>
+                          Ou complétez avec un{" "}
+                          <Link
+                            to="/produit/$slug"
+                            params={{ slug: "flacon-vide-200ml" }}
+                            className="underline"
+                          >
+                            flacon vide 200 ml supplémentaire (1,90 €)
+                          </Link>{" "}
+                          pour diluer davantage votre e-liquide.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {hasFlavors && (
@@ -607,7 +682,7 @@ function EliquideDetail({
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
-                        photo: product.photos?.[0] ?? null,
+                        photo: photo,
                         maxStock: effectiveStock,
                       },
                       qty,
