@@ -21,6 +21,7 @@ const orderInputSchema = z.object({
         productId: z.string().uuid(),
         variantId: z.string().uuid().optional(),
         nicotineMg: z.number().int().min(0).max(50).optional(),
+        flavor: z.string().trim().min(1).max(80).optional(),
         quantity: z.number().int().min(1).max(50),
       }),
     )
@@ -62,7 +63,7 @@ export const createOrder = createServerFn({ method: "POST" })
     const ids = data.items.map((i) => i.productId);
     const { data: products, error: prodErr } = await supabaseAdmin
       .from("products")
-      .select("id, name, price_cents, currency, stock, stock_status, is_published")
+      .select("id, name, price_cents, currency, stock, stock_status, is_published, flavors")
       .in("id", ids);
     if (prodErr) throw new Error(prodErr.message);
     if (!products || products.length === 0) {
@@ -70,6 +71,31 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     const productMap = new Map(products.map((p) => [p.id, p]));
+
+    // Parse flavors and prepare per-product decrement plan.
+    type FlavorEntry = { name: string; stock: number };
+    const flavorMap = new Map<string, FlavorEntry[]>();
+    for (const p of products) {
+      const raw = (p as { flavors?: unknown }).flavors;
+      if (!Array.isArray(raw)) continue;
+      const list: FlavorEntry[] = [];
+      for (const f of raw) {
+        if (!f || typeof f !== "object") continue;
+        const name = (f as { name?: unknown }).name;
+        const stock = (f as { stock?: unknown }).stock;
+        if (typeof name !== "string" || !name.trim()) continue;
+        list.push({
+          name: name.trim(),
+          stock:
+            typeof stock === "number" && Number.isFinite(stock)
+              ? Math.max(0, Math.trunc(stock))
+              : 0,
+        });
+      }
+      if (list.length > 0) flavorMap.set(p.id, list);
+    }
+    // Track flavor stock decrements per product across lines.
+    const flavorOps = new Map<string, FlavorEntry[]>();
 
     // Load required variants
     const variantIds = data.items
@@ -136,6 +162,29 @@ export const createOrder = createServerFn({ method: "POST" })
         throw new Error(`Produit indisponible.`);
       }
       currency = p.currency;
+      // Flavor handling (independent axis): validate & decrement working copy.
+      const productFlavors = flavorMap.get(p.id) ?? null;
+      let flavorLabel: string | null = null;
+      if (productFlavors) {
+        if (!line.flavor) {
+          throw new Error(`Choisis un goût pour "${p.name}".`);
+        }
+        const working = flavorOps.get(p.id) ?? productFlavors.map((f) => ({ ...f }));
+        const entry = working.find(
+          (f) => f.name.toLowerCase() === line.flavor!.toLowerCase(),
+        );
+        if (!entry) {
+          throw new Error(`Goût « ${line.flavor} » indisponible pour "${p.name}".`);
+        }
+        if (entry.stock < line.quantity) {
+          throw new Error(
+            `Stock insuffisant pour "${p.name}" (goût ${entry.name}).`,
+          );
+        }
+        entry.stock -= line.quantity;
+        flavorOps.set(p.id, working);
+        flavorLabel = entry.name;
+      }
       if (line.variantId) {
         const v = variantMap.get(line.variantId);
         if (!v || v.product_id !== p.id) {
@@ -167,9 +216,10 @@ export const createOrder = createServerFn({ method: "POST" })
         }
         totalCents += unitPrice * line.quantity;
         const nameSuffix = nic > 0 ? `, ${nic} mg` : "";
+        const flavorSuffix = flavorLabel ? `, ${flavorLabel}` : "";
         itemsToInsert.push({
           product_id: p.id,
-          product_name: `${p.name} — ${v.volume_ml} ml${nameSuffix}`,
+          product_name: `${p.name} — ${v.volume_ml} ml${nameSuffix}${flavorSuffix}`,
           quantity: line.quantity,
           unit_price_cents: unitPrice,
         });
@@ -184,7 +234,7 @@ export const createOrder = createServerFn({ method: "POST" })
         totalCents += p.price_cents * line.quantity;
         itemsToInsert.push({
           product_id: p.id,
-          product_name: p.name,
+          product_name: flavorLabel ? `${p.name} — ${flavorLabel}` : p.name,
           quantity: line.quantity,
           unit_price_cents: p.price_cents,
         });
@@ -245,6 +295,14 @@ export const createOrder = createServerFn({ method: "POST" })
         .from("product_variants")
         .update({ stock: op.nextStock })
         .eq("id", op.id);
+    }
+
+    // Persist flavor stock decrements (best-effort).
+    for (const [productId, list] of flavorOps.entries()) {
+      await supabaseAdmin
+        .from("products")
+        .update({ flavors: list as never })
+        .eq("id", productId);
     }
 
     // Génération automatique de la facture (numéro séquentiel + PDF + stockage).
