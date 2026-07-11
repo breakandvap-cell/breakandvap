@@ -79,15 +79,17 @@ function BoutiquePage() {
           <FilterPill active={!categorie} onClick={() => setCategory(undefined)}>
             Tout
           </FilterPill>
-          {CATEGORY_ORDER.map((cat) => (
-            <FilterPill
-              key={cat}
-              active={categorie === cat}
-              onClick={() => setCategory(cat)}
-            >
-              {CATEGORY_LABELS[cat]}
-            </FilterPill>
-          ))}
+          {CATEGORY_ORDER.filter((cat): cat is SearchCategory => cat !== "accessoire").map(
+            (cat) => (
+              <FilterPill
+                key={cat}
+                active={categorie === cat}
+                onClick={() => setCategory(cat)}
+              >
+                {CATEGORY_LABELS[cat]}
+              </FilterPill>
+            ),
+          )}
         </div>
 
         {products.length === 0 ? (
