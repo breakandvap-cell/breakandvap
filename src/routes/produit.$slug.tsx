@@ -397,7 +397,9 @@ function EliquideDetail({
     nicotine !== null && variant !== null && allowedForVariant.has(nicotine);
 
   const boosterPrice =
-    booster && booster.is_published ? booster.price_cents : null;
+    effectiveBooster && effectiveBooster.is_published
+      ? effectiveBooster.price_cents
+      : null;
   // Fallback : si la table product_variants n'a pas de mapping
   // boosters_per_nicotine, on suppose la règle standard 1 booster = 3 mg.
   const boostersFor = useMemo(() => {
