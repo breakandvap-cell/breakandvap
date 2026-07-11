@@ -287,6 +287,7 @@ export type Database = {
           created_at: string
           id: string
           max_nicotine_mg: number | null
+          nicotine_type: Database["public"]["Enums"]["nicotine_type"]
           price_cents: number
           product_id: string
           stock: number
@@ -299,6 +300,7 @@ export type Database = {
           created_at?: string
           id?: string
           max_nicotine_mg?: number | null
+          nicotine_type?: Database["public"]["Enums"]["nicotine_type"]
           price_cents: number
           product_id: string
           stock?: number
@@ -311,6 +313,7 @@ export type Database = {
           created_at?: string
           id?: string
           max_nicotine_mg?: number | null
+          nicotine_type?: Database["public"]["Enums"]["nicotine_type"]
           price_cents?: number
           product_id?: string
           stock?: number
@@ -515,6 +518,7 @@ export type Database = {
         | "verifie"
         | "refuse"
       app_role: "client" | "admin"
+      nicotine_type: "normale" | "sel"
       order_status: "a_preparer" | "expediee" | "livree" | "annulee"
       product_category:
         | "cbd"
@@ -657,6 +661,7 @@ export const Constants = {
         "refuse",
       ],
       app_role: ["client", "admin"],
+      nicotine_type: ["normale", "sel"],
       order_status: ["a_preparer", "expediee", "livree", "annulee"],
       product_category: [
         "cbd",

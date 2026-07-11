@@ -48,6 +48,8 @@ const productInputSchema = z.object({
         boosters_per_nicotine: z
           .record(z.string(), z.number().int().min(0).max(20))
           .default({}),
+        // Type de nicotine : normale (par défaut) ou sel de nicotine.
+        nicotine_type: z.enum(["normale", "sel"]).optional().default("normale"),
       }),
     )
     .max(20)
@@ -269,6 +271,7 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
               : (v.max_nicotine_mg ?? 0),
           available_nicotine_mg: v.available_nicotine_mg ?? [],
           boosters_per_nicotine: (v.boosters_per_nicotine ?? {}) as never,
+          nicotine_type: v.nicotine_type ?? "normale",
         };
         if (v.id) {
           const { error } = await supabaseAdmin
