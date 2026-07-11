@@ -5,12 +5,17 @@ import {
   adminGetProduct,
   adminUpsertProduct,
   adminUploadProductPhoto,
+  adminListVariants,
   type ProductInput,
 } from "@/lib/admin.functions";
-import { CATEGORY_LABELS } from "@/lib/products";
+import {
+  CATEGORY_LABELS,
+  NICOTINE_STEPS_MG,
+  VOLUME_OPTIONS_ML,
+} from "@/lib/products";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
-import { X, Upload, Loader2, ArrowLeft } from "lucide-react";
+import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
   ssr: false,
@@ -18,6 +23,14 @@ export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
 });
 
 type FormState = ProductInput;
+type FormVariant = NonNullable<FormState["variants"]>[number];
+
+const ADMIN_CATEGORIES = [
+  "cbd",
+  "e_liquide",
+  "accessoire_vape",
+  "accessoire_cbd",
+] as const satisfies ReadonlyArray<FormState["category"]>;
 
 const empty: FormState = {
   name: "",
@@ -36,6 +49,7 @@ const empty: FormState = {
   nicotine_mg: null,
   health_warnings: "",
   coa_url: "",
+  variants: [],
 };
 
 function slugify(input: string) {
@@ -56,10 +70,18 @@ function EditProduct() {
   const get = useServerFn(adminGetProduct);
   const save = useServerFn(adminUpsertProduct);
   const upload = useServerFn(adminUploadProductPhoto);
+  const listVariantsFn = useServerFn(adminListVariants);
 
   const { data: existing, isLoading: loadingExisting, error: loadError } = useQuery({
     queryKey: ["admin", "product", id],
     queryFn: () => get({ data: { id } }),
+    enabled: !isNew,
+    retry: false,
+  });
+
+  const { data: existingVariants } = useQuery({
+    queryKey: ["admin", "product-variants", id],
+    queryFn: () => listVariantsFn({ data: { productId: id } }),
     enabled: !isNew,
     retry: false,
   });
@@ -76,7 +98,10 @@ function EditProduct() {
         id: existing.id,
         name: existing.name,
         slug: existing.slug,
-        category: existing.category,
+        category:
+          existing.category === "accessoire"
+            ? "accessoire_vape"
+            : (existing.category as FormState["category"]),
         subcategory: existing.subcategory ?? "",
         description: existing.description ?? "",
         price_cents: existing.price_cents,
@@ -90,11 +115,27 @@ function EditProduct() {
         nicotine_mg: existing.nicotine_mg,
         health_warnings: existing.health_warnings ?? "",
         coa_url: existing.coa_url ?? "",
+        variants: [],
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
       setSlugTouched(true);
     }
   }, [existing]);
+
+  useEffect(() => {
+    if (existingVariants) {
+      setForm((f) => ({
+        ...f,
+        variants: existingVariants.map((v) => ({
+          id: v.id,
+          volume_ml: v.volume_ml,
+          price_cents: v.price_cents,
+          stock: v.stock,
+          max_nicotine_mg: v.max_nicotine_mg,
+        })),
+      }));
+    }
+  }, [existingVariants]);
 
   // Auto-slug depuis le nom tant que l'utilisateur ne l'a pas édité.
   useEffect(() => {
@@ -141,6 +182,45 @@ function EditProduct() {
     }
     return errs;
   }, [form.category, form.cbd_percent, form.thc_percent]);
+
+  const variantErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (form.category !== "e_liquide") return errs;
+    const variants = form.variants ?? [];
+    if (variants.length === 0) {
+      errs.push(
+        "Ajoute au moins une variante de volume (50, 100 ou 200 ml) pour ce e-liquide.",
+      );
+    }
+    const seen = new Set<number>();
+    for (const [i, v] of variants.entries()) {
+      const label = `Variante #${i + 1}`;
+      if (!v.volume_ml || v.volume_ml <= 0) {
+        errs.push(`${label} : volume manquant.`);
+      } else if (seen.has(v.volume_ml)) {
+        errs.push(`${label} : le volume ${v.volume_ml} ml est déjà défini.`);
+      } else {
+        seen.add(v.volume_ml);
+      }
+      if (!Number.isInteger(v.price_cents) || v.price_cents <= 0) {
+        errs.push(`${label} (${v.volume_ml || "?"} ml) : prix requis.`);
+      }
+      if (!Number.isInteger(v.stock) || v.stock < 0) {
+        errs.push(`${label} (${v.volume_ml || "?"} ml) : stock invalide.`);
+      }
+      if (
+        !Number.isInteger(v.max_nicotine_mg) ||
+        !NICOTINE_STEPS_MG.includes(
+          v.max_nicotine_mg as (typeof NICOTINE_STEPS_MG)[number],
+        )
+      ) {
+        errs.push(
+          `${label} (${v.volume_ml || "?"} ml) : choisis un taux de nicotine max (0, 3, 6 ou 9 mg).`,
+        );
+      }
+    }
+    return errs;
+  }, [form.category, form.variants]);
 
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
@@ -202,6 +282,10 @@ function EditProduct() {
     }
     if (cbdErrors.length > 0) {
       toast.error(cbdErrors[0]);
+      return;
+    }
+    if (variantErrors.length > 0) {
+      toast.error(variantErrors[0]);
       return;
     }
     m.mutate(form);
@@ -278,8 +362,8 @@ function EditProduct() {
         {/* Bloc 2 — catégorie */}
         <section className="space-y-4 rounded-md border border-border bg-card/40 p-5">
           <Field label="Catégorie" required>
-            <div className="grid grid-cols-3 gap-2">
-              {(["cbd", "e_liquide", "accessoire"] as const).map((c) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {ADMIN_CATEGORIES.map((c) => (
                 <button
                   type="button"
                   key={c}
@@ -294,6 +378,11 @@ function EditProduct() {
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Les accessoires sont classés en « Vape » (résistances, drip tips,
+              cotons, flacons vides…) ou « CBD » (grinders, papiers sans tabac,
+              boîtes de conservation…).
+            </p>
           </Field>
 
           {form.category === "cbd" && (
@@ -334,22 +423,10 @@ function EditProduct() {
           )}
 
           {form.category === "e_liquide" && (
-            <Field label="Taux de nicotine (mg/ml)">
-              <input
-                className="input"
-                type="number"
-                step="0.1"
-                min={0}
-                max={50}
-                value={form.nicotine_mg ?? ""}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    nicotine_mg: e.target.value === "" ? null : Number(e.target.value),
-                  })
-                }
-              />
-            </Field>
+            <VariantsEditor
+              variants={form.variants ?? []}
+              onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+            />
           )}
 
           <Field label="Sous-catégorie (optionnel)">
@@ -531,10 +608,27 @@ function EditProduct() {
           </div>
         )}
 
+        {variantErrors.length > 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+            <p className="mb-1 font-medium">Vérifie les variantes de volume :</p>
+            <ul className="list-inside list-disc space-y-0.5">
+              {variantErrors.map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            disabled={m.isPending || uploading || missing.length > 0 || cbdErrors.length > 0}
+            disabled={
+              m.isPending ||
+              uploading ||
+              missing.length > 0 ||
+              cbdErrors.length > 0 ||
+              variantErrors.length > 0
+            }
             className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -576,5 +670,147 @@ function Field({
       {children}
       {hint && <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>}
     </label>
+  );
+}
+
+function VariantsEditor({
+  variants,
+  onChange,
+}: {
+  variants: FormVariant[];
+  onChange: (next: FormVariant[]) => void;
+}) {
+  const usedVolumes = new Set(variants.map((v) => v.volume_ml));
+  const nextVolume =
+    VOLUME_OPTIONS_ML.find((v) => !usedVolumes.has(v)) ?? 50;
+
+  const update = (idx: number, patch: Partial<FormVariant>) => {
+    onChange(variants.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
+  };
+  const remove = (idx: number) =>
+    onChange(variants.filter((_, i) => i !== idx));
+  const add = () =>
+    onChange([
+      ...variants,
+      {
+        volume_ml: nextVolume,
+        price_cents: 0,
+        stock: 0,
+        max_nicotine_mg: 0,
+      },
+    ]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <h3 className="text-sm font-medium">
+            Variantes de volume <span className="text-destructive">*</span>
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pour chaque flacon (50 / 100 / 200 ml), déclare le prix, le stock,
+            et le <strong>taux de nicotine maximum atteignable</strong> avec les
+            boosters (saisi manuellement, dépend du dosage réel).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
+        >
+          <Plus className="h-3.5 w-3.5" /> Ajouter une variante
+        </button>
+      </div>
+
+      {variants.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border/70 bg-background/30 p-4 text-center text-xs text-muted-foreground">
+          Aucune variante. Ajoute au moins une taille de flacon.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {variants.map((v, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-2 gap-2 rounded-md border border-border bg-background/40 p-3 sm:grid-cols-[110px_1fr_1fr_1fr_auto] sm:items-end"
+            >
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Volume</span>
+                <select
+                  className="input"
+                  value={v.volume_ml}
+                  onChange={(e) =>
+                    update(idx, { volume_ml: Number(e.target.value) })
+                  }
+                >
+                  {VOLUME_OPTIONS_ML.map((vol) => (
+                    <option key={vol} value={vol}>
+                      {vol} ml
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Prix (€)</span>
+                <input
+                  className="input"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={
+                    v.price_cents === 0 ? "" : (v.price_cents / 100).toFixed(2)
+                  }
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    update(idx, {
+                      price_cents: Number.isFinite(n)
+                        ? Math.round(n * 100)
+                        : 0,
+                    });
+                  }}
+                />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Stock</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  value={v.stock}
+                  onChange={(e) =>
+                    update(idx, { stock: Number(e.target.value) || 0 })
+                  }
+                />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">
+                  Nicotine max atteignable
+                </span>
+                <select
+                  className="input"
+                  value={v.max_nicotine_mg}
+                  onChange={(e) =>
+                    update(idx, { max_nicotine_mg: Number(e.target.value) })
+                  }
+                >
+                  {NICOTINE_STEPS_MG.map((mg) => (
+                    <option key={mg} value={mg}>
+                      {mg} mg
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="inline-flex items-center justify-center rounded-md border border-border p-2 text-destructive hover:bg-destructive/10"
+                aria-label="Supprimer cette variante"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

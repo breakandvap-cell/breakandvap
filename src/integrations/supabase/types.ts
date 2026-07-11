@@ -280,6 +280,47 @@ export type Database = {
         }
         Relationships: []
       }
+      product_variants: {
+        Row: {
+          created_at: string
+          id: string
+          max_nicotine_mg: number
+          price_cents: number
+          product_id: string
+          stock: number
+          updated_at: string
+          volume_ml: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          max_nicotine_mg: number
+          price_cents: number
+          product_id: string
+          stock?: number
+          updated_at?: string
+          volume_ml: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          max_nicotine_mg?: number
+          price_cents?: number
+          product_id?: string
+          stock?: number
+          updated_at?: string
+          volume_ml?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: Database["public"]["Enums"]["product_category"]
@@ -463,7 +504,12 @@ export type Database = {
         | "refuse"
       app_role: "client" | "admin"
       order_status: "a_preparer" | "expediee" | "livree" | "annulee"
-      product_category: "cbd" | "e_liquide" | "accessoire"
+      product_category:
+        | "cbd"
+        | "e_liquide"
+        | "accessoire"
+        | "accessoire_vape"
+        | "accessoire_cbd"
       stock_status: "in_stock" | "low_stock" | "out_of_stock"
     }
     CompositeTypes: {
@@ -600,7 +646,13 @@ export const Constants = {
       ],
       app_role: ["client", "admin"],
       order_status: ["a_preparer", "expediee", "livree", "annulee"],
-      product_category: ["cbd", "e_liquide", "accessoire"],
+      product_category: [
+        "cbd",
+        "e_liquide",
+        "accessoire",
+        "accessoire_vape",
+        "accessoire_cbd",
+      ],
       stock_status: ["in_stock", "low_stock", "out_of_stock"],
     },
   },
