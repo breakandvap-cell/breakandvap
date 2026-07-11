@@ -185,3 +185,23 @@ export const nicotineBoosterQueryOptions = () =>
       return data ?? null;
     },
   });
+
+/** Récupère un produit par son id (utilisé pour charger le booster ou le
+ *  flacon vide explicitement associés à un e-liquide). */
+export const productByIdQueryOptions = (id: string | null | undefined) =>
+  queryOptions({
+    queryKey: ["product-by-id", id ?? "none"] as const,
+    enabled: Boolean(id),
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("products")
+        .select(
+          "id, name, slug, price_cents, currency, is_published, stock_status, stock, photos",
+        )
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data ?? null;
+    },
+  });
