@@ -355,8 +355,8 @@ function EditProduct() {
         {/* Bloc 2 — catégorie */}
         <section className="space-y-4 rounded-md border border-border bg-card/40 p-5">
           <Field label="Catégorie" required>
-            <div className="grid grid-cols-3 gap-2">
-              {(["cbd", "e_liquide", "accessoire"] as const).map((c) => (
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {CATEGORY_ORDER.map((c) => (
                 <button
                   type="button"
                   key={c}
@@ -371,6 +371,11 @@ function EditProduct() {
                 </button>
               ))}
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Les accessoires sont classés en « Vape » (résistances, drip tips,
+              cotons, flacons vides…) ou « CBD » (grinders, papiers sans tabac,
+              boîtes de conservation…).
+            </p>
           </Field>
 
           {form.category === "cbd" && (
@@ -411,22 +416,10 @@ function EditProduct() {
           )}
 
           {form.category === "e_liquide" && (
-            <Field label="Taux de nicotine (mg/ml)">
-              <input
-                className="input"
-                type="number"
-                step="0.1"
-                min={0}
-                max={50}
-                value={form.nicotine_mg ?? ""}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    nicotine_mg: e.target.value === "" ? null : Number(e.target.value),
-                  })
-                }
-              />
-            </Field>
+            <VariantsEditor
+              variants={form.variants ?? []}
+              onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+            />
           )}
 
           <Field label="Sous-catégorie (optionnel)">
