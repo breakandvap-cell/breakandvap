@@ -16,6 +16,7 @@ import {
   formatPrice,
   productBySlugQueryOptions,
   productVariantsQueryOptions,
+  type ProductRow,
 } from "@/lib/products";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 
@@ -289,9 +290,7 @@ function EliquideDetail({
   cart,
   router,
 }: {
-  product: NonNullable<
-    ReturnType<typeof useSuspenseQuery<ReturnType<typeof productBySlugQueryOptions>>>["data"]
-  >;
+  product: ProductRow;
   qty: number;
   setQty: (fn: (q: number) => number) => void;
   cart: ReturnType<typeof useCart>;
@@ -453,7 +452,7 @@ function EliquideDetail({
                       flacon plus grand, ou complétez avec un{" "}
                       <Link
                         to="/boutique"
-                        search={{ categorie: "accessoire_vape" }}
+                        search={{ categorie: "accessoire_vape" as const }}
                         className="underline"
                       >
                         flacon vide (Accessoires Vape)
