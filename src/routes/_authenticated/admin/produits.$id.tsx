@@ -155,6 +155,7 @@ function EditProduct() {
         available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
         boosters_per_nicotine:
           (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
+        nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
       }));
       setForm((f) => ({
         ...f,
@@ -847,6 +848,7 @@ function VariantsEditor({
         max_nicotine_mg: null,
         available_nicotine_mg: [],
         boosters_per_nicotine: {},
+        nicotine_type: "normale",
       },
     ]);
 
