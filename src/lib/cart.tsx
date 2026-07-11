@@ -9,7 +9,11 @@ import {
 } from "react";
 
 export type CartItem = {
+  key: string;
   productId: string;
+  variantId?: string | null;
+  volumeMl?: number | null;
+  nicotineMg?: number | null;
   slug: string;
   name: string;
   priceCents: number;
@@ -23,13 +27,13 @@ type CartContextValue = {
   count: number;
   subtotalCents: number;
   add: (item: Omit<CartItem, "quantity">, qty?: number) => void;
-  setQuantity: (productId: string, qty: number) => void;
-  remove: (productId: string) => void;
+  setQuantity: (key: string, qty: number) => void;
+  remove: (key: string) => void;
   clear: () => void;
   hydrated: boolean;
 };
 
-const STORAGE_KEY = "bnv_cart_v1";
+const STORAGE_KEY = "bnv_cart_v2";
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
@@ -60,12 +64,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const add: CartContextValue["add"] = useCallback((item, qty = 1) => {
     setItems((current) => {
-      const existing = current.find((c) => c.productId === item.productId);
+      const existing = current.find((c) => c.key === item.key);
       const cap = item.maxStock;
       if (existing) {
         const nextQty = Math.min(existing.quantity + qty, cap);
         return current.map((c) =>
-          c.productId === item.productId ? { ...c, quantity: nextQty } : c,
+          c.key === item.key ? { ...c, quantity: nextQty } : c,
         );
       }
       return [...current, { ...item, quantity: Math.min(qty, cap) }];
@@ -73,11 +77,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setQuantity: CartContextValue["setQuantity"] = useCallback(
-    (productId, qty) => {
+    (key, qty) => {
       setItems((current) =>
         current
           .map((c) =>
-            c.productId === productId
+            c.key === key
               ? { ...c, quantity: Math.max(0, Math.min(qty, c.maxStock)) }
               : c,
           )
@@ -87,8 +91,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const remove: CartContextValue["remove"] = useCallback((productId) => {
-    setItems((current) => current.filter((c) => c.productId !== productId));
+  const remove: CartContextValue["remove"] = useCallback((key) => {
+    setItems((current) => current.filter((c) => c.key !== key));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);
