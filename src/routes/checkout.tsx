@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useCart } from "@/lib/cart";
 import { createOrder, type CreateOrderInput } from "@/lib/orders.functions";
 import { formatPrice } from "@/lib/products";
+import { useAuth } from "@/lib/auth-context";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -23,6 +25,38 @@ function CheckoutPage() {
   const cart = useCart();
   const navigate = useNavigate();
   const createOrderFn = useServerFn(createOrder);
+  const { user } = useAuth();
+
+  const { data: savedAddresses = [] } = useQuery({
+    queryKey: ["my-addresses", user?.id ?? "anon"],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("addresses")
+        .select("*")
+        .order("is_default", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+  });
+
+  // "saved:<id>" | "new"
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [useNewAddress, setUseNewAddress] = useState(false);
+
+  useEffect(() => {
+    if (savedAddresses.length === 0) {
+      setUseNewAddress(true);
+      setSelectedAddressId(null);
+      return;
+    }
+    if (!selectedAddressId) {
+      const def = savedAddresses.find((a) => a.is_default) ?? savedAddresses[0];
+      setSelectedAddressId(def.id);
+      setUseNewAddress(false);
+    }
+  }, [savedAddresses, selectedAddressId]);
 
   const mutation = useMutation({
     mutationFn: (input: CreateOrderInput) => createOrderFn({ data: input }),
@@ -52,6 +86,12 @@ function CheckoutPage() {
     country: "France",
   });
 
+  useEffect(() => {
+    if (user?.email && !form.email) {
+      setForm((f) => ({ ...f, email: user.email ?? "" }));
+    }
+  }, [user, form.email]);
+
   if (cart.hydrated && cart.items.length === 0 && !mutation.isPending) {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -72,17 +112,39 @@ function CheckoutPage() {
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
+    const selected =
+      !useNewAddress && selectedAddressId
+        ? savedAddresses.find((a) => a.id === selectedAddressId)
+        : null;
+
+    if (!useNewAddress && !selected) {
+      toast.error("Veuillez sélectionner ou saisir une adresse de livraison");
+      return;
+    }
+
+    const shipping = selected
+      ? {
+          fullName: selected.full_name,
+          phone: selected.phone ?? form.phone,
+          line1: selected.line1,
+          line2: selected.line2 ?? "",
+          postalCode: selected.postal_code,
+          city: selected.city,
+          country: selected.country,
+        }
+      : {
+          fullName: form.fullName,
+          phone: form.phone,
+          line1: form.line1,
+          line2: form.line2,
+          postalCode: form.postalCode,
+          city: form.city,
+          country: form.country,
+        };
+
     mutation.mutate({
       email: form.email,
-      shipping: {
-        fullName: form.fullName,
-        phone: form.phone,
-        line1: form.line1,
-        line2: form.line2,
-        postalCode: form.postalCode,
-        city: form.city,
-        country: form.country,
-      },
+      shipping,
       items: cart.items.map((i) => ({
         productId: i.productId,
         variantId: i.variantId ?? undefined,
@@ -92,6 +154,13 @@ function CheckoutPage() {
       })),
     });
   };
+
+  const hasSaved = savedAddresses.length > 0;
+  const selectedSaved =
+    !useNewAddress && selectedAddressId
+      ? savedAddresses.find((a) => a.id === selectedAddressId) ?? null
+      : null;
+  const canProceed = useNewAddress || !!selectedSaved;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -139,7 +208,81 @@ function CheckoutPage() {
             </Fieldset>
 
             <Fieldset title="Adresse de livraison">
-              <Field label="Nom complet" required>
+              {hasSaved ? (
+                <div className="space-y-3">
+                  <ul className="space-y-2">
+                    {savedAddresses.map((a) => {
+                      const checked = !useNewAddress && selectedAddressId === a.id;
+                      return (
+                        <li key={a.id}>
+                          <label
+                            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 text-sm ${
+                              checked
+                                ? "border-primary bg-primary/5"
+                                : "border-border bg-background"
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="shipping-address"
+                              className="mt-1"
+                              checked={checked}
+                              onChange={() => {
+                                setSelectedAddressId(a.id);
+                                setUseNewAddress(false);
+                              }}
+                            />
+                            <span className="flex-1">
+                              <span className="font-medium">
+                                {a.full_name}
+                                {a.is_default ? (
+                                  <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-[10px]">
+                                    Par défaut
+                                  </span>
+                                ) : null}
+                              </span>
+                              <span className="mt-1 block text-muted-foreground">
+                                {a.line1}
+                                {a.line2 ? `, ${a.line2}` : ""}
+                                <br />
+                                {a.postal_code} {a.city}, {a.country}
+                              </span>
+                            </span>
+                          </label>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseNewAddress((v) => !v);
+                      if (!useNewAddress) setSelectedAddressId(null);
+                      else {
+                        const def =
+                          savedAddresses.find((a) => a.is_default) ??
+                          savedAddresses[0];
+                        setSelectedAddressId(def?.id ?? null);
+                      }
+                    }}
+                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {useNewAddress
+                      ? "← Utiliser une adresse enregistrée"
+                      : "Utiliser une autre adresse"}
+                  </button>
+                  {!useNewAddress && selectedSaved ? (
+                    <p className="rounded-md bg-secondary/40 p-3 text-xs text-muted-foreground">
+                      Cette adresse sera utilisée pour la livraison. Cliquez sur
+                      « Valider la commande » pour confirmer.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {useNewAddress ? (
+                <div className="space-y-4">
+                  <Field label="Nom complet" required>
                 <input
                   type="text"
                   required
@@ -204,6 +347,8 @@ function CheckoutPage() {
                   />
                 </Field>
               </div>
+                </div>
+              ) : null}
             </Fieldset>
           </section>
 
@@ -245,10 +390,14 @@ function CheckoutPage() {
             </div>
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !canProceed}
               className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
-              {mutation.isPending ? "Envoi en cours…" : "Valider la commande"}
+              {mutation.isPending
+                ? "Envoi en cours…"
+                : selectedSaved
+                  ? "Confirmer cette adresse et valider"
+                  : "Valider la commande"}
             </button>
             <p className="mt-3 text-[11px] text-muted-foreground">
               En validant, vous certifiez être majeur(e) et avoir pris connaissance
