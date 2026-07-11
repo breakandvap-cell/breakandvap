@@ -520,6 +520,30 @@ function EditProduct() {
             </div>
           )}
 
+          <div className="space-y-3">
+            <label className="flex items-start gap-2 rounded-md border border-border bg-background/30 p-3 text-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={hasFlavors}
+                onChange={(e) => setHasFlavors(e.target.checked)}
+              />
+              <span>
+                <strong>Ce produit a plusieurs goûts.</strong>{" "}
+                Coche cette case si le produit se décline en plusieurs
+                saveurs (ex. Fraise, Menthe, Fruits rouges…). Chaque goût
+                dispose de son propre stock. Indépendant du volume et du taux
+                de nicotine, et ne modifie pas le prix.
+              </span>
+            </label>
+            {hasFlavors && (
+              <FlavorsEditor
+                flavors={form.flavors ?? []}
+                onChange={(fs) => setForm((f) => ({ ...f, flavors: fs }))}
+              />
+            )}
+          </div>
+
           <Field label="Sous-catégorie (optionnel)">
             <input
               className="input"
