@@ -824,6 +824,19 @@ function VariantBlock({
   const choices = is10ml ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
   const selected = variant.available_nicotine_mg ?? [];
   const boosters = (variant.boosters_per_nicotine ?? {}) as Record<string, number>;
+  // Saisie libre du prix : on garde la valeur brute tapée par l'admin, sinon
+  // le reformatage à chaque rendu empêche de taper naturellement « 24.90 ».
+  const [priceRaw, setPriceRaw] = useState<string>(
+    variant.price_cents ? (variant.price_cents / 100).toFixed(2) : "",
+  );
+  useEffect(() => {
+    const parsed = Number(priceRaw.replace(",", "."));
+    const currentCents = Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
+    if (currentCents !== variant.price_cents) {
+      setPriceRaw(variant.price_cents ? (variant.price_cents / 100).toFixed(2) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant.price_cents]);
 
   const toggleTaux = (mg: number, on: boolean) => {
     const next = on
@@ -879,12 +892,15 @@ function VariantBlock({
           </span>
           <input
             className="input"
-            type="number"
-            step="0.01"
-            min={0}
-            value={variant.price_cents === 0 ? "" : (variant.price_cents / 100).toFixed(2)}
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]{1,2})?"
+            placeholder="0.00"
+            value={priceRaw}
             onChange={(e) => {
-              const n = Number(e.target.value);
+              const raw = e.target.value.replace(",", ".");
+              setPriceRaw(raw);
+              const n = Number(raw);
               onUpdate({
                 price_cents: Number.isFinite(n) ? Math.round(n * 100) : 0,
               });
