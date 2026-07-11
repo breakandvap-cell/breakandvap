@@ -594,6 +594,39 @@ function EliquideDetail({
                       .
                     </div>
                   )}
+                  {variant && nicotine !== null && nicotineOK && exceedsCapacity && (
+                    <div className="mt-3 space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
+                      <p>
+                        Ce flacon de <strong>{variant.volume_ml} ml</strong> ne
+                        peut contenir que <strong>{variantCapacity}</strong>{" "}
+                        booster{(variantCapacity ?? 0) > 1 ? "s" : ""}, soit un
+                        maximum réel de{" "}
+                        <strong>{achievableMg ?? 0} mg</strong> de nicotine, et
+                        non <strong>{nicotine} mg</strong>.
+                      </p>
+                      {alternative200 ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVariantId(alternative200.id)}
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-400/60 bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-50 hover:bg-amber-500/30"
+                        >
+                          Passer à un flacon de 200 ml à la place
+                        </button>
+                      ) : (
+                        <p>
+                          Ou complétez avec un{" "}
+                          <Link
+                            to="/produit/$slug"
+                            params={{ slug: "flacon-vide-200ml" }}
+                            className="underline"
+                          >
+                            flacon vide 200 ml supplémentaire (1,90 €)
+                          </Link>{" "}
+                          pour diluer davantage votre e-liquide.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {hasFlavors && (
