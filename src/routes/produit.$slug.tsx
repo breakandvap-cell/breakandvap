@@ -98,6 +98,14 @@ function ProductDetail() {
   const { data: product } = useSuspenseQuery(productBySlugQueryOptions(slug));
   const cart = useCart();
   const [qty, setQty] = useState(1);
+  const flavors = useMemo(
+    () => parseFlavors(product?.flavors),
+    [product?.flavors],
+  );
+  const [flavor, setFlavor] = useState<string | null>(() => {
+    const first = flavors.find((f) => f.stock > 0);
+    return first?.name ?? null;
+  });
   if (!product) {
     // Guard for TS; loader already threw notFound.
     return <ProductNotFound />;
@@ -117,12 +125,7 @@ function ProductDetail() {
   }
   const stock = STOCK_LABELS[product.stock_status];
   const photo = product.photos?.[0];
-  const flavors = parseFlavors(product.flavors);
   const hasFlavors = flavors.length > 0;
-  const [flavor, setFlavor] = useState<string | null>(() => {
-    const first = flavors.find((f) => f.stock > 0);
-    return first?.name ?? null;
-  });
   const selectedFlavor = hasFlavors
     ? flavors.find((f) => f.name === flavor) ?? null
     : null;
