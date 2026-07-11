@@ -147,6 +147,26 @@ function OrderDetail() {
                     ) : (
                       it.product_name
                     )}
+                    {it.boosters_count && it.boosters_count > 0 &&
+                    it.booster_unit_price_cents != null &&
+                    it.base_price_cents != null ? (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        À préparer : flacon {it.volume_ml} ml (
+                        {formatPrice(it.base_price_cents, order.currency)}) +{" "}
+                        <strong className="text-foreground">
+                          {it.boosters_count} booster
+                          {it.boosters_count > 1 ? "s" : ""} de nicotine
+                        </strong>{" "}
+                        ({formatPrice(it.booster_unit_price_cents, order.currency)}{" "}
+                        l'unité ={" "}
+                        {formatPrice(
+                          it.boosters_count * it.booster_unit_price_cents,
+                          order.currency,
+                        )}
+                        ) pour obtenir {it.nicotine_mg} mg
+                        {it.flavor ? ` · goût ${it.flavor}` : ""}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-3 py-2">{it.quantity}</td>
                   <td className="px-3 py-2 text-right">{formatPrice(it.unit_price_cents, order.currency)}</td>

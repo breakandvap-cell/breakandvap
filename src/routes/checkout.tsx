@@ -221,6 +221,15 @@ function CheckoutPage() {
                       {it.flavor ? `${it.flavor} · ` : ""}
                       × {it.quantity}
                     </span>
+                    {it.boostersCount && it.boostersCount > 0 &&
+                    it.boosterUnitPriceCents != null &&
+                    it.baseUnitPriceCents != null ? (
+                      <span className="mt-1 block text-[11px] text-muted-foreground">
+                        Flacon {formatPrice(it.baseUnitPriceCents)} + {it.boostersCount}{" "}
+                        booster{it.boostersCount > 1 ? "s" : ""} ×{" "}
+                        {formatPrice(it.boosterUnitPriceCents)}
+                      </span>
+                    ) : null}
                   </span>
                   <span className="whitespace-nowrap font-medium">
                     {formatPrice(it.priceCents * it.quantity)}

@@ -183,31 +183,49 @@ export type Database = {
       }
       order_items: {
         Row: {
+          base_price_cents: number | null
+          booster_unit_price_cents: number | null
+          boosters_count: number
           created_at: string
+          flavor: string | null
           id: string
+          nicotine_mg: number | null
           order_id: string
           product_id: string | null
           product_name: string
           quantity: number
           unit_price_cents: number
+          volume_ml: number | null
         }
         Insert: {
+          base_price_cents?: number | null
+          booster_unit_price_cents?: number | null
+          boosters_count?: number
           created_at?: string
+          flavor?: string | null
           id?: string
+          nicotine_mg?: number | null
           order_id: string
           product_id?: string | null
           product_name: string
           quantity: number
           unit_price_cents: number
+          volume_ml?: number | null
         }
         Update: {
+          base_price_cents?: number | null
+          booster_unit_price_cents?: number | null
+          boosters_count?: number
           created_at?: string
+          flavor?: string | null
           id?: string
+          nicotine_mg?: number | null
           order_id?: string
           product_id?: string | null
           product_name?: string
           quantity?: number
           unit_price_cents?: number
+          volume_ml?: number | null
         }
         Relationships: [
           {

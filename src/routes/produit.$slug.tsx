@@ -627,6 +627,45 @@ function EliquideDetail({
                       )}
                     </div>
                   )}
+                  {variant &&
+                    nicotine !== null &&
+                    nicotineOK &&
+                    !exceedsCapacity &&
+                    variant.volume_ml !== 10 &&
+                    boostersCount > 0 &&
+                    boosterPrice !== null && (
+                      <div className="mt-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+                        <p className="text-foreground">
+                          {nicotine} mg de nicotine sur ce flacon de{" "}
+                          {variant.volume_ml} ml ={" "}
+                          <strong>{boostersCount}</strong> booster
+                          {boostersCount > 1 ? "s" : ""} ×{" "}
+                          {formatPrice(boosterPrice, product.currency)} ={" "}
+                          <strong>
+                            {formatPrice(
+                              boostersCount * boosterPrice,
+                              product.currency,
+                            )}
+                          </strong>
+                        </p>
+                        <p className="mt-1">
+                          Prix flacon :{" "}
+                          {formatPrice(variant.price_cents, product.currency)} ·
+                          Boosters :{" "}
+                          {formatPrice(
+                            boostersCount * boosterPrice,
+                            product.currency,
+                          )}{" "}
+                          · Total unitaire :{" "}
+                          <strong className="text-foreground">
+                            {formatPrice(
+                              variant.price_cents + boostersCount * boosterPrice,
+                              product.currency,
+                            )}
+                          </strong>
+                        </p>
+                      </div>
+                    )}
                 </div>
 
                 {hasFlavors && (
@@ -671,6 +710,10 @@ function EliquideDetail({
                     const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
                     const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
                     const unitPrice = computeVariantPrice(variant, nicotine, boosterPrice);
+                    const boosters =
+                      variant.volume_ml !== 10
+                        ? boostersNeeded(variant, nicotine)
+                        : 0;
                     cart.add(
                       {
                         key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
@@ -682,6 +725,10 @@ function EliquideDetail({
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
+                        baseUnitPriceCents: variant.price_cents,
+                        boostersCount: boosters,
+                        boosterUnitPriceCents:
+                          boosters > 0 ? boosterPrice : null,
                         photo: photo,
                         maxStock: effectiveStock,
                       },
