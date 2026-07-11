@@ -20,6 +20,7 @@ const orderInputSchema = z.object({
       z.object({
         productId: z.string().uuid(),
         variantId: z.string().uuid().optional(),
+        nicotineMg: z.number().int().min(0).max(50).optional(),
         quantity: z.number().int().min(1).max(50),
       }),
     )
@@ -76,15 +77,47 @@ export const createOrder = createServerFn({ method: "POST" })
       .filter((v): v is string => Boolean(v));
     const variantMap = new Map<
       string,
-      { id: string; product_id: string; volume_ml: number; max_nicotine_mg: number; price_cents: number; stock: number }
+      {
+        id: string;
+        product_id: string;
+        volume_ml: number;
+        price_cents: number;
+        stock: number;
+        available_nicotine_mg: number[];
+        boosters_per_nicotine: Record<string, number> | null;
+      }
     >();
     if (variantIds.length > 0) {
       const { data: variants, error: vErr } = await supabaseAdmin
         .from("product_variants")
-        .select("id, product_id, volume_ml, max_nicotine_mg, price_cents, stock")
+        .select("id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine")
         .in("id", variantIds);
       if (vErr) throw new Error(vErr.message);
-      for (const v of variants ?? []) variantMap.set(v.id, v);
+      for (const v of variants ?? []) {
+        variantMap.set(v.id, {
+          id: v.id,
+          product_id: v.product_id,
+          volume_ml: v.volume_ml,
+          price_cents: v.price_cents,
+          stock: v.stock,
+          available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
+          boosters_per_nicotine:
+            (v.boosters_per_nicotine as Record<string, number> | null) ?? null,
+        });
+      }
+    }
+
+    // Load current booster reference price (used for e-liquides 50/100/200 ml).
+    let boosterUnitPriceCents: number | null = null;
+    {
+      const { data: booster } = await supabaseAdmin
+        .from("products")
+        .select("price_cents, is_published")
+        .eq("is_nicotine_booster", true)
+        .maybeSingle();
+      if (booster && booster.is_published) {
+        boosterUnitPriceCents = booster.price_cents;
+      }
     }
 
     let currency = "EUR";
@@ -113,12 +146,32 @@ export const createOrder = createServerFn({ method: "POST" })
             `Stock insuffisant pour "${p.name}" (${v.volume_ml} ml).`,
           );
         }
-        totalCents += v.price_cents * line.quantity;
+        const nic = line.nicotineMg ?? 0;
+        if (v.available_nicotine_mg.length > 0 && !v.available_nicotine_mg.includes(nic)) {
+          throw new Error(
+            `Taux de nicotine ${nic} mg indisponible en ${v.volume_ml} ml pour "${p.name}".`,
+          );
+        }
+        let unitPrice = v.price_cents;
+        if (v.volume_ml !== 10 && nic > 0) {
+          const boostersN =
+            (v.boosters_per_nicotine ?? {})[String(nic)] ?? 0;
+          if (boostersN > 0) {
+            if (!boosterUnitPriceCents) {
+              throw new Error(
+                `Le produit « Booster de nicotine » n'est pas disponible actuellement.`,
+              );
+            }
+            unitPrice += boostersN * boosterUnitPriceCents;
+          }
+        }
+        totalCents += unitPrice * line.quantity;
+        const nameSuffix = nic > 0 ? `, ${nic} mg` : "";
         itemsToInsert.push({
           product_id: p.id,
-          product_name: `${p.name} — ${v.volume_ml} ml`,
+          product_name: `${p.name} — ${v.volume_ml} ml${nameSuffix}`,
           quantity: line.quantity,
-          unit_price_cents: v.price_cents,
+          unit_price_cents: unitPrice,
         });
         variantStockOps.push({
           id: v.id,

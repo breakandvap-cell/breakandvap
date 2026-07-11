@@ -24,8 +24,43 @@ export const CATEGORY_ORDER: ProductCategory[] = [
   "accessoire_cbd",
 ];
 
-export const NICOTINE_STEPS_MG = [0, 3, 6, 9] as const;
-export const VOLUME_OPTIONS_ML = [50, 100, 200] as const;
+// Volumes gérés côté admin et boutique. 10 ml = prêt-à-l'emploi, sans booster.
+// 50/100/200 ml = base + boosters de nicotine ajoutés.
+export const VOLUME_OPTIONS_ML = [10, 50, 100, 200] as const;
+// Taux de nicotine proposés pour un flacon 10 ml (déjà dosé).
+export const NICOTINE_STEPS_MG_10ML = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
+// Taux atteignables via ajout de boosters sur les volumes 50/100/200 ml.
+export const NICOTINE_STEPS_MG_BOOSTER = [0, 3, 6, 9] as const;
+// Ancienne constante (compat rétro : maximum atteignable avec boosters).
+export const NICOTINE_STEPS_MG = NICOTINE_STEPS_MG_BOOSTER;
+
+export function nicotineChoicesForVolume(volumeMl: number): readonly number[] {
+  return volumeMl === 10 ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
+}
+
+/** Nombre de boosters requis pour atteindre `nicotineMg` sur cette variante. */
+export function boostersNeeded(
+  variant: Pick<ProductVariantRow, "boosters_per_nicotine">,
+  nicotineMg: number,
+): number {
+  if (!nicotineMg) return 0;
+  const raw = variant.boosters_per_nicotine as Record<string, number> | null;
+  if (!raw) return 0;
+  const v = raw[String(nicotineMg)];
+  return typeof v === "number" && v > 0 ? v : 0;
+}
+
+/** Prix final = prix de base de la variante + (boosters × prix booster). */
+export function computeVariantPrice(
+  variant: Pick<ProductVariantRow, "price_cents" | "boosters_per_nicotine" | "volume_ml">,
+  nicotineMg: number,
+  boosterUnitPriceCents: number | null,
+): number {
+  if (variant.volume_ml === 10) return variant.price_cents;
+  const n = boostersNeeded(variant, nicotineMg);
+  if (!n || !boosterUnitPriceCents) return variant.price_cents;
+  return variant.price_cents + n * boosterUnitPriceCents;
+}
 
 export function formatPrice(cents: number, currency = "EUR") {
   return new Intl.NumberFormat("fr-FR", {
@@ -109,5 +144,21 @@ export const variantsForProductsQueryOptions = (productIds: string[]) =>
         (map[v.product_id] ||= []).push(v as ProductVariantRow);
       }
       return map;
+    },
+  });
+
+/** Récupère le produit marqué comme "Booster de nicotine" (référence unique
+ *  utilisée pour calculer le prix des e-liquides avec boosters). */
+export const nicotineBoosterQueryOptions = () =>
+  queryOptions({
+    queryKey: ["nicotine-booster-product"] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, slug, price_cents, currency, is_published, stock_status")
+        .eq("is_nicotine_booster", true)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data ?? null;
     },
   });
