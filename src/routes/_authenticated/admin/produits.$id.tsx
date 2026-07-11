@@ -92,6 +92,8 @@ function EditProduct() {
   const [priceEuros, setPriceEuros] = useState<string>("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Variantes = option activable. Décochée par défaut : produit à prix/stock uniques.
+  const [hasVariants, setHasVariants] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -127,19 +129,21 @@ function EditProduct() {
 
   useEffect(() => {
     if (existingVariants) {
+      const list = existingVariants.map((v) => ({
+        id: v.id,
+        volume_ml: v.volume_ml,
+        price_cents: v.price_cents,
+        stock: v.stock,
+        max_nicotine_mg: v.max_nicotine_mg ?? null,
+        available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
+        boosters_per_nicotine:
+          (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
+      }));
       setForm((f) => ({
         ...f,
-        variants: existingVariants.map((v) => ({
-          id: v.id,
-          volume_ml: v.volume_ml,
-          price_cents: v.price_cents,
-          stock: v.stock,
-          max_nicotine_mg: v.max_nicotine_mg ?? null,
-          available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
-          boosters_per_nicotine:
-            (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
-        })),
+        variants: list,
       }));
+      if (list.length > 0) setHasVariants(true);
     }
   }, [existingVariants]);
 
@@ -191,7 +195,9 @@ function EditProduct() {
 
   const variantErrors = useMemo(() => {
     const errs: string[] = [];
-    if (form.category !== "e_liquide") return errs;
+    // Les variantes ne sont vérifiées que si l'admin a activé l'option
+    // « plusieurs formats » sur un e-liquide. Sinon on ignore complètement.
+    if (form.category !== "e_liquide" || !hasVariants) return errs;
     const variants = form.variants ?? [];
     if (variants.length === 0) {
       errs.push(
@@ -233,7 +239,7 @@ function EditProduct() {
       }
     }
     return errs;
-  }, [form.category, form.variants]);
+  }, [form.category, form.variants, hasVariants]);
 
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
@@ -301,7 +307,13 @@ function EditProduct() {
       toast.error(variantErrors[0]);
       return;
     }
-    m.mutate(form);
+    // Si l'option variantes n'est pas activée, on n'envoie aucune variante,
+    // même si le formulaire en contenait (édition ultérieure).
+    const payload: FormState = {
+      ...form,
+      variants: form.category === "e_liquide" && hasVariants ? form.variants ?? [] : [],
+    };
+    m.mutate(payload);
   }
 
   if (!isNew && loadingExisting) {
@@ -436,10 +448,29 @@ function EditProduct() {
           )}
 
           {form.category === "e_liquide" && (
-            <VariantsEditor
-              variants={form.variants ?? []}
-              onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
-            />
+            <div className="space-y-3">
+              <label className="flex items-start gap-2 rounded-md border border-border bg-background/30 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={hasVariants}
+                  onChange={(e) => setHasVariants(e.target.checked)}
+                />
+                <span>
+                  <strong>Ce produit a plusieurs formats / volumes.</strong>{" "}
+                  Coche cette case uniquement pour les e-liquides déclinés en
+                  50 / 100 / 200 ml (base + boosters) ou avec plusieurs taux de
+                  nicotine sur un même 10 ml. Sinon, laisse décoché : le prix
+                  et le stock du produit s'appliquent tels quels.
+                </span>
+              </label>
+              {hasVariants && (
+                <VariantsEditor
+                  variants={form.variants ?? []}
+                  onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+                />
+              )}
+            </div>
           )}
 
           <Field label="Sous-catégorie (optionnel)">
@@ -458,12 +489,12 @@ function EditProduct() {
             <Field label="Prix TTC (€)" required>
               <input
                 className="input"
-                type="number"
-                step="0.01"
-                min={0}
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]+([.,][0-9]{1,2})?"
                 value={priceEuros}
                 onChange={(e) => {
-                  const v = e.target.value;
+                  const v = e.target.value.replace(",", ".");
                   setPriceEuros(v);
                   const n = Number(v);
                   setForm({
@@ -471,7 +502,7 @@ function EditProduct() {
                     price_cents: Number.isFinite(n) ? Math.round(n * 100) : 0,
                   });
                 }}
-                placeholder="0,00"
+                placeholder="24.90"
               />
             </Field>
             <Field label="Stock initial" required>
@@ -793,6 +824,19 @@ function VariantBlock({
   const choices = is10ml ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
   const selected = variant.available_nicotine_mg ?? [];
   const boosters = (variant.boosters_per_nicotine ?? {}) as Record<string, number>;
+  // Saisie libre du prix : on garde la valeur brute tapée par l'admin, sinon
+  // le reformatage à chaque rendu empêche de taper naturellement « 24.90 ».
+  const [priceRaw, setPriceRaw] = useState<string>(
+    variant.price_cents ? (variant.price_cents / 100).toFixed(2) : "",
+  );
+  useEffect(() => {
+    const parsed = Number(priceRaw.replace(",", "."));
+    const currentCents = Number.isFinite(parsed) ? Math.round(parsed * 100) : 0;
+    if (currentCents !== variant.price_cents) {
+      setPriceRaw(variant.price_cents ? (variant.price_cents / 100).toFixed(2) : "");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variant.price_cents]);
 
   const toggleTaux = (mg: number, on: boolean) => {
     const next = on
@@ -848,12 +892,15 @@ function VariantBlock({
           </span>
           <input
             className="input"
-            type="number"
-            step="0.01"
-            min={0}
-            value={variant.price_cents === 0 ? "" : (variant.price_cents / 100).toFixed(2)}
+            type="text"
+            inputMode="decimal"
+            pattern="[0-9]+([.,][0-9]{1,2})?"
+            placeholder="0.00"
+            value={priceRaw}
             onChange={(e) => {
-              const n = Number(e.target.value);
+              const raw = e.target.value.replace(",", ".");
+              setPriceRaw(raw);
+              const n = Number(raw);
               onUpdate({
                 price_cents: Number.isFinite(n) ? Math.round(n * 100) : 0,
               });
