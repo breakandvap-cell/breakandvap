@@ -110,6 +110,10 @@ function EditProduct() {
                 typeof f?.stock === "number" && Number.isFinite(f.stock)
                   ? Math.max(0, Math.trunc(f.stock))
                   : 0,
+              photo:
+                typeof (f as { photo?: unknown })?.photo === "string"
+                  ? ((f as { photo: string }).photo)
+                  : null,
             }))
             .filter((f) => f.name.trim().length > 0)
         : [];
@@ -156,6 +160,8 @@ function EditProduct() {
         boosters_per_nicotine:
           (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
         nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
+        max_boosters: (v as { max_boosters?: number | null }).max_boosters ?? null,
+        photo_url: (v as { photo_url?: string | null }).photo_url ?? null,
       }));
       setForm((f) => ({
         ...f,
