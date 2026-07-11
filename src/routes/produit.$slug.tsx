@@ -6,14 +6,16 @@ import {
 } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useCart } from "@/lib/cart";
 import {
   CATEGORY_LABELS,
+  NICOTINE_STEPS_MG,
   STOCK_LABELS,
   formatPrice,
   productBySlugQueryOptions,
+  productVariantsQueryOptions,
 } from "@/lib/products";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 
@@ -23,6 +25,11 @@ export const Route = createFileRoute("/produit/$slug")({
       productBySlugQueryOptions(params.slug),
     );
     if (!product) throw notFound();
+    if (product.category === "e_liquide") {
+      await context.queryClient.ensureQueryData(
+        productVariantsQueryOptions(product.id),
+      );
+    }
     return null;
   },
   head: ({ params, loaderData }) => {
