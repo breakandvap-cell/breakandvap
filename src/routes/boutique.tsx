@@ -45,17 +45,19 @@ export const Route = createFileRoute("/boutique")({
   ),
 });
 
+type SearchCategory = NonNullable<
+  typeof searchSchema.shape.categorie
+>;
+
 function BoutiquePage() {
   const { categorie } = Route.useSearch();
-  const navigate = useNavigate({ from: Route.fullPath });
+  const navigate = Route.useNavigate();
   const { data: products } = useSuspenseQuery(productsQueryOptions(categorie));
 
-  const setCategory = (next?: ProductCategory) =>
+  const setCategory = (next?: SearchCategory) =>
     navigate({
-      search: (prev: { categorie?: ProductCategory }) => ({
-        ...prev,
-        categorie: next,
-      }),
+      to: ".",
+      search: { categorie: next },
     });
 
   return (
