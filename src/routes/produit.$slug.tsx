@@ -345,7 +345,6 @@ function EliquideDetail({
     productVariantsQueryOptions(product.id),
   );
   const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
-  const photo = product.photos?.[0];
   const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
@@ -402,6 +401,49 @@ function EliquideDetail({
       ? Math.min(variant.stock, selectedFlavor?.stock ?? 0)
       : variant.stock
     : 0;
+
+  // Photo dynamique : la variante prime, puis le goût, sinon photo principale.
+  const photo =
+    (variant as { photo_url?: string | null } | null)?.photo_url ??
+    selectedFlavor?.photo ??
+    product.photos?.[0] ??
+    null;
+
+  // Capacité physique du flacon : au-delà, le taux reste sélectionnable mais
+  // on affiche une alerte + une alternative cliquable.
+  const variantCapacity =
+    variant && typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
+      ? (variant as { max_boosters: number }).max_boosters
+      : null;
+  const exceedsCapacity =
+    variant !== null &&
+    variant.volume_ml !== 10 &&
+    variantCapacity !== null &&
+    boostersCount > variantCapacity;
+  const achievableMg = useMemo(() => {
+    if (!variant || variantCapacity === null) return null;
+    const bpn = (variant.boosters_per_nicotine as Record<string, number> | null) ?? {};
+    const feasible = (variant.available_nicotine_mg ?? [])
+      .filter((mg) => mg === 0 || (bpn[String(mg)] ?? 0) <= variantCapacity);
+    return feasible.length > 0 ? Math.max(...feasible) : 0;
+  }, [variant, variantCapacity]);
+  const alternative200 = useMemo(() => {
+    if (!exceedsCapacity || nicotine === null) return null;
+    const v200 = availableVolumes.find(
+      (v) =>
+        v.volume_ml === 200 &&
+        v.id !== variant?.id &&
+        (v.available_nicotine_mg ?? []).includes(nicotine),
+    );
+    if (!v200) return null;
+    const cap = (v200 as { max_boosters?: number | null }).max_boosters ?? null;
+    const needed =
+      ((v200.boosters_per_nicotine as Record<string, number> | null) ?? {})[
+        String(nicotine)
+      ] ?? 0;
+    if (cap !== null && needed > cap) return null;
+    return v200;
+  }, [exceedsCapacity, nicotine, availableVolumes, variant]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
