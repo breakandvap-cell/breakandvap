@@ -549,10 +549,18 @@ function EliquideDetail({
                     </div>
                   )}
                 </div>
+
+                {hasFlavors && (
+                  <FlavorPicker
+                    flavors={flavors}
+                    selected={flavor}
+                    onSelect={setFlavor}
+                  />
+                )}
               </div>
             )}
 
-            {variant && variant.stock > 0 ? (
+            {variant && effectiveStock > 0 ? (
               <div className="mt-6 flex items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
@@ -569,7 +577,7 @@ function EliquideDetail({
                   <button
                     type="button"
                     onClick={() =>
-                      setQty((q) => Math.min(variant.stock, q + 1))
+                      setQty((q) => Math.min(effectiveStock, q + 1))
                     }
                     className="px-3 py-2 text-sm hover:bg-secondary"
                     aria-label="Augmenter la quantité"
@@ -578,23 +586,25 @@ function EliquideDetail({
                   </button>
                 </div>
                 <button
-                  disabled={nicotine === null || !nicotineOK}
+                  disabled={nicotine === null || !nicotineOK || !flavorOK}
                   onClick={() => {
-                    if (nicotine === null || !nicotineOK) return;
-                    const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg`;
+                    if (nicotine === null || !nicotineOK || !flavorOK) return;
+                    const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
+                    const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
                     const unitPrice = computeVariantPrice(variant, nicotine, boosterPrice);
                     cart.add(
                       {
-                        key: `${product.id}:${variant.id}:${nicotine}`,
+                        key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
                         productId: product.id,
                         variantId: variant.id,
                         volumeMl: variant.volume_ml,
                         nicotineMg: nicotine,
+                        flavor: hasFlavors ? flavor : null,
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
                         photo: product.photos?.[0] ?? null,
-                        maxStock: variant.stock,
+                        maxStock: effectiveStock,
                       },
                       qty,
                     );
@@ -606,6 +616,8 @@ function EliquideDetail({
                 >
                   {nicotine === null
                     ? "Choisir un taux de nicotine"
+                    : hasFlavors && !flavor
+                    ? "Choisir un goût"
                     : "Ajouter au panier"}
                 </button>
               </div>
@@ -614,7 +626,9 @@ function EliquideDetail({
                 disabled
                 className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground opacity-50"
               >
-                Volume épuisé
+                {hasFlavors && selectedFlavor && selectedFlavor.stock <= 0
+                  ? "Goût épuisé"
+                  : "Volume épuisé"}
               </button>
             ) : null}
 
