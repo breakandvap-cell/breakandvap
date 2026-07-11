@@ -364,6 +364,8 @@ function EditProduct() {
         ? (form.flavors ?? []).map((f) => ({
             name: f.name.trim(),
             stock: Math.max(0, Math.trunc(f.stock)),
+            photo:
+              (f as FormFlavor & { photo?: string | null }).photo || null,
           }))
         : [],
     };
