@@ -356,12 +356,14 @@ export type Database = {
       }
       products: {
         Row: {
+          booster_product_id: string | null
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent: number | null
           coa_url: string | null
           created_at: string
           currency: string
           description: string | null
+          empty_bottle_product_id: string | null
           flavors: Json
           health_warnings: string | null
           id: string
@@ -380,12 +382,14 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          booster_product_id?: string | null
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
           created_at?: string
           currency?: string
           description?: string | null
+          empty_bottle_product_id?: string | null
           flavors?: Json
           health_warnings?: string | null
           id?: string
@@ -404,12 +408,14 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          booster_product_id?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
           created_at?: string
           currency?: string
           description?: string | null
+          empty_bottle_product_id?: string | null
           flavors?: Json
           health_warnings?: string | null
           id?: string
@@ -427,7 +433,22 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "products_booster_product_id_fkey"
+            columns: ["booster_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_empty_bottle_product_id_fkey"
+            columns: ["empty_bottle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
