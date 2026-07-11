@@ -14,6 +14,10 @@ import {
   NICOTINE_STEPS_MG_10ML,
   NICOTINE_STEPS_MG_BOOSTER,
   VOLUME_OPTIONS_ML,
+  BOOSTER_TYPE_PRESETS,
+  boosterTypeLabel,
+  boosterProductsQueryOptions,
+  normalizeBoosterTypeKey,
 } from "@/lib/products";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
@@ -54,6 +58,7 @@ const empty: FormState = {
   coa_url: "",
   variants: [],
   is_nicotine_booster: false,
+  booster_type: null,
   booster_product_id: null,
   empty_bottle_product_id: null,
   flavors: [],
@@ -152,6 +157,8 @@ function EditProduct() {
         coa_url: existing.coa_url ?? "",
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+        booster_type:
+          (existing as { booster_type?: string | null }).booster_type ?? null,
         booster_product_id:
           (existing as { booster_product_id?: string | null }).booster_product_id ?? null,
         empty_bottle_product_id:
