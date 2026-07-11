@@ -10,7 +10,8 @@ import {
 } from "@/lib/admin.functions";
 import {
   CATEGORY_LABELS,
-  NICOTINE_STEPS_MG,
+  NICOTINE_STEPS_MG_10ML,
+  NICOTINE_STEPS_MG_BOOSTER,
   VOLUME_OPTIONS_ML,
 } from "@/lib/products";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
@@ -50,6 +51,7 @@ const empty: FormState = {
   health_warnings: "",
   coa_url: "",
   variants: [],
+  is_nicotine_booster: false,
 };
 
 function slugify(input: string) {
@@ -116,6 +118,7 @@ function EditProduct() {
         health_warnings: existing.health_warnings ?? "",
         coa_url: existing.coa_url ?? "",
         variants: [],
+        is_nicotine_booster: Boolean(existing.is_nicotine_booster),
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
       setSlugTouched(true);
@@ -131,7 +134,10 @@ function EditProduct() {
           volume_ml: v.volume_ml,
           price_cents: v.price_cents,
           stock: v.stock,
-          max_nicotine_mg: v.max_nicotine_mg,
+          max_nicotine_mg: v.max_nicotine_mg ?? null,
+          available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
+          boosters_per_nicotine:
+            (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
         })),
       }));
     }
@@ -189,7 +195,7 @@ function EditProduct() {
     const variants = form.variants ?? [];
     if (variants.length === 0) {
       errs.push(
-        "Ajoute au moins une variante de volume (50, 100 ou 200 ml) pour ce e-liquide.",
+        "Ajoute au moins une variante de volume (10, 50, 100 ou 200 ml) pour ce e-liquide.",
       );
     }
     const seen = new Set<number>();
@@ -208,15 +214,22 @@ function EditProduct() {
       if (!Number.isInteger(v.stock) || v.stock < 0) {
         errs.push(`${label} (${v.volume_ml || "?"} ml) : stock invalide.`);
       }
-      if (
-        !Number.isInteger(v.max_nicotine_mg) ||
-        !NICOTINE_STEPS_MG.includes(
-          v.max_nicotine_mg as (typeof NICOTINE_STEPS_MG)[number],
-        )
-      ) {
+      const taux = v.available_nicotine_mg ?? [];
+      if (taux.length === 0) {
         errs.push(
-          `${label} (${v.volume_ml || "?"} ml) : choisis un taux de nicotine max (0, 3, 6 ou 9 mg).`,
+          `${label} (${v.volume_ml || "?"} ml) : coche au moins un taux de nicotine.`,
         );
+      }
+      if (v.volume_ml !== 10) {
+        for (const mg of taux) {
+          if (mg === 0) continue;
+          const n = (v.boosters_per_nicotine ?? {})[String(mg)];
+          if (!Number.isInteger(n) || (n as number) <= 0) {
+            errs.push(
+              `${label} (${v.volume_ml} ml) : indique le nombre de boosters nécessaires pour ${mg} mg.`,
+            );
+          }
+        }
       }
     }
     return errs;
