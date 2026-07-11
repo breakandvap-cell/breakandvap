@@ -17,10 +17,13 @@ import {
   formatPrice,
   productBySlugQueryOptions,
   productVariantsQueryOptions,
-  nicotineBoosterQueryOptions,
   productByIdQueryOptions,
   boostersNeeded,
   parseFlavors,
+  boosterProductsQueryOptions,
+  boostersByType,
+  boosterTypeLabel,
+  normalizeBoosterTypeKey,
   type ProductFlavor,
   type ProductRow,
 } from "@/lib/products";
@@ -37,7 +40,7 @@ export const Route = createFileRoute("/produit/$slug")({
         context.queryClient.ensureQueryData(
           productVariantsQueryOptions(product.id),
         ),
-        context.queryClient.ensureQueryData(nicotineBoosterQueryOptions()),
+        context.queryClient.ensureQueryData(boosterProductsQueryOptions()),
       ]);
     }
     return null;
