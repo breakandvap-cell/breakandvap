@@ -6,7 +6,7 @@ import { formatPrice, CATEGORY_LABELS } from "@/lib/products";
 import { toast } from "sonner";
 
 type ProductFilters = {
-  category?: "" | "cbd" | "e_liquide" | "accessoire";
+  category?: "" | "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd";
   status?: "" | "published" | "draft" | "out_of_stock";
 };
 
@@ -19,7 +19,12 @@ const listOptions = (filters: ProductFilters) =>
 export const Route = createFileRoute("/_authenticated/admin/produits/")({
   ssr: false,
   validateSearch: (search): ProductFilters => ({
-    category: ["cbd", "e_liquide", "accessoire"].includes(search.category as string)
+    category: [
+      "cbd",
+      "e_liquide",
+      "accessoire_vape",
+      "accessoire_cbd",
+    ].includes(search.category as string)
       ? (search.category as ProductFilters["category"])
       : "",
     status: ["published", "draft", "out_of_stock"].includes(search.status as string)
@@ -87,7 +92,8 @@ function ProductsList() {
             <option value="">Toutes</option>
             <option value="cbd">CBD</option>
             <option value="e_liquide">E-liquides</option>
-            <option value="accessoire">Accessoires</option>
+            <option value="accessoire_vape">Accessoires Vape</option>
+            <option value="accessoire_cbd">Accessoires CBD</option>
           </select>
         </div>
 
