@@ -20,6 +20,8 @@ import {
   nicotineBoosterQueryOptions,
   computeVariantPrice,
   boostersNeeded,
+  parseFlavors,
+  type ProductFlavor,
   type ProductRow,
 } from "@/lib/products";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
