@@ -7,6 +7,13 @@ import { StatusBadge } from "./index";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { InvoiceDownloadButton } from "@/components/invoice-download-button";
+import {
+  itemDescription,
+  lineTaxBreakdown,
+  productRef,
+  sumBreakdowns,
+} from "@/lib/order-item-format";
+import { INVOICE_VAT_RATE } from "@/lib/invoice-config";
 
 const opts = (id: string) =>
   queryOptions({
@@ -130,55 +137,68 @@ function OrderDetail() {
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
               <tr>
-                <th className="px-3 py-2">Produit</th>
-                <th className="px-3 py-2">Qté</th>
-                <th className="px-3 py-2 text-right">Prix unitaire</th>
-                <th className="px-3 py-2 text-right">Total</th>
+                <th className="px-3 py-2">Réf</th>
+                <th className="px-3 py-2">Description</th>
+                <th className="px-3 py-2 text-right">PU TTC</th>
+                <th className="px-3 py-2 text-right">Qté</th>
+                <th className="px-3 py-2 text-right">Montant HT</th>
+                <th className="px-3 py-2 text-right">TVA</th>
+                <th className="px-3 py-2 text-right">Montant TTC</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {items.map((it) => (
-                <tr key={it.id}>
-                  <td className="px-3 py-2">
-                    {it.product_id ? (
-                      <Link to="/admin/produits/$id" params={{ id: it.product_id }} className="hover:underline">
-                        {it.product_name}
-                      </Link>
-                    ) : (
-                      it.product_name
-                    )}
-                    {it.boosters_count && it.boosters_count > 0 &&
-                    it.booster_unit_price_cents != null &&
-                    it.base_price_cents != null ? (
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        À préparer : flacon {it.volume_ml} ml (
-                        {formatPrice(it.base_price_cents, order.currency)}) +{" "}
-                        <strong className="text-foreground">
-                          {it.boosters_count} booster
-                          {it.boosters_count > 1 ? "s" : ""} de nicotine
-                        </strong>{" "}
-                        ({formatPrice(it.booster_unit_price_cents, order.currency)}{" "}
-                        l'unité ={" "}
-                        {formatPrice(
-                          it.boosters_count * it.booster_unit_price_cents,
-                          order.currency,
-                        )}
-                        ) pour obtenir {it.nicotine_mg} mg
-                        {it.flavor ? ` · goût ${it.flavor}` : ""}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-2">{it.quantity}</td>
-                  <td className="px-3 py-2 text-right">{formatPrice(it.unit_price_cents, order.currency)}</td>
-                  <td className="px-3 py-2 text-right">{formatPrice(it.unit_price_cents * it.quantity, order.currency)}</td>
-                </tr>
-              ))}
+              {items.map((it) => {
+                const b = lineTaxBreakdown(it.unit_price_cents, it.quantity, INVOICE_VAT_RATE);
+                return (
+                  <tr key={it.id} className="align-top">
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {productRef(it.product_name, it.volume_ml)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {it.product_id ? (
+                        <Link to="/admin/produits/$id" params={{ id: it.product_id }} className="hover:underline">
+                          {itemDescription(it)}
+                        </Link>
+                      ) : (
+                        itemDescription(it)
+                      )}
+                      {it.boosters_count && it.boosters_count > 0 &&
+                      it.booster_unit_price_cents != null &&
+                      it.base_price_cents != null ? (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          À préparer : flacon {it.volume_ml} ml ({formatPrice(it.base_price_cents, order.currency)}) + {it.boosters_count} booster{it.boosters_count > 1 ? "s" : ""} × {formatPrice(it.booster_unit_price_cents, order.currency)}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{formatPrice(it.unit_price_cents, order.currency)}</td>
+                    <td className="px-3 py-2 text-right">{it.quantity}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{formatPrice(b.ht, order.currency)}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap">{formatPrice(b.tva, order.currency)}</td>
+                    <td className="px-3 py-2 text-right whitespace-nowrap font-medium">{formatPrice(b.ttc, order.currency)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={3} className="px-3 py-2 text-right font-medium">Total</td>
-                <td className="px-3 py-2 text-right font-semibold">{formatPrice(order.total_cents, order.currency)}</td>
-              </tr>
+            <tfoot className="border-t bg-muted/20">
+              {(() => {
+                const totals = sumBreakdowns(items, INVOICE_VAT_RATE);
+                return (
+                  <>
+                    <tr>
+                      <td colSpan={6} className="px-3 py-1.5 text-right text-muted-foreground">Sous-total HT</td>
+                      <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatPrice(totals.ht, order.currency)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={6} className="px-3 py-1.5 text-right text-muted-foreground">TVA ({INVOICE_VAT_RATE} %)</td>
+                      <td className="px-3 py-1.5 text-right whitespace-nowrap">{formatPrice(totals.tva, order.currency)}</td>
+                    </tr>
+                    <tr>
+                      <td colSpan={6} className="px-3 py-2 text-right font-semibold">Total TTC</td>
+                      <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatPrice(order.total_cents, order.currency)}</td>
+                    </tr>
+                  </>
+                );
+              })()}
             </tfoot>
           </table>
         </div>
