@@ -674,6 +674,13 @@ function EliquideDetail({
                         maximum réel de{" "}
                         <strong>{achievableMg ?? 0} mg</strong> de nicotine, et
                         non <strong>{nicotine} mg</strong>.
+                        {!hasEmptyBottleFallback && (
+                          <>
+                            {" "}
+                            Aucun flacon vide n'est associé à ce produit : cette
+                            combinaison ne peut pas être ajoutée au panier.
+                          </>
+                        )}
                       </p>
                       {alternative200 && (
                         <button
