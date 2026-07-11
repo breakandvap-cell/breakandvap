@@ -18,6 +18,12 @@ export type CartItem = {
   slug: string;
   name: string;
   priceCents: number;
+  /** Prix de base du flacon seul, hors boosters (variantes e-liquide). */
+  baseUnitPriceCents?: number | null;
+  /** Nombre de boosters de nicotine ajoutés à ce flacon. */
+  boostersCount?: number | null;
+  /** Prix unitaire du booster utilisé pour calculer la ligne. */
+  boosterUnitPriceCents?: number | null;
   photo: string | null;
   quantity: number;
   maxStock: number;
