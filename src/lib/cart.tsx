@@ -14,6 +14,7 @@ export type CartItem = {
   variantId?: string | null;
   volumeMl?: number | null;
   nicotineMg?: number | null;
+  flavor?: string | null;
   slug: string;
   name: string;
   priceCents: number;
