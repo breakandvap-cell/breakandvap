@@ -18,7 +18,6 @@ import {
   productBySlugQueryOptions,
   productVariantsQueryOptions,
   nicotineBoosterQueryOptions,
-  computeVariantPrice,
   boostersNeeded,
   parseFlavors,
   type ProductFlavor,
