@@ -117,6 +117,19 @@ function ProductDetail() {
   }
   const stock = STOCK_LABELS[product.stock_status];
   const photo = product.photos?.[0];
+  const flavors = parseFlavors(product.flavors);
+  const hasFlavors = flavors.length > 0;
+  const [flavor, setFlavor] = useState<string | null>(() => {
+    const first = flavors.find((f) => f.stock > 0);
+    return first?.name ?? null;
+  });
+  const selectedFlavor = hasFlavors
+    ? flavors.find((f) => f.name === flavor) ?? null
+    : null;
+  const flavorOK = !hasFlavors || (selectedFlavor !== null && selectedFlavor.stock > 0);
+  const maxStock = hasFlavors
+    ? Math.min(product.stock, selectedFlavor?.stock ?? 0)
+    : product.stock;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -196,6 +209,18 @@ function ProductDetail() {
 
             {product.stock_status !== "out_of_stock" ? (
               <div className="mt-6 flex items-center gap-3">
+                {hasFlavors && (
+                  <FlavorPicker
+                    flavors={flavors}
+                    selected={flavor}
+                    onSelect={setFlavor}
+                  />
+                )}
+              </div>
+            ) : null}
+
+            {product.stock_status !== "out_of_stock" ? (
+              <div className="mt-4 flex items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
@@ -211,7 +236,7 @@ function ProductDetail() {
                   <button
                     type="button"
                     onClick={() =>
-                      setQty((q) => Math.min(product.stock, q + 1))
+                      setQty((q) => Math.min(maxStock, q + 1))
                     }
                     className="px-3 py-2 text-sm hover:bg-secondary"
                     aria-label="Augmenter la quantité"
@@ -220,26 +245,34 @@ function ProductDetail() {
                   </button>
                 </div>
                 <button
+                  disabled={!flavorOK}
                   onClick={() => {
+                    if (!flavorOK) return;
+                    const displayName = hasFlavors && flavor
+                      ? `${product.name} — ${flavor}`
+                      : product.name;
                     cart.add(
                       {
-                        key: product.id,
+                        key: hasFlavors && flavor
+                          ? `${product.id}:flavor:${flavor}`
+                          : product.id,
                         productId: product.id,
                         slug: product.slug,
-                        name: product.name,
+                        name: displayName,
+                        flavor: hasFlavors ? flavor : null,
                         priceCents: product.price_cents,
                         photo: product.photos?.[0] ?? null,
-                        maxStock: product.stock,
+                        maxStock,
                       },
                       qty,
                     );
                     toast.success("Ajouté au panier", {
-                      description: `${qty} × ${product.name}`,
+                      description: `${qty} × ${displayName}`,
                     });
                   }}
-                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
-                  Ajouter au panier
+                  {hasFlavors && !flavor ? "Choisir un goût" : "Ajouter au panier"}
                 </button>
               </div>
             ) : (
