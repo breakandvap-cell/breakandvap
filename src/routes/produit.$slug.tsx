@@ -380,6 +380,9 @@ function EliquideDetail({
     },
   );
   const [nicotine, setNicotine] = useState<number | null>(null);
+  // Suivi du couple (variante, taux) déjà refusé, pour ne pas rouvrir la pop-up
+  // en boucle si le client a cliqué « Non merci ».
+  const [bottleDismissedFor, setBottleDismissedFor] = useState<string | null>(null);
 
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
@@ -673,48 +676,6 @@ function EliquideDetail({
                           Passer à un flacon de {alternative200.volume_ml} ml à la place
                         </button>
                       )}
-                      {emptyBottle && emptyBottle.is_published && (
-                        <div className="mt-2 rounded-md border border-amber-400/60 bg-background/40 p-3 text-amber-50">
-                          <p className="text-xs">
-                            Voulez-vous ajouter un flacon vide{" "}
-                            <strong>{emptyBottle.name}</strong> (
-                            {formatPrice(emptyBottle.price_cents, emptyBottle.currency)})
-                            à votre commande pour atteindre ce dosage ?
-                          </p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                cart.add(
-                                  {
-                                    key: `product:${emptyBottle.id}`,
-                                    productId: emptyBottle.id,
-                                    slug: emptyBottle.slug,
-                                    name: emptyBottle.name,
-                                    priceCents: emptyBottle.price_cents,
-                                    photo: emptyBottle.photos?.[0] ?? null,
-                                    maxStock: Math.max(1, emptyBottle.stock ?? 1),
-                                  },
-                                  1,
-                                );
-                                toast.success("Flacon vide ajouté au panier", {
-                                  description: emptyBottle.name,
-                                });
-                              }}
-                              className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                            >
-                              Oui, ajouter au panier
-                            </button>
-                            <Link
-                              to="/produit/$slug"
-                              params={{ slug: emptyBottle.slug }}
-                              className="inline-flex items-center rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                            >
-                              Non merci
-                            </Link>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                   {variant &&
@@ -873,6 +834,84 @@ function EliquideDetail({
         </div>
       </main>
       <SiteFooter />
+      {variant &&
+        nicotine !== null &&
+        nicotineOK &&
+        exceedsCapacity &&
+        emptyBottle &&
+        emptyBottle.is_published &&
+        bottleDismissedFor !== `${variant.id}:${nicotine}` && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="empty-bottle-title"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+            onClick={() => setBottleDismissedFor(`${variant.id}:${nicotine}`)}
+          >
+            <div
+              className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3
+                id="empty-bottle-title"
+                className="text-lg font-semibold text-foreground"
+              >
+                Capacité du flacon dépassée
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Ce flacon de <strong>{variant.volume_ml} ml</strong> ne peut
+                contenir que <strong>{variantCapacity}</strong> booster
+                {(variantCapacity ?? 0) > 1 ? "s" : ""}, soit au maximum{" "}
+                <strong>{achievableMg ?? 0} mg</strong> de nicotine.
+              </p>
+              <p className="mt-3 text-sm text-foreground">
+                Voulez-vous ajouter un flacon vide{" "}
+                <strong>{emptyBottle.name}</strong> (
+                {formatPrice(emptyBottle.price_cents, emptyBottle.currency)}) à
+                votre commande pour atteindre les {nicotine} mg souhaités ?
+                Le total du panier sera mis à jour automatiquement.
+              </p>
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setBottleDismissedFor(`${variant.id}:${nicotine}`)
+                  }
+                  className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  Non merci
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    cart.add(
+                      {
+                        key: `product:${emptyBottle.id}`,
+                        productId: emptyBottle.id,
+                        slug: emptyBottle.slug,
+                        name: emptyBottle.name,
+                        priceCents: emptyBottle.price_cents,
+                        photo: emptyBottle.photos?.[0] ?? null,
+                        maxStock: Math.max(1, emptyBottle.stock ?? 1),
+                      },
+                      1,
+                    );
+                    toast.success("Flacon vide ajouté au panier", {
+                      description: `${emptyBottle.name} · ${formatPrice(
+                        emptyBottle.price_cents,
+                        emptyBottle.currency,
+                      )}`,
+                    });
+                    setBottleDismissedFor(`${variant.id}:${nicotine}`);
+                  }}
+                  className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Oui, ajouter au panier
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }
