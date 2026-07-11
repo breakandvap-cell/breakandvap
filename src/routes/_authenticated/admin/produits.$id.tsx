@@ -551,28 +551,16 @@ function EditProduct() {
               )}
               {hasVariants && (
                 <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4 sm:grid-cols-2">
-                  <Field
-                    label="Produit booster associé (optionnel)"
-                    hint="Booster de nicotine dont le prix sera utilisé pour calculer le total de ce e-liquide. Par défaut : le produit marqué « Booster de nicotine »."
-                  >
-                    <select
-                      className="input"
-                      value={form.booster_product_id ?? ""}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          booster_product_id: e.target.value || null,
-                        })
-                      }
-                    >
-                      <option value="">— Par défaut (Booster de nicotine) —</option>
-                      {(vapeAccessories ?? []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                  <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">Boosters de nicotine</p>
+                    <p className="mt-1">
+                      Chaque variante ci-dessous a son propre <em>type de
+                      nicotine</em> (Normal / Sel / Ice / …). Le prix booster
+                      appliqué est automatiquement celui du produit accessoire
+                      « Booster de nicotine » du même type. Aucun choix manuel
+                      n'est nécessaire ici.
+                    </p>
+                  </div>
                   <Field
                     label="Produit flacon vide associé (optionnel)"
                     hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
