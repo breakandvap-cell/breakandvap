@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { AlertTriangle, ArrowLeft, FileText } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useCart } from "@/lib/cart";
 import {
