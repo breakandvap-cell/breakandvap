@@ -92,10 +92,21 @@ function ProductDetail() {
     // Guard for TS; loader already threw notFound.
     return <ProductNotFound />;
   }
-  const stock = STOCK_LABELS[product.stock_status];
-  const photo = product.photos?.[0];
   const isEliquide = product.category === "e_liquide";
   const isCbd = product.category === "cbd";
+  if (isEliquide) {
+    return (
+      <EliquideDetail
+        product={product}
+        qty={qty}
+        setQty={setQty}
+        cart={cart}
+        router={router}
+      />
+    );
+  }
+  const stock = STOCK_LABELS[product.stock_status];
+  const photo = product.photos?.[0];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -202,6 +213,7 @@ function ProductDetail() {
                   onClick={() => {
                     cart.add(
                       {
+                        key: product.id,
                         productId: product.id,
                         slug: product.slug,
                         name: product.name,
