@@ -380,6 +380,9 @@ function EliquideDetail({
     },
   );
   const [nicotine, setNicotine] = useState<number | null>(null);
+  // Suivi du couple (variante, taux) déjà refusé, pour ne pas rouvrir la pop-up
+  // en boucle si le client a cliqué « Non merci ».
+  const [bottleDismissedFor, setBottleDismissedFor] = useState<string | null>(null);
 
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
