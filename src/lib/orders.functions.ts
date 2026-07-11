@@ -19,6 +19,7 @@ const orderInputSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid(),
+        variantId: z.string().uuid().optional(),
         quantity: z.number().int().min(1).max(50),
       }),
     )
@@ -68,6 +69,24 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     const productMap = new Map(products.map((p) => [p.id, p]));
+
+    // Load required variants
+    const variantIds = data.items
+      .map((i) => i.variantId)
+      .filter((v): v is string => Boolean(v));
+    const variantMap = new Map<
+      string,
+      { id: string; product_id: string; volume_ml: number; max_nicotine_mg: number; price_cents: number; stock: number }
+    >();
+    if (variantIds.length > 0) {
+      const { data: variants, error: vErr } = await supabaseAdmin
+        .from("product_variants")
+        .select("id, product_id, volume_ml, max_nicotine_mg, price_cents, stock")
+        .in("id", variantIds);
+      if (vErr) throw new Error(vErr.message);
+      for (const v of variants ?? []) variantMap.set(v.id, v);
+    }
+
     let currency = "EUR";
     let totalCents = 0;
     const itemsToInsert: {
@@ -76,23 +95,47 @@ export const createOrder = createServerFn({ method: "POST" })
       quantity: number;
       unit_price_cents: number;
     }[] = [];
+    const variantStockOps: { id: string; nextStock: number }[] = [];
 
     for (const line of data.items) {
       const p = productMap.get(line.productId);
       if (!p || !p.is_published) {
         throw new Error(`Produit indisponible.`);
       }
-      if (p.stock_status === "out_of_stock" || p.stock < line.quantity) {
-        throw new Error(`Stock insuffisant pour "${p.name}".`);
-      }
       currency = p.currency;
-      totalCents += p.price_cents * line.quantity;
-      itemsToInsert.push({
-        product_id: p.id,
-        product_name: p.name,
-        quantity: line.quantity,
-        unit_price_cents: p.price_cents,
-      });
+      if (line.variantId) {
+        const v = variantMap.get(line.variantId);
+        if (!v || v.product_id !== p.id) {
+          throw new Error(`Variante indisponible pour "${p.name}".`);
+        }
+        if (v.stock < line.quantity) {
+          throw new Error(
+            `Stock insuffisant pour "${p.name}" (${v.volume_ml} ml).`,
+          );
+        }
+        totalCents += v.price_cents * line.quantity;
+        itemsToInsert.push({
+          product_id: p.id,
+          product_name: `${p.name} — ${v.volume_ml} ml`,
+          quantity: line.quantity,
+          unit_price_cents: v.price_cents,
+        });
+        variantStockOps.push({
+          id: v.id,
+          nextStock: Math.max(0, v.stock - line.quantity),
+        });
+      } else {
+        if (p.stock_status === "out_of_stock" || p.stock < line.quantity) {
+          throw new Error(`Stock insuffisant pour "${p.name}".`);
+        }
+        totalCents += p.price_cents * line.quantity;
+        itemsToInsert.push({
+          product_id: p.id,
+          product_name: p.name,
+          quantity: line.quantity,
+          unit_price_cents: p.price_cents,
+        });
+      }
     }
 
     const shipping = {
@@ -132,6 +175,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     // Decrement stocks (best-effort; not transactional but adequate at this scale).
     for (const line of data.items) {
+      if (line.variantId) continue; // handled below
       const p = productMap.get(line.productId)!;
       const nextStock = Math.max(0, p.stock - line.quantity);
       await supabaseAdmin
@@ -142,6 +186,12 @@ export const createOrder = createServerFn({ method: "POST" })
             nextStock === 0 ? "out_of_stock" : nextStock < 10 ? "low_stock" : "in_stock",
         })
         .eq("id", p.id);
+    }
+    for (const op of variantStockOps) {
+      await supabaseAdmin
+        .from("product_variants")
+        .update({ stock: op.nextStock })
+        .eq("id", op.id);
     }
 
     // Génération automatique de la facture (numéro séquentiel + PDF + stockage).
