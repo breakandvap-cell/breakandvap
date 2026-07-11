@@ -282,9 +282,11 @@ export type Database = {
       }
       product_variants: {
         Row: {
+          available_nicotine_mg: number[]
+          boosters_per_nicotine: Json
           created_at: string
           id: string
-          max_nicotine_mg: number
+          max_nicotine_mg: number | null
           price_cents: number
           product_id: string
           stock: number
@@ -292,9 +294,11 @@ export type Database = {
           volume_ml: number
         }
         Insert: {
+          available_nicotine_mg?: number[]
+          boosters_per_nicotine?: Json
           created_at?: string
           id?: string
-          max_nicotine_mg: number
+          max_nicotine_mg?: number | null
           price_cents: number
           product_id: string
           stock?: number
@@ -302,9 +306,11 @@ export type Database = {
           volume_ml: number
         }
         Update: {
+          available_nicotine_mg?: number[]
+          boosters_per_nicotine?: Json
           created_at?: string
           id?: string
-          max_nicotine_mg?: number
+          max_nicotine_mg?: number | null
           price_cents?: number
           product_id?: string
           stock?: number
@@ -331,6 +337,7 @@ export type Database = {
           description: string | null
           health_warnings: string | null
           id: string
+          is_nicotine_booster: boolean
           is_published: boolean
           name: string
           nicotine_mg: number | null
@@ -353,6 +360,7 @@ export type Database = {
           description?: string | null
           health_warnings?: string | null
           id?: string
+          is_nicotine_booster?: boolean
           is_published?: boolean
           name: string
           nicotine_mg?: number | null
@@ -375,6 +383,7 @@ export type Database = {
           description?: string | null
           health_warnings?: string | null
           id?: string
+          is_nicotine_booster?: boolean
           is_published?: boolean
           name?: string
           nicotine_mg?: number | null
