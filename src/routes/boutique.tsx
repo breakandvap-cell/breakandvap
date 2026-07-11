@@ -14,7 +14,9 @@ import {
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 
 const searchSchema = z.object({
-  categorie: z.enum(["cbd", "e_liquide", "accessoire"]).optional(),
+  categorie: z
+    .enum(["cbd", "e_liquide", "accessoire_vape", "accessoire_cbd"])
+    .optional(),
 });
 
 export const Route = createFileRoute("/boutique")({
