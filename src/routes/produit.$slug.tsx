@@ -625,12 +625,52 @@ function EliquideDetail({
               </div>
             ) : (
               <div className="mt-6 space-y-5">
+                {availableTypes.length > 1 && (
+                  <div>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      Type de nicotine
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {availableTypes.map((t) => {
+                        const selected = t === nicotineType;
+                        const boosterAvail = Boolean(boosterMap[t]);
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => {
+                              setNicotineType(t);
+                              setNicotine(null);
+                            }}
+                            className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                              selected
+                                ? "border-primary bg-primary/10 text-foreground"
+                                : "border-border text-muted-foreground hover:text-foreground"
+                            }`}
+                            title={
+                              boosterAvail
+                                ? undefined
+                                : "Aucun produit booster de ce type actuellement disponible"
+                            }
+                          >
+                            {boosterTypeLabel(t)}
+                            {!boosterAvail && (
+                              <span className="ml-1 text-[10px] text-amber-300">
+                                (booster indisponible)
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Volume du flacon
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {availableVolumes.map((v) => {
+                    {volumesForType.map((v) => {
                       const outOfStock = v.stock <= 0;
                       const selected = v.id === selectedVariantId;
                       return (
@@ -655,7 +695,6 @@ function EliquideDetail({
                           } ${outOfStock ? "line-through opacity-50" : ""}`}
                         >
                           {v.volume_ml} ml
-                          {v.nicotine_type === "sel" ? " · sel de nicotine" : ""}
                           {outOfStock && " (épuisé)"}
                         </button>
                       );
@@ -719,6 +758,13 @@ function EliquideDetail({
                         flacon vide (Accessoires Vape)
                       </Link>
                       .
+                    </div>
+                  )}
+                  {missingBooster && (
+                    <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
+                      Le booster « {boosterTypeLabel(nicotineType)} » n'est pas
+                      encore disponible en boutique. Choisis un autre type de
+                      nicotine ou un flacon 10 ml prêt à l'emploi.
                     </div>
                   )}
                   {variant && nicotine !== null && nicotineOK && exceedsCapacity && (
