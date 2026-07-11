@@ -10,7 +10,6 @@ import {
 } from "@/lib/admin.functions";
 import {
   CATEGORY_LABELS,
-  CATEGORY_ORDER,
   NICOTINE_STEPS_MG,
   VOLUME_OPTIONS_ML,
 } from "@/lib/products";
@@ -356,7 +355,7 @@ function EditProduct() {
         <section className="space-y-4 rounded-md border border-border bg-card/40 p-5">
           <Field label="Catégorie" required>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {CATEGORY_ORDER.map((c) => (
+              {ADMIN_CATEGORIES.map((c) => (
                 <button
                   type="button"
                   key={c}
