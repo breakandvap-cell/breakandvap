@@ -45,7 +45,7 @@ const STATUS_LABELS: Record<NonNullable<ProductFilters["status"]>, string> = {
 
 function ProductsList() {
   const search = Route.useSearch();
-  const navigate = useNavigate({ from: Route.id });
+  const navigate = Route.useNavigate();
   const { data } = useSuspenseQuery(listOptions(search));
   const qc = useQueryClient();
   const del = useServerFn(adminDeleteProduct);
