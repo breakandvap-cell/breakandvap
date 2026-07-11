@@ -33,7 +33,9 @@ export async function ensureInvoiceForOrderInternal(orderId: string): Promise<{
       .maybeSingle(),
     supabaseAdmin
       .from("order_items")
-      .select("product_name, quantity, unit_price_cents")
+      .select(
+        "product_name, quantity, unit_price_cents, base_price_cents, boosters_count, booster_unit_price_cents",
+      )
       .eq("order_id", orderId),
   ]);
   if (ordRes.error || !ordRes.data) throw new Error("Commande introuvable.");
