@@ -877,6 +877,106 @@ function Field({
 }
 
 
+function BoosterRoleFields({
+  checked,
+  type,
+  onChange,
+}: {
+  checked: boolean;
+  type: string | null | undefined;
+  onChange: (patch: Partial<FormState>) => void;
+}) {
+  const currentKey = normalizeBoosterTypeKey(type);
+  const isPreset = BOOSTER_TYPE_PRESETS.some((p) => p.key === currentKey);
+  const [customMode, setCustomMode] = useState<boolean>(
+    checked && !isPreset && Boolean(type),
+  );
+  useEffect(() => {
+    if (!checked) setCustomMode(false);
+  }, [checked]);
+  return (
+    <div className="mt-2 space-y-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-200">
+      <label className="flex items-start gap-2">
+        <input
+          type="checkbox"
+          className="mt-0.5"
+          checked={checked}
+          onChange={(e) =>
+            onChange({
+              is_nicotine_booster: e.target.checked,
+              booster_type: e.target.checked
+                ? type ?? "normale"
+                : null,
+            })
+          }
+        />
+        <span>
+          <strong>Ce produit est un booster de nicotine.</strong> Son prix sera
+          utilisé automatiquement pour calculer le total des e-liquides qui
+          utilisent le <em>même type de nicotine</em>. Plusieurs boosters
+          peuvent coexister (un par type).
+        </span>
+      </label>
+      {checked && (
+        <div className="space-y-2 rounded-md border border-amber-500/30 bg-background/30 p-3 text-foreground">
+          <p className="text-xs font-medium">Type de booster</p>
+          <div className="flex flex-wrap gap-2">
+            {BOOSTER_TYPE_PRESETS.map((p) => {
+              const active = !customMode && currentKey === p.key;
+              return (
+                <button
+                  key={p.key}
+                  type="button"
+                  onClick={() => {
+                    setCustomMode(false);
+                    onChange({ booster_type: p.key });
+                  }}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    active
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setCustomMode(true)}
+              className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                customMode
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              + Autre
+            </button>
+          </div>
+          {customMode && (
+            <input
+              className="input mt-1"
+              type="text"
+              maxLength={40}
+              placeholder="Nom du nouveau type (ex. hybride, no-nic…)"
+              value={type ?? ""}
+              onChange={(e) =>
+                onChange({
+                  booster_type: e.target.value.toLowerCase().slice(0, 40),
+                })
+              }
+            />
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Ce type doit correspondre exactement à celui choisi côté fiche
+            e-liquide (variantes de volume). Actuel : <strong>{boosterTypeLabel(type)}</strong>.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VariantsEditor({
   variants,
   onChange,
