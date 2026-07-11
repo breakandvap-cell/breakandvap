@@ -11,7 +11,12 @@ const productInputSchema = z.object({
     .min(2)
     .max(160)
     .regex(/^[a-z0-9-]+$/, "Slug invalide (a-z, 0-9, -)"),
-  category: z.enum(["cbd", "e_liquide", "accessoire"]),
+  category: z.enum([
+    "cbd",
+    "e_liquide",
+    "accessoire_vape",
+    "accessoire_cbd",
+  ]),
   subcategory: z.string().trim().max(120).optional().or(z.literal("")),
   description: z.string().trim().max(4000).optional().or(z.literal("")),
   price_cents: z.number().int().min(0).max(1_000_000),
@@ -25,6 +30,19 @@ const productInputSchema = z.object({
   nicotine_mg: z.number().min(0).max(50).nullable().optional(),
   health_warnings: z.string().trim().max(2000).optional().or(z.literal("")),
   coa_url: z.string().url().optional().or(z.literal("")),
+  variants: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(),
+        volume_ml: z.number().int().positive().max(10_000),
+        price_cents: z.number().int().min(0).max(1_000_000),
+        stock: z.number().int().min(0).max(100_000),
+        max_nicotine_mg: z.number().int().min(0).max(50),
+      }),
+    )
+    .max(20)
+    .optional()
+    .default([]),
 });
 export type ProductInput = z.infer<typeof productInputSchema>;
 
@@ -110,7 +128,10 @@ export const adminDashboard = createServerFn({ method: "GET" })
   });
 
 const listProductsSchema = z.object({
-  category: z.enum(["cbd", "e_liquide", "accessoire"]).optional().or(z.literal("")),
+  category: z
+    .enum(["cbd", "e_liquide", "accessoire_vape", "accessoire_cbd"])
+    .optional()
+    .or(z.literal("")),
   status: z.enum(["published", "draft", "out_of_stock"]).optional().or(z.literal("")),
 });
 
