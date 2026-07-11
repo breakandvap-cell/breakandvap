@@ -5,12 +5,18 @@ import {
   adminGetProduct,
   adminUpsertProduct,
   adminUploadProductPhoto,
+  adminListVariants,
   type ProductInput,
 } from "@/lib/admin.functions";
-import { CATEGORY_LABELS } from "@/lib/products";
+import {
+  CATEGORY_LABELS,
+  CATEGORY_ORDER,
+  NICOTINE_STEPS_MG,
+  VOLUME_OPTIONS_ML,
+} from "@/lib/products";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
-import { X, Upload, Loader2, ArrowLeft } from "lucide-react";
+import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
   ssr: false,
@@ -36,6 +42,7 @@ const empty: FormState = {
   nicotine_mg: null,
   health_warnings: "",
   coa_url: "",
+  variants: [],
 };
 
 function slugify(input: string) {
@@ -56,10 +63,18 @@ function EditProduct() {
   const get = useServerFn(adminGetProduct);
   const save = useServerFn(adminUpsertProduct);
   const upload = useServerFn(adminUploadProductPhoto);
+  const listVariantsFn = useServerFn(adminListVariants);
 
   const { data: existing, isLoading: loadingExisting, error: loadError } = useQuery({
     queryKey: ["admin", "product", id],
     queryFn: () => get({ data: { id } }),
+    enabled: !isNew,
+    retry: false,
+  });
+
+  const { data: existingVariants } = useQuery({
+    queryKey: ["admin", "product-variants", id],
+    queryFn: () => listVariantsFn({ data: { productId: id } }),
     enabled: !isNew,
     retry: false,
   });
@@ -76,7 +91,10 @@ function EditProduct() {
         id: existing.id,
         name: existing.name,
         slug: existing.slug,
-        category: existing.category,
+        category:
+          existing.category === "accessoire"
+            ? "accessoire_vape"
+            : (existing.category as FormState["category"]),
         subcategory: existing.subcategory ?? "",
         description: existing.description ?? "",
         price_cents: existing.price_cents,
@@ -90,11 +108,27 @@ function EditProduct() {
         nicotine_mg: existing.nicotine_mg,
         health_warnings: existing.health_warnings ?? "",
         coa_url: existing.coa_url ?? "",
+        variants: [],
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
       setSlugTouched(true);
     }
   }, [existing]);
+
+  useEffect(() => {
+    if (existingVariants) {
+      setForm((f) => ({
+        ...f,
+        variants: existingVariants.map((v) => ({
+          id: v.id,
+          volume_ml: v.volume_ml,
+          price_cents: v.price_cents,
+          stock: v.stock,
+          max_nicotine_mg: v.max_nicotine_mg,
+        })),
+      }));
+    }
+  }, [existingVariants]);
 
   // Auto-slug depuis le nom tant que l'utilisateur ne l'a pas édité.
   useEffect(() => {
@@ -141,6 +175,45 @@ function EditProduct() {
     }
     return errs;
   }, [form.category, form.cbd_percent, form.thc_percent]);
+
+  const variantErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (form.category !== "e_liquide") return errs;
+    const variants = form.variants ?? [];
+    if (variants.length === 0) {
+      errs.push(
+        "Ajoute au moins une variante de volume (50, 100 ou 200 ml) pour ce e-liquide.",
+      );
+    }
+    const seen = new Set<number>();
+    for (const [i, v] of variants.entries()) {
+      const label = `Variante #${i + 1}`;
+      if (!v.volume_ml || v.volume_ml <= 0) {
+        errs.push(`${label} : volume manquant.`);
+      } else if (seen.has(v.volume_ml)) {
+        errs.push(`${label} : le volume ${v.volume_ml} ml est déjà défini.`);
+      } else {
+        seen.add(v.volume_ml);
+      }
+      if (!Number.isInteger(v.price_cents) || v.price_cents <= 0) {
+        errs.push(`${label} (${v.volume_ml || "?"} ml) : prix requis.`);
+      }
+      if (!Number.isInteger(v.stock) || v.stock < 0) {
+        errs.push(`${label} (${v.volume_ml || "?"} ml) : stock invalide.`);
+      }
+      if (
+        !Number.isInteger(v.max_nicotine_mg) ||
+        !NICOTINE_STEPS_MG.includes(
+          v.max_nicotine_mg as (typeof NICOTINE_STEPS_MG)[number],
+        )
+      ) {
+        errs.push(
+          `${label} (${v.volume_ml || "?"} ml) : choisis un taux de nicotine max (0, 3, 6 ou 9 mg).`,
+        );
+      }
+    }
+    return errs;
+  }, [form.category, form.variants]);
 
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
@@ -202,6 +275,10 @@ function EditProduct() {
     }
     if (cbdErrors.length > 0) {
       toast.error(cbdErrors[0]);
+      return;
+    }
+    if (variantErrors.length > 0) {
+      toast.error(variantErrors[0]);
       return;
     }
     m.mutate(form);
