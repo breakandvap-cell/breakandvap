@@ -472,6 +472,14 @@ function EliquideDetail({
     return v200;
   }, [exceedsCapacity, nicotine, availableVolumes, variant]);
 
+  const hasEmptyBottleFallback = emptyBottle && emptyBottle.is_published;
+  const addDisabled =
+    nicotine === null ||
+    !nicotineOK ||
+    !flavorOK ||
+    (exceedsCapacity && !hasEmptyBottleFallback);
+
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
