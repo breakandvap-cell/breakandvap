@@ -124,7 +124,6 @@ function ProductDetail() {
     );
   }
   const stock = STOCK_LABELS[product.stock_status];
-  const photo = product.photos?.[0];
   const hasFlavors = flavors.length > 0;
   const selectedFlavor = hasFlavors
     ? flavors.find((f) => f.name === flavor) ?? null
@@ -133,6 +132,7 @@ function ProductDetail() {
   const maxStock = hasFlavors
     ? Math.min(product.stock, selectedFlavor?.stock ?? 0)
     : product.stock;
+  const photo = selectedFlavor?.photo ?? product.photos?.[0] ?? null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
