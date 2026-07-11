@@ -87,6 +87,7 @@ function CheckoutPage() {
         productId: i.productId,
         variantId: i.variantId ?? undefined,
         nicotineMg: i.nicotineMg ?? undefined,
+        flavor: i.flavor ?? undefined,
         quantity: i.quantity,
       })),
     });
@@ -217,6 +218,7 @@ function CheckoutPage() {
                       {it.volumeMl ? `${it.volumeMl} ml` : ""}
                       {it.volumeMl && it.nicotineMg != null ? " · " : ""}
                       {it.nicotineMg != null ? `${it.nicotineMg} mg · ` : it.volumeMl ? " · " : ""}
+                      {it.flavor ? `${it.flavor} · ` : ""}
                       × {it.quantity}
                     </span>
                   </span>
