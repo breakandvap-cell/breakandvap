@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
 
 type FormState = ProductInput;
 type FormVariant = NonNullable<FormState["variants"]>[number];
+type FormFlavor = NonNullable<FormState["flavors"]>[number];
 
 const ADMIN_CATEGORIES = [
   "cbd",
@@ -52,6 +53,7 @@ const empty: FormState = {
   coa_url: "",
   variants: [],
   is_nicotine_booster: false,
+  flavors: [],
 };
 
 function slugify(input: string) {
@@ -94,10 +96,23 @@ function EditProduct() {
   const [uploading, setUploading] = useState(false);
   // Variantes = option activable. Décochée par défaut : produit à prix/stock uniques.
   const [hasVariants, setHasVariants] = useState<boolean>(false);
+  // Variantes de goût = option activable, indépendante des variantes de volume.
+  const [hasFlavors, setHasFlavors] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (existing) {
+      const rawFlavors = Array.isArray((existing as { flavors?: unknown }).flavors)
+        ? ((existing as { flavors: unknown[] }).flavors as Array<{ name?: unknown; stock?: unknown }>)
+            .map((f) => ({
+              name: typeof f?.name === "string" ? f.name : "",
+              stock:
+                typeof f?.stock === "number" && Number.isFinite(f.stock)
+                  ? Math.max(0, Math.trunc(f.stock))
+                  : 0,
+            }))
+            .filter((f) => f.name.trim().length > 0)
+        : [];
       setForm({
         id: existing.id,
         name: existing.name,
@@ -121,9 +136,11 @@ function EditProduct() {
         coa_url: existing.coa_url ?? "",
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+        flavors: rawFlavors,
       });
       setPriceEuros((existing.price_cents / 100).toFixed(2));
       setSlugTouched(true);
+      if (rawFlavors.length > 0) setHasFlavors(true);
     }
   }, [existing]);
 
@@ -241,6 +258,26 @@ function EditProduct() {
     return errs;
   }, [form.category, form.variants, hasVariants]);
 
+  const flavorErrors = useMemo(() => {
+    const errs: string[] = [];
+    if (!hasFlavors) return errs;
+    const flavors = form.flavors ?? [];
+    if (flavors.length === 0) {
+      errs.push("Ajoute au moins un goût, ou décoche l'option « plusieurs goûts ».");
+    }
+    const seen = new Set<string>();
+    for (const [i, f] of flavors.entries()) {
+      const name = (f.name ?? "").trim();
+      if (!name) errs.push(`Goût #${i + 1} : nom manquant.`);
+      else if (seen.has(name.toLowerCase()))
+        errs.push(`Goût « ${name} » : ce goût est en doublon.`);
+      else seen.add(name.toLowerCase());
+      if (!Number.isInteger(f.stock) || f.stock < 0)
+        errs.push(`Goût « ${name || "?"} » : stock invalide.`);
+    }
+    return errs;
+  }, [hasFlavors, form.flavors]);
+
   const m = useMutation({
     mutationFn: (payload: FormState) => save({ data: payload }),
     onSuccess: async () => {
@@ -307,11 +344,21 @@ function EditProduct() {
       toast.error(variantErrors[0]);
       return;
     }
+    if (flavorErrors.length > 0) {
+      toast.error(flavorErrors[0]);
+      return;
+    }
     // Si l'option variantes n'est pas activée, on n'envoie aucune variante,
     // même si le formulaire en contenait (édition ultérieure).
     const payload: FormState = {
       ...form,
       variants: form.category === "e_liquide" && hasVariants ? form.variants ?? [] : [],
+      flavors: hasFlavors
+        ? (form.flavors ?? []).map((f) => ({
+            name: f.name.trim(),
+            stock: Math.max(0, Math.trunc(f.stock)),
+          }))
+        : [],
     };
     m.mutate(payload);
   }
