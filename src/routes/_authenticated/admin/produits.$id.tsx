@@ -448,10 +448,29 @@ function EditProduct() {
           )}
 
           {form.category === "e_liquide" && (
-            <VariantsEditor
-              variants={form.variants ?? []}
-              onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
-            />
+            <div className="space-y-3">
+              <label className="flex items-start gap-2 rounded-md border border-border bg-background/30 p-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={hasVariants}
+                  onChange={(e) => setHasVariants(e.target.checked)}
+                />
+                <span>
+                  <strong>Ce produit a plusieurs formats / volumes.</strong>{" "}
+                  Coche cette case uniquement pour les e-liquides déclinés en
+                  50 / 100 / 200 ml (base + boosters) ou avec plusieurs taux de
+                  nicotine sur un même 10 ml. Sinon, laisse décoché : le prix
+                  et le stock du produit s'appliquent tels quels.
+                </span>
+              </label>
+              {hasVariants && (
+                <VariantsEditor
+                  variants={form.variants ?? []}
+                  onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+                />
+              )}
+            </div>
           )}
 
           <Field label="Sous-catégorie (optionnel)">
@@ -470,12 +489,12 @@ function EditProduct() {
             <Field label="Prix TTC (€)" required>
               <input
                 className="input"
-                type="number"
-                step="0.01"
-                min={0}
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]+([.,][0-9]{1,2})?"
                 value={priceEuros}
                 onChange={(e) => {
-                  const v = e.target.value;
+                  const v = e.target.value.replace(",", ".");
                   setPriceEuros(v);
                   const n = Number(v);
                   setForm({
@@ -483,7 +502,7 @@ function EditProduct() {
                     price_cents: Number.isFinite(n) ? Math.round(n * 100) : 0,
                   });
                 }}
-                placeholder="0,00"
+                placeholder="24.90"
               />
             </Field>
             <Field label="Stock initial" required>
