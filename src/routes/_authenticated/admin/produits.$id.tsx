@@ -693,23 +693,11 @@ function EditProduct() {
           </label>
 
           {form.category === "accessoire_vape" && (
-            <label className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-xs text-amber-200">
-              <input
-                type="checkbox"
-                className="mt-0.5"
-                checked={Boolean(form.is_nicotine_booster)}
-                onChange={(e) =>
-                  setForm({ ...form, is_nicotine_booster: e.target.checked })
-                }
-              />
-              <span>
-                <strong>Ce produit est LE Booster de nicotine.</strong> Son prix
-                sera utilisé automatiquement pour calculer le prix des e-liquides
-                (50 / 100 / 200 ml) selon le nombre de boosters requis. Un seul
-                produit à la fois peut porter ce rôle : cocher ici retirera le
-                rôle des autres accessoires.
-              </span>
-            </label>
+            <BoosterRoleFields
+              checked={Boolean(form.is_nicotine_booster)}
+              type={form.booster_type}
+              onChange={(patch) => setForm({ ...form, ...patch })}
+            />
           )}
         </section>
 
