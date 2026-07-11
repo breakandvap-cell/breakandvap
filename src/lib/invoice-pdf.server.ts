@@ -144,9 +144,9 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   const col = {
     ref: marginX + 2,
     desc: marginX + 82,
-    pu: tableRight - 205,
-    qty: tableRight - 155,
-    ht: tableRight - 115,
+    pu: tableRight - 225,
+    qty: tableRight - 170,
+    ht: tableRight - 120,
     tva: tableRight - 60,
     ttc: tableRight - 4,
   };
