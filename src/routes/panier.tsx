@@ -37,7 +37,7 @@ function CartPage() {
           <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
             <ul className="divide-y divide-border rounded-lg border border-border bg-card">
               {items.map((item) => (
-                <li key={item.productId} className="flex gap-4 p-4">
+                <li key={item.key} className="flex gap-4 p-4">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md bg-secondary">
                     {item.photo ? (
                       <img
@@ -55,6 +55,13 @@ function CartPage() {
                     >
                       {item.name}
                     </Link>
+                    {(item.volumeMl || item.nicotineMg != null) && (
+                      <span className="text-[11px] text-muted-foreground">
+                        {item.volumeMl ? `${item.volumeMl} ml` : ""}
+                        {item.volumeMl && item.nicotineMg != null ? " · " : ""}
+                        {item.nicotineMg != null ? `${item.nicotineMg} mg` : ""}
+                      </span>
+                    )}
                     <span className="mt-1 text-xs text-muted-foreground">
                       {formatPrice(item.priceCents)} l'unité
                     </span>
@@ -62,7 +69,7 @@ function CartPage() {
                       <div className="inline-flex items-center rounded-md border border-border">
                         <button
                           onClick={() =>
-                            setQuantity(item.productId, item.quantity - 1)
+                            setQuantity(item.key, item.quantity - 1)
                           }
                           className="px-2 py-1 hover:bg-secondary"
                           aria-label="Diminuer"
@@ -74,7 +81,7 @@ function CartPage() {
                         </span>
                         <button
                           onClick={() =>
-                            setQuantity(item.productId, item.quantity + 1)
+                            setQuantity(item.key, item.quantity + 1)
                           }
                           disabled={item.quantity >= item.maxStock}
                           className="px-2 py-1 hover:bg-secondary disabled:opacity-40"
@@ -84,7 +91,7 @@ function CartPage() {
                         </button>
                       </div>
                       <button
-                        onClick={() => remove(item.productId)}
+                        onClick={() => remove(item.key)}
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Retirer
