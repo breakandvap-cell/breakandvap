@@ -2,7 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { adminListProducts, adminDeleteProduct } from "@/lib/admin.functions";
-import { formatPrice, CATEGORY_LABELS } from "@/lib/products";
+import {
+  formatPrice,
+  CATEGORY_LABELS,
+  boosterProductsQueryOptions,
+  duplicateBoosterTypes,
+  boosterTypeLabel,
+} from "@/lib/products";
+import { useQuery } from "@tanstack/react-query";
+import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 type ProductFilters = {
@@ -47,6 +55,9 @@ function ProductsList() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { data } = useSuspenseQuery(listOptions(search));
+  const { data: boosterList } = useQuery(boosterProductsQueryOptions());
+  const duplicates = duplicateBoosterTypes(boosterList);
+  const duplicateEntries = Object.entries(duplicates);
   const qc = useQueryClient();
   const del = useServerFn(adminDeleteProduct);
   const m = useMutation({
@@ -78,6 +89,29 @@ function ProductsList() {
           + Nouveau produit
         </Link>
       </div>
+
+      {duplicateEntries.length > 0 && (
+        <div className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="mb-1 flex items-center gap-2 font-medium text-amber-100">
+            <AlertTriangle className="h-4 w-4" /> Doublons de type de booster détectés
+          </p>
+          <p className="mb-2">
+            Plusieurs produits publiés sont marqués « booster de nicotine » avec
+            le même type. Le site utilisera automatiquement le plus ancien ;
+            corrige les doublons pour éviter toute ambiguïté.
+          </p>
+          <ul className="list-inside list-disc space-y-1">
+            {duplicateEntries.map(([type, list]) => (
+              <li key={type}>
+                <strong>{boosterTypeLabel(type)}</strong> :{" "}
+                {list
+                  .map((p, i) => (i === 0 ? `${p.name} (utilisé)` : p.name))
+                  .join(" · ")}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
