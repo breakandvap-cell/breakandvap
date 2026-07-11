@@ -672,3 +672,145 @@ function Field({
     </label>
   );
 }
+
+function VariantsEditor({
+  variants,
+  onChange,
+}: {
+  variants: FormVariant[];
+  onChange: (next: FormVariant[]) => void;
+}) {
+  const usedVolumes = new Set(variants.map((v) => v.volume_ml));
+  const nextVolume =
+    VOLUME_OPTIONS_ML.find((v) => !usedVolumes.has(v)) ?? 50;
+
+  const update = (idx: number, patch: Partial<FormVariant>) => {
+    onChange(variants.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
+  };
+  const remove = (idx: number) =>
+    onChange(variants.filter((_, i) => i !== idx));
+  const add = () =>
+    onChange([
+      ...variants,
+      {
+        volume_ml: nextVolume,
+        price_cents: 0,
+        stock: 0,
+        max_nicotine_mg: 0,
+      },
+    ]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <div>
+          <h3 className="text-sm font-medium">
+            Variantes de volume <span className="text-destructive">*</span>
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Pour chaque flacon (50 / 100 / 200 ml), déclare le prix, le stock,
+            et le <strong>taux de nicotine maximum atteignable</strong> avec les
+            boosters (saisi manuellement, dépend du dosage réel).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={add}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
+        >
+          <Plus className="h-3.5 w-3.5" /> Ajouter une variante
+        </button>
+      </div>
+
+      {variants.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border/70 bg-background/30 p-4 text-center text-xs text-muted-foreground">
+          Aucune variante. Ajoute au moins une taille de flacon.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {variants.map((v, idx) => (
+            <div
+              key={idx}
+              className="grid grid-cols-2 gap-2 rounded-md border border-border bg-background/40 p-3 sm:grid-cols-[110px_1fr_1fr_1fr_auto] sm:items-end"
+            >
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Volume</span>
+                <select
+                  className="input"
+                  value={v.volume_ml}
+                  onChange={(e) =>
+                    update(idx, { volume_ml: Number(e.target.value) })
+                  }
+                >
+                  {VOLUME_OPTIONS_ML.map((vol) => (
+                    <option key={vol} value={vol}>
+                      {vol} ml
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Prix (€)</span>
+                <input
+                  className="input"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  value={
+                    v.price_cents === 0 ? "" : (v.price_cents / 100).toFixed(2)
+                  }
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    update(idx, {
+                      price_cents: Number.isFinite(n)
+                        ? Math.round(n * 100)
+                        : 0,
+                    });
+                  }}
+                />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">Stock</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={0}
+                  value={v.stock}
+                  onChange={(e) =>
+                    update(idx, { stock: Number(e.target.value) || 0 })
+                  }
+                />
+              </label>
+              <label className="text-xs">
+                <span className="mb-1 block text-muted-foreground">
+                  Nicotine max atteignable
+                </span>
+                <select
+                  className="input"
+                  value={v.max_nicotine_mg}
+                  onChange={(e) =>
+                    update(idx, { max_nicotine_mg: Number(e.target.value) })
+                  }
+                >
+                  {NICOTINE_STEPS_MG.map((mg) => (
+                    <option key={mg} value={mg}>
+                      {mg} mg
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => remove(idx)}
+                className="inline-flex items-center justify-center rounded-md border border-border p-2 text-destructive hover:bg-destructive/10"
+                aria-label="Supprimer cette variante"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
