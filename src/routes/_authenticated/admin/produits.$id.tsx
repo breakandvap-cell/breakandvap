@@ -1226,27 +1226,53 @@ function VariantBlock({
         </p>
         <div className="mb-3">
           <span className="mb-1 block text-xs text-muted-foreground">
-            Type de nicotine
+            Type de nicotine (détermine quel booster est utilisé)
           </span>
-          <div className="inline-flex overflow-hidden rounded-md border border-border text-xs">
-            {(["normale", "sel"] as const).map((t) => {
-              const active = (variant.nicotine_type ?? "normale") === t;
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {BOOSTER_TYPE_PRESETS.map((t) => {
+              const active =
+                normalizeBoosterTypeKey(variant.nicotine_type) === t.key;
               return (
                 <button
-                  key={t}
+                  key={t.key}
                   type="button"
-                  onClick={() => onUpdate({ nicotine_type: t })}
-                  className={`px-3 py-1.5 transition-colors ${
+                  onClick={() => onUpdate({ nicotine_type: t.key })}
+                  className={`rounded-md border px-3 py-1.5 transition-colors ${
                     active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-background text-muted-foreground hover:text-foreground"
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {t === "normale" ? "Nicotine normale" : "Sel de nicotine"}
+                  {t.label}
                 </button>
               );
             })}
+            <label className="flex items-center gap-1 text-muted-foreground">
+              <span>ou</span>
+              <input
+                type="text"
+                className="input h-8 w-32 px-2 py-1 text-xs"
+                placeholder="type libre"
+                value={
+                  BOOSTER_TYPE_PRESETS.some(
+                    (p) => p.key === normalizeBoosterTypeKey(variant.nicotine_type),
+                  )
+                    ? ""
+                    : (variant.nicotine_type ?? "")
+                }
+                onChange={(e) =>
+                  onUpdate({
+                    nicotine_type:
+                      e.target.value.toLowerCase().slice(0, 40) || "normale",
+                  })
+                }
+              />
+            </label>
           </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Le prix booster utilisé sera celui de l'accessoire vape marqué
+            « booster de nicotine » avec ce même type.
+          </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
           {choices.map((mg) => {
