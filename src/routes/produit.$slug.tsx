@@ -11,11 +11,15 @@ import { toast } from "sonner";
 import { useCart } from "@/lib/cart";
 import {
   CATEGORY_LABELS,
-  NICOTINE_STEPS_MG,
+  NICOTINE_STEPS_MG_10ML,
+  NICOTINE_STEPS_MG_BOOSTER,
   STOCK_LABELS,
   formatPrice,
   productBySlugQueryOptions,
   productVariantsQueryOptions,
+  nicotineBoosterQueryOptions,
+  computeVariantPrice,
+  boostersNeeded,
   type ProductRow,
 } from "@/lib/products";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
@@ -27,9 +31,12 @@ export const Route = createFileRoute("/produit/$slug")({
     );
     if (!product) throw notFound();
     if (product.category === "e_liquide") {
-      await context.queryClient.ensureQueryData(
-        productVariantsQueryOptions(product.id),
-      );
+      await Promise.all([
+        context.queryClient.ensureQueryData(
+          productVariantsQueryOptions(product.id),
+        ),
+        context.queryClient.ensureQueryData(nicotineBoosterQueryOptions()),
+      ]);
     }
     return null;
   },
@@ -299,6 +306,7 @@ function EliquideDetail({
   const { data: variants } = useSuspenseQuery(
     productVariantsQueryOptions(product.id),
   );
+  const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
   const photo = product.photos?.[0];
 
   const availableVolumes = useMemo(
@@ -316,9 +324,30 @@ function EliquideDetail({
 
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
-  const nicotineChoices = NICOTINE_STEPS_MG;
+  const nicotineChoices = useMemo(() => {
+    if (!variant) return NICOTINE_STEPS_MG_BOOSTER;
+    return variant.volume_ml === 10
+      ? NICOTINE_STEPS_MG_10ML
+      : NICOTINE_STEPS_MG_BOOSTER;
+  }, [variant]);
+  const allowedForVariant = useMemo(
+    () => new Set<number>(variant?.available_nicotine_mg ?? []),
+    [variant],
+  );
   const nicotineOK =
-    nicotine !== null && variant !== null && nicotine <= variant.max_nicotine_mg;
+    nicotine !== null && variant !== null && allowedForVariant.has(nicotine);
+
+  const boosterPrice =
+    booster && booster.is_published ? booster.price_cents : null;
+  const displayPrice = useMemo(() => {
+    if (!variant) return null;
+    const nic = nicotine ?? 0;
+    return computeVariantPrice(variant, nic, boosterPrice);
+  }, [variant, nicotine, boosterPrice]);
+  const boostersCount =
+    variant && nicotine !== null && variant.volume_ml !== 10
+      ? boostersNeeded(variant, nicotine)
+      : 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -360,8 +389,8 @@ function EliquideDetail({
 
             <div className="mt-4 flex items-baseline gap-3">
               <span className="text-3xl font-semibold">
-                {variant
-                  ? formatPrice(variant.price_cents, product.currency)
+                {variant && displayPrice !== null
+                  ? formatPrice(displayPrice, product.currency)
                   : availableVolumes.length > 0
                   ? `à partir de ${formatPrice(
                       Math.min(...availableVolumes.map((v) => v.price_cents)),
@@ -369,6 +398,11 @@ function EliquideDetail({
                     )}`
                   : formatPrice(product.price_cents, product.currency)}
               </span>
+              {variant && boostersCount > 0 && boosterPrice !== null && (
+                <span className="text-xs text-muted-foreground">
+                  ({formatPrice(variant.price_cents, product.currency)} base + {boostersCount} × {formatPrice(boosterPrice, product.currency)} booster)
+                </span>
+              )}
             </div>
 
             {product.description ? (
@@ -396,9 +430,13 @@ function EliquideDetail({
                           disabled={outOfStock}
                           onClick={() => {
                             setSelectedVariantId(v.id);
-                            setNicotine((n) =>
-                              n !== null && n > v.max_nicotine_mg ? null : n,
-                            );
+                            setNicotine((n) => {
+                              if (n === null) return n;
+                              const allowed = new Set<number>(
+                                v.available_nicotine_mg ?? [],
+                              );
+                              return allowed.has(n) ? n : null;
+                            });
                           }}
                           className={`rounded-md border px-3 py-2 text-sm transition-colors ${
                             selected
@@ -420,8 +458,7 @@ function EliquideDetail({
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {nicotineChoices.map((mg) => {
-                      const disabled =
-                        !variant || mg > variant.max_nicotine_mg;
+                      const disabled = !variant || !allowedForVariant.has(mg);
                       const selected = nicotine === mg;
                       return (
                         <button
@@ -494,6 +531,7 @@ function EliquideDetail({
                   onClick={() => {
                     if (nicotine === null || !nicotineOK) return;
                     const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg`;
+                    const unitPrice = computeVariantPrice(variant, nicotine, boosterPrice);
                     cart.add(
                       {
                         key: `${product.id}:${variant.id}:${nicotine}`,
@@ -503,7 +541,7 @@ function EliquideDetail({
                         nicotineMg: nicotine,
                         slug: product.slug,
                         name: displayName,
-                        priceCents: variant.price_cents,
+                        priceCents: unitPrice,
                         photo: product.photos?.[0] ?? null,
                         maxStock: variant.stock,
                       },
