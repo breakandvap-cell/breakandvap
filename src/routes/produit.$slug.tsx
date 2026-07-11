@@ -345,6 +345,18 @@ function EliquideDetail({
     productVariantsQueryOptions(product.id),
   );
   const { data: booster } = useSuspenseQuery(nicotineBoosterQueryOptions());
+  // Overrides éventuels : booster + flacon vide associés à cet e-liquide.
+  const boosterOverrideId =
+    (product as { booster_product_id?: string | null }).booster_product_id ?? null;
+  const emptyBottleId =
+    (product as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null;
+  const { data: boosterOverride } = useQuery(
+    productByIdQueryOptions(boosterOverrideId),
+  );
+  const { data: emptyBottle } = useQuery(
+    productByIdQueryOptions(emptyBottleId),
+  );
+  const effectiveBooster = boosterOverride ?? booster;
   const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
