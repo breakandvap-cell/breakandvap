@@ -31,6 +31,7 @@ import { Route as AuthenticatedAdminRouteRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_authenticated/compte.commandes'
 import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
+import { Route as AuthenticatedAdminTemoignagesRouteImport } from './routes/_authenticated/admin/temoignages'
 import { Route as AuthenticatedAdminFacturesRouteImport } from './routes/_authenticated/admin/factures'
 import { Route as AuthenticatedAdminCommandesRouteImport } from './routes/_authenticated/admin/commandes'
 import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authenticated/admin/clients'
@@ -151,6 +152,12 @@ const AuthenticatedCompteAdressesRoute =
     path: '/adresses',
     getParentRoute: () => AuthenticatedCompteRoute,
   } as any)
+const AuthenticatedAdminTemoignagesRoute =
+  AuthenticatedAdminTemoignagesRouteImport.update({
+    id: '/temoignages',
+    path: '/temoignages',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminFacturesRoute =
   AuthenticatedAdminFacturesRouteImport.update({
     id: '/factures',
@@ -223,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/commandes': typeof AuthenticatedAdminCommandesRouteWithChildren
   '/admin/factures': typeof AuthenticatedAdminFacturesRoute
+  '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
@@ -253,6 +261,7 @@ export interface FileRoutesByTo {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/commandes': typeof AuthenticatedAdminCommandesRouteWithChildren
   '/admin/factures': typeof AuthenticatedAdminFacturesRoute
+  '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/_authenticated/admin/commandes': typeof AuthenticatedAdminCommandesRouteWithChildren
   '/_authenticated/admin/factures': typeof AuthenticatedAdminFacturesRoute
+  '/_authenticated/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/commandes'
     | '/admin/factures'
+    | '/admin/temoignages'
     | '/compte/adresses'
     | '/compte/commandes'
     | '/admin/'
@@ -349,6 +360,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/commandes'
     | '/admin/factures'
+    | '/admin/temoignages'
     | '/compte/adresses'
     | '/compte/commandes'
     | '/admin'
@@ -381,6 +393,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clients'
     | '/_authenticated/admin/commandes'
     | '/_authenticated/admin/factures'
+    | '/_authenticated/admin/temoignages'
     | '/_authenticated/compte/adresses'
     | '/_authenticated/compte/commandes'
     | '/_authenticated/admin/'
@@ -566,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCompteAdressesRouteImport
       parentRoute: typeof AuthenticatedCompteRoute
     }
+    '/_authenticated/admin/temoignages': {
+      id: '/_authenticated/admin/temoignages'
+      path: '/temoignages'
+      fullPath: '/admin/temoignages'
+      preLoaderRoute: typeof AuthenticatedAdminTemoignagesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/factures': {
       id: '/_authenticated/admin/factures'
       path: '/factures'
@@ -658,6 +678,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminClientsRoute: typeof AuthenticatedAdminClientsRouteWithChildren
   AuthenticatedAdminCommandesRoute: typeof AuthenticatedAdminCommandesRouteWithChildren
   AuthenticatedAdminFacturesRoute: typeof AuthenticatedAdminFacturesRoute
+  AuthenticatedAdminTemoignagesRoute: typeof AuthenticatedAdminTemoignagesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminProduitsIdRoute: typeof AuthenticatedAdminProduitsIdRoute
   AuthenticatedAdminProduitsIndexRoute: typeof AuthenticatedAdminProduitsIndexRoute
@@ -670,6 +691,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminCommandesRoute:
       AuthenticatedAdminCommandesRouteWithChildren,
     AuthenticatedAdminFacturesRoute: AuthenticatedAdminFacturesRoute,
+    AuthenticatedAdminTemoignagesRoute: AuthenticatedAdminTemoignagesRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
     AuthenticatedAdminProduitsIdRoute: AuthenticatedAdminProduitsIdRoute,
     AuthenticatedAdminProduitsIndexRoute: AuthenticatedAdminProduitsIndexRoute,

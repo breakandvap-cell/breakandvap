@@ -33,8 +33,7 @@ function TestimonialsAdmin() {
   };
 
   const mSave = useMutation({
-    mutationFn: (payload: Parameters<typeof upsert>[0]["data"]) =>
-      upsert({ data: payload }),
+    mutationFn: (payload: FormValues) => upsert({ data: payload }),
     onSuccess: () => {
       toast.success("Avis enregistré.");
       invalidate();
