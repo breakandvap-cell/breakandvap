@@ -182,7 +182,7 @@ export const adminDeleteCategory = createServerFn({ method: "POST" })
       const { count } = await supabaseAdmin
         .from("products")
         .select("id", { count: "exact", head: true })
-        .eq("category", cat.key);
+        .eq("category", cat.key as any);
       if ((count ?? 0) > 0) {
         throw new Error(
           `Impossible de supprimer : ${count} produit(s) sont encore rattaché(s) à cette catégorie.`,
@@ -235,7 +235,7 @@ export const adminUpsertSubcategory = createServerFn({ method: "POST" })
         await supabaseAdmin
           .from("products")
           .update({ subcategory: data.name })
-          .eq("category", categoryKey)
+          .eq("category", categoryKey as any)
           .eq("subcategory", oldName);
       }
       return { id: data.id };
@@ -268,7 +268,7 @@ export const adminDeleteSubcategory = createServerFn({ method: "POST" })
       const { count } = await supabaseAdmin
         .from("products")
         .select("id", { count: "exact", head: true })
-        .eq("category", catKey)
+        .eq("category", catKey as any)
         .eq("subcategory", subName);
       if ((count ?? 0) > 0) {
         throw new Error(
