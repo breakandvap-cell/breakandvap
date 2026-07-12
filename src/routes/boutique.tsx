@@ -169,7 +169,11 @@ function BoutiquePage() {
         </div>
 
         {stage === "categories" && (
-          <CategoryTiles categories={categories} onPick={(k) => goto({ categorie: k })} />
+          <CategoryTiles
+            categories={categories}
+            allProducts={allProducts}
+            onPick={(k) => goto({ categorie: k })}
+          />
         )}
 
         {stage === "subcategories" && activeCat && (
