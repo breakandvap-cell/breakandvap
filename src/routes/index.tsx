@@ -1,9 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Store, Truck, Leaf, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
-import { getGoogleReviews } from "@/lib/google-reviews.functions";
-import { FlavorUniverses } from "@/components/flavor-universe";
+import { getSatisfactionAggregate } from "@/lib/google-reviews.functions";
+import { featuredTestimonialsQueryOptions } from "@/lib/testimonials.functions";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -30,8 +30,6 @@ function Index() {
             colis déposé à La Poste le soir.
           </p>
 
-          <ReassuranceBar />
-
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               to="/boutique"
@@ -39,26 +37,12 @@ function Index() {
             >
               Découvrir le catalogue
             </Link>
-            <Link
-              to="/boutique"
-              search={{ categorie: "cbd" }}
-              className="home-cta-secondary inline-flex items-center justify-center rounded-md border border-border bg-card/70 px-5 py-3 text-sm font-medium text-foreground backdrop-blur-sm transition-colors hover:bg-secondary"
-            >
-              Voir les produits CBD
-            </Link>
           </div>
-
-          <FeatureRow />
-
-          <p className="mt-12 text-xs text-muted-foreground">
-            Étapes 1 à 3/7 livrées : fondations, vérification d'âge, catalogue
-            et fiches produits. Panier, compte client et espace admin arrivent
-            aux prochaines étapes.
-          </p>
         </div>
       </section>
 
-      <FlavorUniverses />
+      <SatisfactionSection />
+      <TestimonialsSection />
 
       <SiteFooter />
       </div>
@@ -66,81 +50,113 @@ function Index() {
   );
 }
 
-function FeatureRow() {
-  const items = [
-    {
-      icon: <Leaf strokeWidth={1.25} className="h-7 w-7" />,
-      title: "CBD & e-liquides",
-      text: "Fiches conformes, taux affichés.",
-    },
-    {
-      icon: <Truck strokeWidth={1.25} className="h-7 w-7" />,
-      title: "Expédition rapide",
-      text: "Postées dans la journée.",
-    },
-    {
-      icon: <Store strokeWidth={1.25} className="h-7 w-7" />,
-      title: "Boutiques physiques",
-      text: "Le Creusot & Montceau, depuis 2018.",
-    },
-  ];
-  return (
-    <div className="mt-16 flex flex-col divide-y divide-border/60 sm:flex-row sm:divide-y-0 sm:divide-x">
-      {items.map((it) => (
-        <div
-          key={it.title}
-          className="flex flex-1 items-center gap-4 py-6 sm:flex-col sm:items-start sm:gap-3 sm:px-6 sm:py-2 sm:first:pl-0 sm:last:pr-0"
-        >
-          <span style={{ color: "var(--accent)" }} className="shrink-0">
-            {it.icon}
-          </span>
-          <div>
-            <div className="text-sm font-medium tracking-wide text-foreground">
-              {it.title}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">{it.text}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function ReassuranceBar() {
+function SatisfactionSection() {
   const { data } = useQuery({
-    queryKey: ["google-reviews"],
-    queryFn: () => getGoogleReviews(),
+    queryKey: ["satisfaction-aggregate"],
+    queryFn: () => getSatisfactionAggregate(),
     staleTime: 60 * 60 * 1000,
     retry: false,
   });
+  if (!data || data.rating == null || data.total === 0) return null;
+
+  const rating = data.rating;
+  const full = Math.floor(rating);
+  const hasHalf = rating - full >= 0.25 && rating - full < 0.75;
+  const totalStars = 5;
+  const sourcesLabel = data.sources
+    .filter((s) => s.total > 0)
+    .map((s) => (s.key === "google" ? "avis Google" : "avis clients du site"))
+    .join(" et ");
 
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
-      <span className="inline-flex items-center gap-2">
-        <span
-          aria-hidden
-          className="h-1.5 w-1.5 rounded-full"
-          style={{ backgroundColor: "var(--accent)" }}
-        />
-        Boutiques physiques depuis 2018
-      </span>
-      {data?.rating != null && data.total > 0 ? (
-        <>
-          <span aria-hidden className="opacity-40">·</span>
-          <span className="inline-flex items-center gap-1.5">
-            <Star
-              className="h-3.5 w-3.5"
-              style={{ color: "var(--accent)", fill: "var(--accent)" }}
-            />
-            <span className="font-medium text-foreground">
-              {data.rating.toFixed(1)}/5
+    <section
+      aria-label="Satisfaction client"
+      className="mx-auto max-w-6xl px-4 pb-16 sm:pb-24"
+    >
+      <div className="flex flex-col items-start gap-6 border-t border-border/60 pt-16 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            Satisfaction client
+          </p>
+          <div className="mt-3 flex items-baseline gap-3">
+            <span className="text-5xl font-light tracking-tight text-foreground">
+              {rating.toFixed(1)}
             </span>
-            <span>
-              sur {data.total} avis Google
-            </span>
-          </span>
-        </>
-      ) : null}
-    </div>
+            <span className="text-sm text-muted-foreground">/ 5</span>
+          </div>
+          <div
+            className="mt-3 flex items-center gap-1"
+            aria-label={`Note ${rating.toFixed(1)} sur 5`}
+          >
+            {Array.from({ length: totalStars }).map((_, i) => {
+              const filled = i < full;
+              const half = !filled && hasHalf && i === full;
+              return (
+                <Star
+                  key={i}
+                  className="h-4 w-4"
+                  strokeWidth={1.25}
+                  style={{
+                    color: "var(--accent)",
+                    fill: filled || half ? "var(--accent)" : "transparent",
+                    opacity: half ? 0.5 : 1,
+                  }}
+                />
+              );
+            })}
+          </div>
+        </div>
+        <p className="max-w-sm text-sm text-muted-foreground sm:text-right">
+          Moyenne calculée sur <span className="text-foreground">{data.total}</span>{" "}
+          {sourcesLabel || "avis"} de nos boutiques du Creusot et de
+          Montceau-les-Mines.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function TestimonialsSection() {
+  const { data } = useQuery(featuredTestimonialsQueryOptions());
+  if (!data || data.length === 0) return null;
+  return (
+    <section
+      aria-label="Avis clients"
+      className="mx-auto max-w-6xl px-4 pb-24 sm:pb-32"
+    >
+      <div className="mb-10 max-w-2xl">
+        <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+          Ils nous font confiance
+        </p>
+        <h2 className="text-3xl sm:text-4xl">Quelques mots de nos clients.</h2>
+      </div>
+      <div className="grid gap-x-10 gap-y-12 sm:grid-cols-2 lg:grid-cols-3">
+        {data.map((t) => (
+          <figure key={t.id} className="flex flex-col">
+            {t.rating ? (
+              <div className="mb-3 flex items-center gap-0.5" aria-label={`Note ${t.rating}/5`}>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star
+                    key={i}
+                    className="h-3.5 w-3.5"
+                    strokeWidth={1.25}
+                    style={{
+                      color: "var(--accent)",
+                      fill: i < (t.rating ?? 0) ? "var(--accent)" : "transparent",
+                    }}
+                  />
+                ))}
+              </div>
+            ) : null}
+            <blockquote className="text-base leading-relaxed text-foreground">
+              « {t.content} »
+            </blockquote>
+            <figcaption className="mt-4 text-xs uppercase tracking-[0.15em] text-muted-foreground">
+              — {t.author_name}
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
   );
 }
