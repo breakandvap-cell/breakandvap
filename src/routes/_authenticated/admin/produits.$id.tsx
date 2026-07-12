@@ -620,13 +620,31 @@ function EditProduct() {
             )}
           </div>
 
-          <Field label="Sous-catégorie (optionnel)">
-            <input
-              className="input"
-              value={form.subcategory ?? ""}
-              onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
-              placeholder="Ex. fleurs, résines, pods, batteries…"
-            />
+          <Field label="Sous-catégorie (optionnel)" hint="Gérée dans /admin/catégories. Le choix dépend de la catégorie sélectionnée ci-dessus.">
+            {(() => {
+              const cat = (shopCats ?? []).find((c) => c.key === form.category);
+              const subs = cat
+                ? (shopSubs ?? []).filter(
+                    (s) => s.category_id === cat.id && s.is_active,
+                  )
+                : [];
+              return (
+                <select
+                  className="input"
+                  value={form.subcategory ?? ""}
+                  onChange={(e) =>
+                    setForm({ ...form, subcategory: e.target.value })
+                  }
+                >
+                  <option value="">— Aucune sous-catégorie —</option>
+                  {subs.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              );
+            })()}
           </Field>
         </section>
 
