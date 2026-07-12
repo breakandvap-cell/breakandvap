@@ -22,6 +22,10 @@ import {
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import {
+  shopCategoriesQueryOptions,
+  shopSubcategoriesQueryOptions,
+} from "@/lib/categories.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
   ssr: false,
@@ -84,6 +88,10 @@ function EditProduct() {
   const upload = useServerFn(adminUploadProductPhoto);
   const listVariantsFn = useServerFn(adminListVariants);
   const listProductsFn = useServerFn(adminListProducts);
+
+  // Sous-catégories dynamiques pour le champ « sous-catégorie ».
+  const { data: shopCats } = useQuery(shopCategoriesQueryOptions());
+  const { data: shopSubs } = useQuery(shopSubcategoriesQueryOptions());
 
   // Liste des accessoires vape pour les listes déroulantes « booster associé »
   // et « flacon vide associé » sur les fiches e-liquides.
