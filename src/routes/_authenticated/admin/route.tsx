@@ -33,12 +33,13 @@ function AdminLayout() {
 function AdminNav() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const links: Array<{
-    to: "/admin" | "/admin/produits" | "/admin/commandes" | "/admin/clients" | "/admin/factures";
+    to: "/admin" | "/admin/produits" | "/admin/commandes" | "/admin/clients" | "/admin/factures" | "/admin/categories";
     label: string;
     exact?: boolean;
   }> = [
     { to: "/admin", label: "Tableau de bord", exact: true },
     { to: "/admin/produits", label: "Produits" },
+    { to: "/admin/categories", label: "Catégories" },
     { to: "/admin/commandes", label: "Commandes" },
     { to: "/admin/clients", label: "Clients" },
     { to: "/admin/factures", label: "Factures" },
