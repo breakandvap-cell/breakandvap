@@ -3,6 +3,7 @@ import { Store, Truck, Leaf, Star } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { getGoogleReviews } from "@/lib/google-reviews.functions";
+import { FlavorUniverses } from "@/components/flavor-universe";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -56,6 +57,8 @@ function Index() {
           </p>
         </div>
       </section>
+
+      <FlavorUniverses />
 
       <SiteFooter />
       </div>
