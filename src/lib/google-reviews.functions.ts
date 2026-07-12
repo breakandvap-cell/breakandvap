@@ -6,6 +6,18 @@ export type GoogleReviewsAggregate = {
   configured: boolean;
 };
 
+export type SatisfactionSource = {
+  key: "google" | "site";
+  rating: number | null;
+  total: number;
+};
+
+export type SatisfactionAggregate = {
+  rating: number | null;
+  total: number;
+  sources: SatisfactionSource[];
+};
+
 type PlaceDetails = {
   result?: { rating?: number; user_ratings_total?: number };
   status?: string;
