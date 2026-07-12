@@ -76,7 +76,7 @@ function FrostUniverse() {
           </p>
           <Link
             to="/boutique"
-            search={{ categorie: "e_liquide" }}
+            search={{ categorie: "e_liquide", sous_categorie: "frais-glace", tout: false }}
             className="universe__cta universe__cta--frost mt-3"
           >
             Explorer la famille glacée →
@@ -121,7 +121,7 @@ function TropicalUniverse() {
           </p>
           <Link
             to="/boutique"
-            search={{ categorie: "e_liquide" }}
+            search={{ categorie: "e_liquide", sous_categorie: "fruite-exotique", tout: false }}
             className="universe__cta universe__cta--tropical mt-3"
           >
             Explorer la famille exotique →
