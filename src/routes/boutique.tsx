@@ -169,7 +169,11 @@ function BoutiquePage() {
         </div>
 
         {stage === "categories" && (
-          <CategoryTiles categories={categories} onPick={(k) => goto({ categorie: k })} />
+          <CategoryTiles
+            categories={categories}
+            allProducts={allProducts}
+            onPick={(k) => goto({ categorie: k })}
+          />
         )}
 
         {stage === "subcategories" && activeCat && (
@@ -252,9 +256,11 @@ function Breadcrumb({
 
 function CategoryTiles({
   categories,
+  allProducts,
   onPick,
 }: {
   categories: ShopCategory[];
+  allProducts: ProductRow[];
   onPick: (key: string) => void;
 }) {
   const visible = categories.filter(
@@ -262,7 +268,11 @@ function CategoryTiles({
   );
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-      {visible.map((c) => (
+      {visible.map((c) => {
+        const photos = allProducts
+          .filter((p) => p.category === c.key && (p.photos?.length ?? 0) > 0)
+          .map((p) => p.photos![0]);
+        return (
         <button
           key={c.id}
           onClick={() => onPick(c.key)}
@@ -279,6 +289,7 @@ function CategoryTiles({
           )}
           <CategoryTileFx
             variant={c.key as "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd"}
+            photos={photos}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
           <div className="relative z-10 m-3 rounded-xl bg-black/55 p-5 text-white backdrop-blur-sm ring-1 ring-white/10">
@@ -301,7 +312,8 @@ function CategoryTiles({
             </span>
           </div>
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }

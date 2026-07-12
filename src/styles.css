@@ -598,31 +598,33 @@
   position: absolute;
   inset: 0;
 }
-.tile-fx__p {
+.tile-fx__photo {
   position: absolute;
-  top: -12%;
   display: block;
-  color: #fff;
-  animation: tile-fx-fall var(--dur, 12s) linear var(--delay, 0s) infinite;
+  object-fit: contain;
+  border-radius: 12px;
+  transform: translate(-50%, -50%);
+  filter: saturate(0.9) contrast(0.95) drop-shadow(0 6px 14px rgba(0,0,0,.35));
+  mix-blend-mode: screen;
+  animation: tile-fx-drift var(--dur, 18s) ease-in-out var(--delay, 0s) infinite alternate;
   will-change: transform;
 }
-.tile-fx__p svg { width: 100%; height: 100%; display: block; }
-@keyframes tile-fx-fall {
-  0%   { transform: translate3d(0, -20%, 0) rotate(0deg); }
-  100% { transform: translate3d(var(--drift, 0px), 120vh, 0) rotate(var(--rot, 180deg)); }
+@keyframes tile-fx-drift {
+  0%   { transform: translate(-50%, -50%) translate3d(0, 0, 0) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) translate3d(var(--dx, 0px), var(--dy, 0px), 0) rotate(var(--rot, 0deg)); }
 }
 
-/* CBD — green glow */
-.tile-fx--cbd .tile-fx__p { color: #d6ffb0; filter: drop-shadow(0 0 6px rgba(140,220,120,.35)); }
-.tile-fx--cbd { background: radial-gradient(120% 80% at 30% 0%, rgba(120,200,120,.18), transparent 60%); }
+/* CBD — warm green tint */
+.tile-fx--cbd { background: radial-gradient(120% 80% at 30% 20%, rgba(120,200,120,.22), transparent 65%), linear-gradient(160deg, #14231a, #0a1610); }
 
 /* Accessoires vape — cool metallic */
-.tile-fx--accessoire_vape .tile-fx__p { color: #dbe6ff; filter: drop-shadow(0 0 5px rgba(180,200,240,.3)); }
-.tile-fx--accessoire_vape { background: radial-gradient(120% 80% at 70% 0%, rgba(160,180,220,.15), transparent 60%); }
+.tile-fx--accessoire_vape { background: radial-gradient(120% 80% at 70% 20%, rgba(150,180,220,.22), transparent 65%), linear-gradient(160deg, #172029, #0b1218); }
 
 /* Accessoires CBD — warm amber */
-.tile-fx--accessoire_cbd .tile-fx__p { color: #ffe1b8; filter: drop-shadow(0 0 5px rgba(230,180,120,.3)); }
-.tile-fx--accessoire_cbd { background: radial-gradient(120% 80% at 50% 0%, rgba(220,160,90,.18), transparent 60%); }
+.tile-fx--accessoire_cbd { background: radial-gradient(120% 80% at 50% 20%, rgba(220,160,90,.22), transparent 65%), linear-gradient(160deg, #241a12, #150e08); }
+
+/* Fallback (not enough photos) — plain gradient per variant already applied above */
+.tile-fx--fallback { }
 
 /* E-liquides — split warm / cold */
 .tile-fx--e_liquide { background: transparent; }
@@ -646,9 +648,8 @@
   from { transform: translateX(-4px); opacity: .85; }
   to   { transform: translateX(4px); opacity: 1; }
 }
-.tile-fx--e_liquide .tile-fx__p { color: #fff; filter: drop-shadow(0 1px 3px rgba(0,0,0,.35)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile-fx__p,
+  .tile-fx__photo,
   .tile-fx--e_liquide .tile-fx__mist { animation: none !important; }
 }
