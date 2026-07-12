@@ -384,3 +384,204 @@
   font-weight: 500;
 }
 .nav-link--active::after { transform: scaleX(1); }
+
+/* =====================================================================
+   Flavor universes — decorative CSS-only ambient sections.
+   Reduced-motion aware. Content always sits on a solid card.
+   ===================================================================== */
+
+.universe {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1rem;
+  border: 1px solid var(--color-border);
+  min-height: 340px;
+  isolation: isolate;
+}
+
+.universe__bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.universe__bg--frost {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(180, 220, 255, 0.35), transparent 60%),
+    linear-gradient(180deg, #0e1a24 0%, #0a121a 55%, #060a10 100%);
+}
+.universe__bg--tropical {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 170, 90, 0.35), transparent 60%),
+    radial-gradient(80% 80% at 0% 100%, rgba(90, 180, 120, 0.28), transparent 65%),
+    linear-gradient(180deg, #1a1408 0%, #140f06 55%, #0a0704 100%);
+}
+
+.universe__scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.universe__scrim--frost {
+  background: linear-gradient(180deg, transparent 40%, rgba(6, 10, 16, 0.55) 100%);
+}
+.universe__scrim--tropical {
+  background: linear-gradient(180deg, transparent 40%, rgba(10, 7, 4, 0.6) 100%);
+}
+
+/* ---- Frost: falling snow ---- */
+.universe__snow {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.universe__flake {
+  position: absolute;
+  top: -8%;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(230, 245, 255, 0.95), rgba(230, 245, 255, 0));
+  filter: blur(0.4px);
+  will-change: transform, opacity;
+  animation: uni-snow-fall linear infinite;
+}
+@keyframes uni-snow-fall {
+  0%   { transform: translate3d(0, -10%, 0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate3d(24px, 380px, 0); opacity: 0; }
+}
+
+/* ---- Tropical: warm sun + drifting leaves ---- */
+.universe__sun {
+  position: absolute;
+  top: -60px;
+  right: -60px;
+  width: 260px;
+  height: 260px;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 200, 120, 0.55), transparent 65%);
+  filter: blur(20px);
+  animation: uni-sun-pulse 9s ease-in-out infinite;
+}
+@keyframes uni-sun-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.85; }
+  50%      { transform: scale(1.08); opacity: 1; }
+}
+
+.universe__leaves {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.universe__leaf {
+  position: absolute;
+  width: 70px;
+  height: 22px;
+  background: linear-gradient(90deg, rgba(120, 220, 150, 0.7), rgba(60, 150, 90, 0.35));
+  border-radius: 60% 40% 60% 40% / 100% 100% 0% 0%;
+  filter: blur(0.6px);
+  opacity: 0.55;
+  transform-origin: center;
+  will-change: transform;
+  animation: uni-leaf-sway 7s ease-in-out infinite;
+}
+.universe__leaf--1 { top: 18%; left: 8%;  animation-delay: -0.4s; }
+.universe__leaf--2 { top: 62%; left: 22%; transform: rotate(18deg); animation-delay: -2.1s; opacity: 0.4; }
+.universe__leaf--3 { top: 32%; left: 48%; transform: rotate(-12deg); animation-delay: -3.8s; opacity: 0.35; }
+.universe__leaf--4 { top: 76%; left: 58%; transform: rotate(6deg); animation-delay: -1.2s; opacity: 0.45; }
+.universe__leaf--5 { top: 44%; left: 78%; transform: rotate(-22deg); animation-delay: -5.5s; opacity: 0.5; }
+@keyframes uni-leaf-sway {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
+  50%      { transform: translate3d(6px, -4px, 0) rotate(6deg); }
+}
+
+/* ---- Universe content ---- */
+.universe__content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1.75rem;
+  height: 100%;
+  min-height: inherit;
+}
+.universe__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(6px);
+}
+.universe__icon--frost { color: #cfe8ff; }
+.universe__icon--tropical { color: #ffd39a; }
+
+.universe__title {
+  font-family: var(--font-serif);
+  color: var(--color-foreground);
+  font-size: 1.6rem;
+  line-height: 1.15;
+  margin: 0;
+}
+.universe__lede {
+  color: color-mix(in oklch, var(--color-foreground) 78%, transparent);
+  font-size: 0.9rem;
+  max-width: 34ch;
+  margin: 0;
+}
+
+.universe__card {
+  margin-top: auto;
+  align-self: flex-start;
+  max-width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  background: color-mix(in oklch, var(--color-card) 92%, transparent);
+  backdrop-filter: blur(10px);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 10px 40px -20px rgba(0, 0, 0, 0.9);
+}
+
+.universe__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: transform 0.2s ease, box-shadow 0.3s ease, background-color 0.2s ease;
+}
+.universe__cta--frost {
+  background: linear-gradient(135deg, #a9dcff, #4c8ecf);
+  color: #08131f;
+  box-shadow: 0 8px 28px -10px rgba(120, 180, 240, 0.55);
+}
+.universe__cta--frost:hover { transform: translateY(-1px); }
+.universe__cta--tropical {
+  background: linear-gradient(135deg, #ffcf8a, #f28f4c);
+  color: #2a1608;
+  box-shadow: 0 8px 28px -10px rgba(240, 160, 90, 0.6);
+}
+.universe__cta--tropical:hover { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .universe__flake,
+  .universe__sun,
+  .universe__leaf {
+    animation: none !important;
+  }
+}
