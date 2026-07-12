@@ -15,6 +15,7 @@ import {
   type ShopSubcategory,
 } from "@/lib/categories.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { CategoryTileFx } from "@/components/category-tile-fx";
 
 const searchSchema = z.object({
   categorie: fallback(z.string(), "").default(""),
@@ -122,7 +123,7 @@ function BoutiquePage() {
           </p>
           <h1 className="text-4xl leading-tight sm:text-5xl">
             {stage === "categories"
-              ? "Par où commencez-vous ?"
+              ? "Explorez nos catégories"
               : activeCat && stage === "subcategories"
                 ? activeCat.name
                 : activeSub
@@ -133,7 +134,7 @@ function BoutiquePage() {
           </h1>
           <p className="max-w-2xl text-muted-foreground">
             {stage === "categories"
-              ? "Choisissez une famille pour découvrir nos produits, ou explorez tout le catalogue."
+              ? "Sélectionnez une famille pour parcourir la sélection, ou affichez l'ensemble du catalogue."
               : activeSub?.description ||
                 activeCat?.description ||
                 "Sélection contrôlée par les équipes de nos boutiques. Réservé aux personnes majeures."}
@@ -276,8 +277,11 @@ function CategoryTiles({
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary to-background" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent" />
-          <div className="relative p-6 text-white">
+          <CategoryTileFx
+            variant={c.key as "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd"}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/45 to-black/10" />
+          <div className="relative z-10 m-3 rounded-xl bg-black/55 p-5 text-white backdrop-blur-sm ring-1 ring-white/10">
             <p className="text-[10px] font-medium uppercase tracking-[0.2em] opacity-80">
               Catégorie
             </p>
