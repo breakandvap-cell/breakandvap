@@ -166,8 +166,8 @@ function OrderDetail() {
               {order.status === "livree" ? (
                 <p className="text-muted-foreground">
                   Livrée le{" "}
-                  {order.delivered_at
-                    ? new Date(order.delivered_at).toLocaleString("fr-FR")
+                  {orderExt.delivered_at
+                    ? new Date(orderExt.delivered_at).toLocaleString("fr-FR")
                     : "—"}
                   . Cet état est définitif.
                 </p>
@@ -175,31 +175,31 @@ function OrderDetail() {
                 <>
                   <p className="text-muted-foreground">
                     Annulée le{" "}
-                    {order.cancelled_at
-                      ? new Date(order.cancelled_at).toLocaleString("fr-FR")
+                    {orderExt.cancelled_at
+                      ? new Date(orderExt.cancelled_at).toLocaleString("fr-FR")
                       : "—"}
                     . Cet état est définitif.
                   </p>
-                  {order.cancellation_reason ? (
+                  {orderExt.cancellation_reason ? (
                     <div className="rounded-md bg-muted/40 p-3 text-xs">
                       <div className="mb-1 font-medium uppercase tracking-wide text-muted-foreground">
                         Motif interne
                       </div>
-                      <div>{order.cancellation_reason}</div>
+                      <div>{orderExt.cancellation_reason}</div>
                     </div>
                   ) : null}
                   <label className="flex items-start gap-2 pt-2 text-xs">
                     <input
                       type="checkbox"
                       className="mt-0.5"
-                      checked={Boolean(order.refund_processed_at)}
+                      checked={Boolean(orderExt.refund_processed_at)}
                       disabled={mRefund.isPending}
                       onChange={(e) => mRefund.mutate(e.target.checked)}
                     />
                     <span>
                       Remboursement traité chez le prestataire de paiement
-                      {order.refund_processed_at
-                        ? ` (${new Date(order.refund_processed_at).toLocaleDateString("fr-FR")})`
+                      {orderExt.refund_processed_at
+                        ? ` (${new Date(orderExt.refund_processed_at).toLocaleDateString("fr-FR")})`
                         : ""}
                       . Action manuelle à effectuer côté prestataire.
                     </span>
