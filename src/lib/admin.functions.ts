@@ -457,14 +457,146 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const patch = {
+    // Lecture du statut courant pour valider la transition.
+    const { data: current, error: readErr } = await supabaseAdmin
+      .from("orders")
+      .select("status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!current) throw new Error("Commande introuvable.");
+    if (current.status === "livree" || current.status === "annulee") {
+      throw new Error("Cette commande est dans un état final et ne peut plus être modifiée.");
+    }
+    // Depuis cet endpoint (édition libre), on autorise uniquement :
+    //  - a_preparer → a_preparer (mise à jour de suivi)
+    //  - a_preparer → expediee
+    //  - expediee → expediee (mise à jour du suivi)
+    // Livraison et annulation passent par leurs endpoints dédiés.
+    if (data.status !== "a_preparer" && data.status !== "expediee") {
+      throw new Error("Utilisez l'action dédiée pour ce changement de statut.");
+    }
+    if (current.status === "expediee" && data.status === "a_preparer") {
+      throw new Error("Impossible de repasser une commande expédiée en préparation.");
+    }
+    const patch: Record<string, unknown> = {
       status: data.status,
       tracking_number: data.tracking_number || null,
-      ...(data.status === "expediee" ? { shipped_at: new Date().toISOString() } : {}),
     };
+    if (data.status === "expediee" && current.status !== "expediee") {
+      patch.shipped_at = new Date().toISOString();
+    }
     const { error } = await supabaseAdmin.from("orders").update(patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
     await logAction(context.userId, "order.update", "order", data.id, { status: data.status });
+    return { ok: true };
+  });
+
+// ---------- Transitions dédiées (livraison / annulation) ----------
+
+export const adminMarkOrderDelivered = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: readErr } = await supabaseAdmin
+      .from("orders")
+      .select("status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!current) throw new Error("Commande introuvable.");
+    if (current.status !== "expediee") {
+      throw new Error("Seule une commande expédiée peut être marquée comme livrée.");
+    }
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({ status: "livree", delivered_at: new Date().toISOString() } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await logAction(context.userId, "order.deliver", "order", data.id, null);
+    // Email de suivi (optionnel) — best-effort.
+    try {
+      const { sendOrderDeliveredEmail } = await import("@/lib/order-emails.server");
+      await sendOrderDeliveredEmail(data.id);
+    } catch (e) {
+      console.warn("[email] delivered notice failed", e);
+    }
+    return { ok: true };
+  });
+
+export const adminCancelOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        reason: z.string().trim().max(1000).optional().or(z.literal("")),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: readErr } = await supabaseAdmin
+      .from("orders")
+      .select("status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!current) throw new Error("Commande introuvable.");
+    if (current.status === "livree" || current.status === "annulee") {
+      throw new Error("Impossible d'annuler une commande déjà livrée ou annulée.");
+    }
+    const reason = (data.reason ?? "").trim() || null;
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        status: "annulee",
+        cancelled_at: new Date().toISOString(),
+        cancellation_reason: reason,
+      } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await logAction(context.userId, "order.cancel", "order", data.id, { reason });
+    try {
+      const { sendOrderCancelledEmail } = await import("@/lib/order-emails.server");
+      await sendOrderCancelledEmail(data.id, reason);
+    } catch (e) {
+      console.warn("[email] cancellation notice failed", e);
+    }
+    return { ok: true };
+  });
+
+export const adminSetOrderRefundProcessed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ id: z.string().uuid(), processed: z.boolean() })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: readErr } = await supabaseAdmin
+      .from("orders")
+      .select("status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!current) throw new Error("Commande introuvable.");
+    if (current.status !== "annulee") {
+      throw new Error("Le remboursement ne concerne que les commandes annulées.");
+    }
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update({
+        refund_processed_at: data.processed ? new Date().toISOString() : null,
+      } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await logAction(context.userId, "order.refund", "order", data.id, { processed: data.processed });
     return { ok: true };
   });
 
