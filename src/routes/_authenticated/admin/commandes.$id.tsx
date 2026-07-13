@@ -1,7 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { adminGetOrder, adminUpdateOrder } from "@/lib/admin.functions";
+import {
+  adminGetOrder,
+  adminUpdateOrder,
+  adminMarkOrderDelivered,
+  adminCancelOrder,
+  adminSetOrderRefundProcessed,
+} from "@/lib/admin.functions";
 import { formatPrice } from "@/lib/products";
 import { StatusBadge } from "./index";
 import { useEffect, useState, type FormEvent } from "react";
@@ -33,6 +39,13 @@ function OrderDetail() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(opts(id));
   const { order, items } = data;
+  const orderExt = order as typeof order & {
+    delivered_at?: string | null;
+    cancelled_at?: string | null;
+    cancellation_reason?: string | null;
+    refund_processed_at?: string | null;
+  };
+  const isFinal = order.status === "livree" || order.status === "annulee";
   const shipping = order.shipping_address as {
     full_name?: string;
     line1?: string;
@@ -45,21 +58,59 @@ function OrderDetail() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const upd = useServerFn(adminUpdateOrder);
+  const deliver = useServerFn(adminMarkOrderDelivered);
+  const cancel = useServerFn(adminCancelOrder);
+  const setRefund = useServerFn(adminSetOrderRefundProcessed);
   const [status, setStatus] = useState<Status>(order.status);
   const [tracking, setTracking] = useState(order.tracking_number ?? "");
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
 
   useEffect(() => {
     setStatus(order.status);
     setTracking(order.tracking_number ?? "");
   }, [order.id, order.status, order.tracking_number]);
 
+  async function refreshAll() {
+    await qc.invalidateQueries({ queryKey: ["admin", "order", id] });
+    await qc.invalidateQueries({ queryKey: ["admin", "orders"] });
+    await qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+  }
+
   const m = useMutation({
     mutationFn: () => upd({ data: { id, status, tracking_number: tracking } }),
     onSuccess: async () => {
       toast.success("Commande mise à jour.");
-      await qc.invalidateQueries({ queryKey: ["admin", "order", id] });
-      await qc.invalidateQueries({ queryKey: ["admin", "orders"] });
-      await qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+      await refreshAll();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const mDeliver = useMutation({
+    mutationFn: () => deliver({ data: { id } }),
+    onSuccess: async () => {
+      toast.success("Commande marquée comme livrée.");
+      await refreshAll();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const mCancel = useMutation({
+    mutationFn: () => cancel({ data: { id, reason: cancelReason } }),
+    onSuccess: async () => {
+      toast.success("Commande annulée.");
+      setCancelOpen(false);
+      setCancelReason("");
+      await refreshAll();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const mRefund = useMutation({
+    mutationFn: (processed: boolean) => setRefund({ data: { id, processed } }),
+    onSuccess: async () => {
+      toast.success("Statut de remboursement mis à jour.");
+      await refreshAll();
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -110,24 +161,159 @@ function OrderDetail() {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Statut & suivi
           </h2>
-          <form onSubmit={submit} className="space-y-3">
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Statut</span>
-              <select value={status} onChange={(e) => setStatus(e.target.value as Status)}>
-                <option value="a_preparer">À préparer</option>
-                <option value="expediee">Expédiée</option>
-                <option value="livree">Livrée</option>
-                <option value="annulee">Annulée</option>
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block font-medium">Numéro de suivi</span>
-              <input value={tracking} onChange={(e) => setTracking(e.target.value)} placeholder="Ex. 1Z999..." />
-            </label>
-            <button type="submit" disabled={m.isPending} className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
-              {m.isPending ? "…" : "Enregistrer"}
-            </button>
-          </form>
+          {isFinal ? (
+            <div className="space-y-3 text-sm">
+              {order.status === "livree" ? (
+                <p className="text-muted-foreground">
+                  Livrée le{" "}
+                  {orderExt.delivered_at
+                    ? new Date(orderExt.delivered_at).toLocaleString("fr-FR")
+                    : "—"}
+                  . Cet état est définitif.
+                </p>
+              ) : (
+                <>
+                  <p className="text-muted-foreground">
+                    Annulée le{" "}
+                    {orderExt.cancelled_at
+                      ? new Date(orderExt.cancelled_at).toLocaleString("fr-FR")
+                      : "—"}
+                    . Cet état est définitif.
+                  </p>
+                  {orderExt.cancellation_reason ? (
+                    <div className="rounded-md bg-muted/40 p-3 text-xs">
+                      <div className="mb-1 font-medium uppercase tracking-wide text-muted-foreground">
+                        Motif interne
+                      </div>
+                      <div>{orderExt.cancellation_reason}</div>
+                    </div>
+                  ) : null}
+                  <label className="flex items-start gap-2 pt-2 text-xs">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={Boolean(orderExt.refund_processed_at)}
+                      disabled={mRefund.isPending}
+                      onChange={(e) => mRefund.mutate(e.target.checked)}
+                    />
+                    <span>
+                      Remboursement traité chez le prestataire de paiement
+                      {orderExt.refund_processed_at
+                        ? ` (${new Date(orderExt.refund_processed_at).toLocaleDateString("fr-FR")})`
+                        : ""}
+                      . Action manuelle à effectuer côté prestataire.
+                    </span>
+                  </label>
+                </>
+              )}
+              {order.tracking_number ? (
+                <p className="text-xs text-muted-foreground">
+                  Suivi : {order.tracking_number}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <form onSubmit={submit} className="space-y-3">
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium">Statut</span>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as Status)}
+                  >
+                    <option value="a_preparer" disabled={order.status === "expediee"}>
+                      À préparer
+                    </option>
+                    <option value="expediee">Expédiée</option>
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium">Numéro de suivi</span>
+                  <input
+                    value={tracking}
+                    onChange={(e) => setTracking(e.target.value)}
+                    placeholder="Ex. 1Z999..."
+                  />
+                </label>
+                <button
+                  type="submit"
+                  disabled={m.isPending}
+                  className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                >
+                  {m.isPending ? "…" : "Enregistrer"}
+                </button>
+              </form>
+
+              <div className="border-t pt-3">
+                {order.status === "expediee" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "Confirmer la réception du colis par le client ? Cette action est définitive.",
+                        )
+                      ) {
+                        mDeliver.mutate();
+                      }
+                    }}
+                    disabled={mDeliver.isPending}
+                    className="mr-2 inline-flex items-center rounded-md border border-green-600 bg-green-50 px-3 py-2 text-sm font-medium text-green-800 hover:bg-green-100 disabled:opacity-50"
+                  >
+                    {mDeliver.isPending ? "…" : "Marquer comme livrée"}
+                  </button>
+                )}
+                {!cancelOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => setCancelOpen(true)}
+                    className="inline-flex items-center rounded-md border border-red-600 bg-red-50 px-3 py-2 text-sm font-medium text-red-800 hover:bg-red-100"
+                  >
+                    Annuler la commande
+                  </button>
+                ) : (
+                  <div className="mt-3 space-y-3 rounded-md border border-red-200 bg-red-50/50 p-3">
+                    <p className="text-sm font-medium text-red-900">
+                      Confirmer l'annulation de cette commande ?
+                    </p>
+                    <label className="block text-xs">
+                      <span className="mb-1 block text-red-900">
+                        Motif interne (optionnel)
+                      </span>
+                      <textarea
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                        rows={2}
+                        maxLength={1000}
+                        placeholder="Ex. rupture de stock, demande client…"
+                        className="w-full rounded-md border border-red-200 bg-white p-2 text-sm"
+                      />
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={mCancel.isPending}
+                        onClick={() => mCancel.mutate()}
+                        className="inline-flex items-center rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {mCancel.isPending ? "…" : "Confirmer l'annulation"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCancelOpen(false);
+                          setCancelReason("");
+                        }}
+                        className="inline-flex items-center rounded-md border px-3 py-2 text-sm"
+                      >
+                        Revenir
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
       </div>
 

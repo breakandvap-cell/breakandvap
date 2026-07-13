@@ -246,14 +246,18 @@ export type Database = {
       }
       orders: {
         Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
           created_at: string
           currency: string
+          delivered_at: string | null
           guest_email: string | null
           id: string
           order_number: string
           paid_at: string | null
           payment_provider: string | null
           payment_transaction_id: string | null
+          refund_processed_at: string | null
           shipped_at: string | null
           shipping_address: Json
           status: Database["public"]["Enums"]["order_status"]
@@ -263,14 +267,18 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
           currency?: string
+          delivered_at?: string | null
           guest_email?: string | null
           id?: string
           order_number?: string
           paid_at?: string | null
           payment_provider?: string | null
           payment_transaction_id?: string | null
+          refund_processed_at?: string | null
           shipped_at?: string | null
           shipping_address: Json
           status?: Database["public"]["Enums"]["order_status"]
@@ -280,14 +288,18 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
           created_at?: string
           currency?: string
+          delivered_at?: string | null
           guest_email?: string | null
           id?: string
           order_number?: string
           paid_at?: string | null
           payment_provider?: string | null
           payment_transaction_id?: string | null
+          refund_processed_at?: string | null
           shipped_at?: string | null
           shipping_address?: Json
           status?: Database["public"]["Enums"]["order_status"]
