@@ -34,20 +34,17 @@ export const Route = createFileRoute("/_authenticated/admin/commandes/$id")({
 });
 
 type Status = "a_preparer" | "expediee" | "livree" | "annulee";
-type OrderWithFinal = {
-  id: string;
-  status: Status;
-  tracking_number: string | null;
-  cancelled_at?: string | null;
-  cancellation_reason?: string | null;
-  delivered_at?: string | null;
-  refund_processed_at?: string | null;
-};
 
 function OrderDetail() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(opts(id));
-  const { order, items } = data as { order: OrderWithFinal & Record<string, unknown>; items: typeof data.items };
+  const { order, items } = data;
+  const orderExt = order as typeof order & {
+    delivered_at?: string | null;
+    cancelled_at?: string | null;
+    cancellation_reason?: string | null;
+    refund_processed_at?: string | null;
+  };
   const isFinal = order.status === "livree" || order.status === "annulee";
   const shipping = order.shipping_address as {
     full_name?: string;
