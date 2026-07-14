@@ -54,6 +54,24 @@ export const Route = createFileRoute("/_authenticated/admin/commandes/$id")({
 
 type Status = "a_preparer" | "expediee" | "livree" | "annulee";
 
+const TRACKING_RE = /^[A-Za-z0-9-]+$/;
+
+/** Retourne un message d'erreur si le numéro de suivi est invalide pour le
+ *  statut visé, sinon null. */
+function validateTracking(raw: string, targetStatus: Status): string | null {
+  const v = raw.trim();
+  if (!v) {
+    return targetStatus === "expediee"
+      ? "Le numéro de suivi est obligatoire pour passer la commande en « Expédiée »."
+      : null;
+  }
+  if (v.length < 8) return "Le numéro de suivi doit contenir au moins 8 caractères.";
+  if (v.length > 40) return "Le numéro de suivi ne peut pas dépasser 40 caractères.";
+  if (!TRACKING_RE.test(v))
+    return "Caractères autorisés : lettres, chiffres et tirets uniquement (pas d'espace).";
+  return null;
+}
+
 function OrderDetail() {
   const { id } = Route.useParams();
   const { data } = useSuspenseQuery(opts(id));
@@ -84,6 +102,10 @@ function OrderDetail() {
   const [tracking, setTracking] = useState(order.tracking_number ?? "");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [trackingTouched, setTrackingTouched] = useState(false);
+
+  const trackingError = validateTracking(tracking, status);
+  const showTrackingError = trackingError !== null && (trackingTouched || tracking.length > 0);
 
   useEffect(() => {
     setStatus(order.status);
@@ -136,8 +158,9 @@ function OrderDetail() {
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (status === "expediee" && !tracking.trim()) {
-      toast.error("Le numéro de suivi est obligatoire pour marquer la commande comme expédiée.");
+    setTrackingTouched(true);
+    if (trackingError) {
+      toast.error(trackingError);
       return;
     }
     m.mutate();
@@ -263,18 +286,35 @@ function OrderDetail() {
                   <input
                     value={tracking}
                     onChange={(e) => setTracking(e.target.value)}
+                    onBlur={() => setTrackingTouched(true)}
                     placeholder="Ex. 1Z999..."
-                    className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    aria-invalid={showTrackingError || undefined}
+                    aria-describedby={showTrackingError ? "tracking-error" : "tracking-hint"}
+                    className={`block w-full rounded-md border bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 ${
+                      showTrackingError
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                        : "border-input focus:border-primary focus:ring-primary"
+                    }`}
                   />
-                  {status === "expediee" ? (
-                    <span className="mt-1 block text-xs text-muted-foreground">
+                  {showTrackingError ? (
+                    <span
+                      id="tracking-error"
+                      role="alert"
+                      className="mt-1 block text-xs font-medium text-red-600"
+                    >
+                      {trackingError}
+                    </span>
+                  ) : status === "expediee" ? (
+                    <span id="tracking-hint" className="mt-1 block text-xs text-muted-foreground">
                       Obligatoire pour passer la commande en « Expédiée ». Un email de suivi sera envoyé au client.
+                      <br />
+                      Format attendu : 8 à 40 caractères, lettres, chiffres et tirets uniquement.
                     </span>
                   ) : null}
                 </label>
                 <button
                   type="submit"
-                  disabled={m.isPending}
+                  disabled={m.isPending || Boolean(trackingError)}
                   className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
                 >
                   {m.isPending ? "…" : "Enregistrer"}
