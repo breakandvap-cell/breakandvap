@@ -121,6 +121,12 @@ function AgeGateOverlay({
   const titleId = useId();
   const descId = useId();
   const errorId = useId();
+  const dayLabelId = useId();
+  const monthLabelId = useId();
+  const yearLabelId = useId();
+  const dayHintId = useId();
+  const monthHintId = useId();
+  const yearHintId = useId();
 
   const parsed = useMemo(() => {
     const y = Number(year);
