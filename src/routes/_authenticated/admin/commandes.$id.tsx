@@ -7,6 +7,8 @@ import {
   adminMarkOrderDelivered,
   adminCancelOrder,
   adminSetOrderRefundProcessed,
+  adminGetOrderAuditLog,
+  type OrderAuditEntry,
 } from "@/lib/admin.functions";
 import { formatPrice } from "@/lib/products";
 import { StatusBadge } from "./index";
@@ -27,9 +29,19 @@ const opts = (id: string) =>
     queryFn: () => adminGetOrder({ data: { id } }),
   });
 
+const auditOpts = (id: string) =>
+  queryOptions({
+    queryKey: ["admin", "order", id, "audit"],
+    queryFn: () => adminGetOrderAuditLog({ data: { id } }),
+  });
+
 export const Route = createFileRoute("/_authenticated/admin/commandes/$id")({
   ssr: false,
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(opts(params.id)),
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(opts(params.id)),
+      context.queryClient.ensureQueryData(auditOpts(params.id)),
+    ]),
   component: OrderDetail,
 });
 
