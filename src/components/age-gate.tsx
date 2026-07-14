@@ -1,84 +1,175 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
 
-const STORAGE_KEY = "bnv_age_verified";
-const STORAGE_VALUE = "1";
-const REFUSED_KEY = "bnv_age_refused";
+// Cookie de validation de majorité — valable 30 jours.
+const COOKIE_NAME = "bnv_age_verified";
+const COOKIE_VALUE = "1";
+const COOKIE_MAX_AGE_DAYS = 30;
+// URL neutre externe pour rediriger les visiteurs mineurs.
+const MINOR_REDIRECT_URL = "https://www.google.com/";
 
-type Status = "loading" | "verified" | "prompt" | "refused";
+type Status = "checking" | "prompt" | "verified";
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith(name + "="));
+  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
+}
+
+function writeCookie(name: string, value: string, days: number) {
+  if (typeof document === "undefined") return;
+  const maxAge = days * 24 * 60 * 60;
+  const secure =
+    typeof location !== "undefined" && location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie =
+    `${name}=${encodeURIComponent(value)}; Max-Age=${maxAge}; Path=/; SameSite=Lax` +
+    secure;
+}
 
 export function AgeGate({ children }: { children: React.ReactNode }) {
-  const [status, setStatus] = useState<Status>("loading");
+  const [status, setStatus] = useState<Status>("checking");
 
+  // Vérifie le cookie côté client au montage. Tant que le check n'est pas
+  // terminé, on garde l'overlay affiché : la modal ne se ferme JAMAIS sans
+  // interaction utilisateur ou cookie valide déjà présent.
   useEffect(() => {
-    try {
-      if (localStorage.getItem(REFUSED_KEY) === "1") {
-        setStatus("refused");
-        return;
-      }
-      if (localStorage.getItem(STORAGE_KEY) === STORAGE_VALUE) {
-        setStatus("verified");
-        return;
-      }
-    } catch {
-      // storage blocked → still show prompt
-    }
-    setStatus("prompt");
+    setStatus(readCookie(COOKIE_NAME) === COOKIE_VALUE ? "verified" : "prompt");
   }, []);
 
-  const accept = () => {
-    try {
-      localStorage.setItem(STORAGE_KEY, STORAGE_VALUE);
-      localStorage.removeItem(REFUSED_KEY);
-    } catch {
-      /* ignore */
-    }
+  const onVerified = () => {
+    writeCookie(COOKIE_NAME, COOKIE_VALUE, COOKIE_MAX_AGE_DAYS);
     setStatus("verified");
   };
 
-  const refuse = () => {
-    try {
-      localStorage.setItem(REFUSED_KEY, "1");
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      /* ignore */
-    }
-    setStatus("refused");
-  };
+  const showOverlay = status !== "verified";
 
-  if (status === "loading") {
-    // Render children but hidden to avoid layout flash; SSR HTML remains intact for SEO
-    return (
-      <div aria-hidden="true" style={{ visibility: "hidden" }}>
+  return (
+    <>
+      {/* Le contenu du site est conservé dans le DOM (utile pour le SEO / SSR)
+          mais masqué et inerte tant que la vérification n'est pas passée. */}
+      <div
+        aria-hidden={showOverlay ? "true" : undefined}
+        {...(showOverlay ? { inert: "" as unknown as boolean } : {})}
+        style={showOverlay ? { visibility: "hidden" } : undefined}
+      >
         {children}
       </div>
-    );
-  }
-
-  if (status === "verified") {
-    return <>{children}</>;
-  }
-
-  if (status === "refused") {
-    return <RefusedScreen onReconsider={() => setStatus("prompt")} />;
-  }
-
-  return <PromptScreen onAccept={accept} onRefuse={refuse} />;
+      {showOverlay ? (
+        <AgeGateOverlay
+          checking={status === "checking"}
+          onVerified={onVerified}
+        />
+      ) : null}
+    </>
+  );
 }
 
-function PromptScreen({
-  onAccept,
-  onRefuse,
+// Calcule l'âge complet en années à la date "today" à partir d'une date de
+// naissance (year/month/day). Retourne un entier ≥ 0.
+export function computeAge(
+  birth: { year: number; month: number; day: number },
+  today: Date = new Date(),
+): number {
+  let age = today.getFullYear() - birth.year;
+  const m = today.getMonth() + 1 - birth.month;
+  if (m < 0 || (m === 0 && today.getDate() < birth.day)) age -= 1;
+  return age;
+}
+
+// Une date est plausible si les champs saisis existent réellement dans le
+// calendrier (ex. 31/02/2000 est refusé) et sont dans une fourchette
+// raisonnable pour une date de naissance.
+export function isPlausibleBirthDate(
+  y: number,
+  m: number,
+  d: number,
+  today: Date = new Date(),
+): boolean {
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return false;
+  if (m < 1 || m > 12) return false;
+  if (d < 1 || d > 31) return false;
+  const currentYear = today.getFullYear();
+  if (y < currentYear - 120 || y > currentYear) return false;
+  const dt = new Date(y, m - 1, d);
+  return (
+    dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
+  );
+}
+
+function AgeGateOverlay({
+  checking,
+  onVerified,
 }: {
-  onAccept: () => void;
-  onRefuse: () => void;
+  checking: boolean;
+  onVerified: () => void;
 }) {
+  const [day, setDay] = useState("");
+  const [month, setMonth] = useState("");
+  const [year, setYear] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [rejected, setRejected] = useState(false);
+  const dayRef = useRef<HTMLInputElement>(null);
+  const monthRef = useRef<HTMLInputElement>(null);
+  const yearRef = useRef<HTMLInputElement>(null);
+
+  const parsed = useMemo(() => {
+    const y = Number(year);
+    const m = Number(month);
+    const d = Number(day);
+    if (!year || !month || !day) return null;
+    if (!isPlausibleBirthDate(y, m, d)) return null;
+    return { y, m, d };
+  }, [day, month, year]);
+
+  const canSubmit = parsed !== null && !rejected && !checking;
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!parsed) return;
+    const age = computeAge({ year: parsed.y, month: parsed.m, day: parsed.d });
+    if (age < 18) {
+      setRejected(true);
+      setError(
+        "L'accès à ce site est strictement réservé aux personnes majeures. Vous allez être redirigé.",
+      );
+      window.setTimeout(() => {
+        if (typeof window !== "undefined") {
+          window.location.replace(MINOR_REDIRECT_URL);
+        }
+      }, 2500);
+      return;
+    }
+    setError(null);
+    onVerified();
+  };
+
+  const onDigitChange =
+    (
+      setter: (v: string) => void,
+      max: number,
+      next?: React.RefObject<HTMLInputElement | null>,
+    ) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const raw = e.target.value.replace(/\D/g, "").slice(0, max);
+      setter(raw);
+      if (raw.length === max && next?.current) next.current.focus();
+    };
+
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="age-gate-title"
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/95 px-4 backdrop-blur-sm"
+      // Bloque l'échappement clavier — pas de fermeture sans validation.
+      onKeyDown={(e) => {
+        if (e.key === "Escape") e.preventDefault();
+      }}
     >
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg sm:p-8">
         <div className="mb-4 flex justify-center">
@@ -99,59 +190,88 @@ function PromptScreen({
         </h2>
         <p className="mt-3 text-sm text-muted-foreground">
           Ce site propose des produits à base de nicotine et de CBD dont la
-          vente est strictement réservée aux personnes majeures. Vous devez
-          avoir au moins <strong>18 ans</strong> pour continuer.
+          vente est strictement réservée aux personnes majeures. Merci
+          d'indiquer votre date de naissance pour continuer.
         </p>
-        <p className="mt-3 text-xs text-muted-foreground">
-          La nicotine crée une forte dépendance. Vente interdite aux mineurs
-          (art. L.3513-5 du Code de la santé publique).
-        </p>
-        <div className="mt-6 flex flex-col gap-2 sm:flex-row-reverse">
-          <button
-            type="button"
-            onClick={onAccept}
-            className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            J'ai 18 ans ou plus — Entrer
-          </button>
-          <button
-            type="button"
-            onClick={onRefuse}
-            className="inline-flex flex-1 items-center justify-center rounded-md border border-input bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-accent"
-          >
-            Je suis mineur — Sortir
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function RefusedScreen({ onReconsider }: { onReconsider: () => void }) {
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1
-          className="text-3xl font-semibold"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
-          Accès refusé
-        </h1>
-        <p className="mt-4 text-sm text-muted-foreground">
-          L'accès à ce site est réservé aux personnes majeures. Merci de votre
-          visite.
-        </p>
-        <p className="mt-6 text-xs text-muted-foreground">
-          Si vous avez confirmé votre âge par erreur, vous pouvez{" "}
+        <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Date de naissance</legend>
+            <div className="flex items-center gap-2">
+              <label className="flex flex-1 flex-col text-xs text-muted-foreground">
+                <span className="mb-1">Jour</span>
+                <input
+                  ref={dayRef}
+                  inputMode="numeric"
+                  autoComplete="bday-day"
+                  placeholder="JJ"
+                  value={day}
+                  onChange={onDigitChange(setDay, 2, monthRef)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
+                  aria-label="Jour de naissance"
+                  maxLength={2}
+                  disabled={rejected}
+                />
+              </label>
+              <label className="flex flex-1 flex-col text-xs text-muted-foreground">
+                <span className="mb-1">Mois</span>
+                <input
+                  ref={monthRef}
+                  inputMode="numeric"
+                  autoComplete="bday-month"
+                  placeholder="MM"
+                  value={month}
+                  onChange={onDigitChange(setMonth, 2, yearRef)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
+                  aria-label="Mois de naissance"
+                  maxLength={2}
+                  disabled={rejected}
+                />
+              </label>
+              <label className="flex flex-[1.4] flex-col text-xs text-muted-foreground">
+                <span className="mb-1">Année</span>
+                <input
+                  ref={yearRef}
+                  inputMode="numeric"
+                  autoComplete="bday-year"
+                  placeholder="AAAA"
+                  value={year}
+                  onChange={onDigitChange(setYear, 4)}
+                  className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
+                  aria-label="Année de naissance"
+                  maxLength={4}
+                  disabled={rejected}
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          {error ? (
+            <p
+              role="alert"
+              className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+            >
+              {error}
+            </p>
+          ) : null}
+
           <button
-            type="button"
-            onClick={onReconsider}
-            className="underline underline-offset-2 hover:text-foreground"
+            type="submit"
+            disabled={!canSubmit}
+            className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            revenir à la vérification
+            {checking ? "Vérification…" : "Valider"}
           </button>
-          .
-        </p>
+
+          <p className="text-xs text-muted-foreground">
+            La nicotine crée une forte dépendance. Vente interdite aux
+            mineurs (art. L.3513-5 du Code de la santé publique). Votre date
+            de naissance n'est pas transmise à nos serveurs ; seule une
+            confirmation de majorité est mémorisée dans un cookie pendant
+            {" "}
+            {COOKIE_MAX_AGE_DAYS} jours.
+          </p>
+        </form>
       </div>
     </div>
   );
