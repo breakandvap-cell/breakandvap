@@ -401,6 +401,90 @@ function OrderDetail() {
           </table>
         </div>
       </section>
+
+      <OrderAuditTimeline orderId={id} />
     </div>
+  );
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  a_preparer: "À préparer",
+  expediee: "Expédiée",
+  livree: "Livrée",
+  annulee: "Annulée",
+};
+
+function describeEntry(e: OrderAuditEntry): { title: string; detail?: string } {
+  const from = e.from_status ? STATUS_LABELS[e.from_status] ?? e.from_status : null;
+  const to = e.to_status ? STATUS_LABELS[e.to_status] ?? e.to_status : null;
+  switch (e.action) {
+    case "order.deliver":
+      return { title: `Commande marquée « Livrée »${from ? ` (depuis ${from})` : ""}` };
+    case "order.cancel":
+      return {
+        title: `Commande annulée${from ? ` (depuis ${from})` : ""}`,
+        detail: e.reason ? `Motif : ${e.reason}` : undefined,
+      };
+    case "order.refund":
+      return {
+        title:
+          e.refund_processed === true
+            ? "Remboursement marqué comme traité"
+            : e.refund_processed === false
+              ? "Remboursement marqué comme non traité"
+              : "Statut de remboursement mis à jour",
+      };
+    case "order.update":
+    default:
+      if (from && to && from !== to) {
+        return {
+          title: `Statut : ${from} → ${to}`,
+          detail: e.tracking_number ? `Suivi : ${e.tracking_number}` : undefined,
+        };
+      }
+      return {
+        title: e.tracking_number
+          ? `Suivi mis à jour : ${e.tracking_number}`
+          : "Commande mise à jour",
+      };
+  }
+}
+
+function OrderAuditTimeline({ orderId }: { orderId: string }) {
+  const { data } = useSuspenseQuery(auditOpts(orderId));
+  return (
+    <section>
+      <h2 className="mb-3 text-lg font-semibold">Journal d'activité</h2>
+      {data.length === 0 ? (
+        <p className="rounded-md border bg-muted/20 p-4 text-sm text-muted-foreground">
+          Aucune action enregistrée sur cette commande.
+        </p>
+      ) : (
+        <ol className="space-y-3">
+          {data.map((e) => {
+            const d = describeEntry(e);
+            return (
+              <li
+                key={e.id}
+                className="rounded-md border bg-card p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="font-medium">{d.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(e.created_at).toLocaleString("fr-FR")}
+                  </span>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Par {e.admin_label}
+                </div>
+                {d.detail ? (
+                  <div className="mt-1 text-xs text-muted-foreground">{d.detail}</div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
