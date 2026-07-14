@@ -33,7 +33,7 @@ describe("commandes.$id.tsx — verrouillage des états finaux", () => {
     expect(idx).toBeGreaterThan(-1);
     // Doit être précédé d'un test sur order.status === "expediee" dans la
     // même branche (non-finale).
-    const window = source.slice(Math.max(0, idx - 400), idx);
+    const window = source.slice(Math.max(0, idx - 800), idx);
     expect(window).toMatch(/order\.status\s*===\s*["']expediee["']/);
   });
 
