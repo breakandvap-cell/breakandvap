@@ -29,7 +29,12 @@ describe("commandes.$id.tsx — verrouillage des états finaux", () => {
   });
 
   it("le bouton « Marquer comme livrée » est conditionné par status === 'expediee'", () => {
-    expect(source).toMatch(/order\.status\s*===\s*["']expediee["'][^}]*Marquer comme livrée/s);
+    const idx = source.indexOf("Marquer comme livrée");
+    expect(idx).toBeGreaterThan(-1);
+    // Doit être précédé d'un test sur order.status === "expediee" dans la
+    // même branche (non-finale).
+    const window = source.slice(Math.max(0, idx - 400), idx);
+    expect(window).toMatch(/order\.status\s*===\s*["']expediee["']/);
   });
 
   it("la case « Remboursement traité » n'apparaît que dans la branche annulée finale", () => {
