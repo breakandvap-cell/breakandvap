@@ -216,8 +216,14 @@ function AgeGateOverlay({
         <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
           <fieldset className="space-y-2">
             <legend className="text-sm font-medium">Date de naissance</legend>
+            <p className="text-xs text-muted-foreground">
+              Saisissez votre date au format jour / mois / année, en chiffres.
+            </p>
             <div className="flex items-center gap-2">
-              <label className="flex flex-1 flex-col text-xs text-muted-foreground">
+              <label
+                id={dayLabelId}
+                className="flex flex-1 flex-col text-xs text-muted-foreground"
+              >
                 <span className="mb-1">Jour</span>
                 <input
                   ref={dayRef}
@@ -227,15 +233,24 @@ function AgeGateOverlay({
                   value={day}
                   onChange={onDigitChange(setDay, 2, monthRef)}
                   className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Jour de naissance (1 à 31)"
+                  aria-label="Jour de naissance"
+                  aria-describedby={
+                    error ? `${errorId} ${dayHintId}` : dayHintId
+                  }
                   aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? errorId : undefined}
                   maxLength={2}
                   disabled={rejected}
                   required
                 />
+                <span id={dayHintId} className="sr-only">
+                  Deux chiffres, de 01 à 31, correspondant au jour de votre
+                  naissance.
+                </span>
               </label>
-              <label className="flex flex-1 flex-col text-xs text-muted-foreground">
+              <label
+                id={monthLabelId}
+                className="flex flex-1 flex-col text-xs text-muted-foreground"
+              >
                 <span className="mb-1">Mois</span>
                 <input
                   ref={monthRef}
@@ -245,15 +260,24 @@ function AgeGateOverlay({
                   value={month}
                   onChange={onDigitChange(setMonth, 2, yearRef)}
                   className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Mois de naissance (1 à 12)"
+                  aria-label="Mois de naissance"
+                  aria-describedby={
+                    error ? `${errorId} ${monthHintId}` : monthHintId
+                  }
                   aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? errorId : undefined}
                   maxLength={2}
                   disabled={rejected}
                   required
                 />
+                <span id={monthHintId} className="sr-only">
+                  Deux chiffres, de 01 à 12, correspondant au mois de votre
+                  naissance. Janvier est 01, décembre 12.
+                </span>
               </label>
-              <label className="flex flex-[1.4] flex-col text-xs text-muted-foreground">
+              <label
+                id={yearLabelId}
+                className="flex flex-[1.4] flex-col text-xs text-muted-foreground"
+              >
                 <span className="mb-1">Année</span>
                 <input
                   ref={yearRef}
@@ -263,13 +287,20 @@ function AgeGateOverlay({
                   value={year}
                   onChange={onDigitChange(setYear, 4)}
                   className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Année de naissance (4 chiffres)"
+                  aria-label="Année de naissance"
+                  aria-describedby={
+                    error ? `${errorId} ${yearHintId}` : yearHintId
+                  }
                   aria-invalid={error ? true : undefined}
-                  aria-describedby={error ? errorId : undefined}
                   maxLength={4}
                   disabled={rejected}
                   required
                 />
+                <span id={yearHintId} className="sr-only">
+                  Quatre chiffres, par exemple 1990, correspondant à l'année de
+                  votre naissance. L'année doit être comprise entre
+                  {new Date().getFullYear() - 120} et {new Date().getFullYear()}.
+                </span>
               </label>
             </div>
           </fieldset>
