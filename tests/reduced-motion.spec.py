@@ -14,7 +14,7 @@ import sys
 from playwright.async_api import async_playwright
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
-AGE_KEY = "bnv_age_verified"
+AGE_COOKIE = "bnv_age_verified"
 AGE_VALUE = "1"
 
 VIEWPORTS = [
@@ -37,9 +37,14 @@ async def run_one(browser, cfg, failures):
         viewport=cfg["viewport"],
         reduced_motion="reduce",
     )
-    await context.add_init_script(
-        f"try {{ localStorage.setItem({AGE_KEY!r}, {AGE_VALUE!r}); }} catch (e) {{}}"
-    )
+    # Contourne la modal de vérification d'âge en injectant le cookie de
+    # validation (30 jours) avant tout chargement de page.
+    from urllib.parse import urlparse
+    host = urlparse(BASE_URL).hostname or "localhost"
+    await context.add_cookies([
+        {"name": AGE_COOKIE, "value": AGE_VALUE, "domain": host,
+         "path": "/", "sameSite": "Lax"}
+    ])
     page = await context.new_page()
     await page.goto(f"{BASE_URL}/boutique", wait_until="networkidle")
 
