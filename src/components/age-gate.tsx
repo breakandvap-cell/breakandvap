@@ -189,151 +189,151 @@ function AgeGateOverlay({
             e.preventDefault();
             dayRef.current?.focus();
           }}
-          className="fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-lg outline-none sm:p-8"
+          className="fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-lg outline-none sm:max-w-lg sm:p-8 md:p-10"
         >
-        <div className="mb-4 flex justify-center">
-          <img
-            src={logoAsset.url}
-            alt="Break & Vap CBD"
-            className="h-24 w-auto sm:h-28"
-            width={280}
-            height={180}
-          />
-        </div>
-        <DialogPrimitive.Title
-          id={titleId}
-          className="text-2xl font-semibold"
-          style={{ fontFamily: "var(--font-serif)" }}
-        >
-          Confirmez votre âge
-        </DialogPrimitive.Title>
-        <DialogPrimitive.Description id={descId} className="mt-3 text-sm text-muted-foreground">
-          Ce site propose des produits à base de nicotine et de CBD dont la
-          vente est strictement réservée aux personnes majeures. Merci
-          d'indiquer votre date de naissance pour continuer.
-        </DialogPrimitive.Description>
-
-        <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium">Date de naissance</legend>
-            <p className="text-xs text-muted-foreground">
-              Saisissez votre date au format jour / mois / année, en chiffres.
-            </p>
-            <div className="flex items-center gap-2">
-              <label
-                id={dayLabelId}
-                className="flex flex-1 flex-col text-xs text-muted-foreground"
-              >
-                <span className="mb-1">Jour</span>
-                <input
-                  ref={dayRef}
-                  inputMode="numeric"
-                  autoComplete="bday-day"
-                  placeholder="JJ"
-                  value={day}
-                  onChange={onDigitChange(setDay, 2, monthRef)}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Jour de naissance"
-                  aria-describedby={
-                    error ? `${errorId} ${dayHintId}` : dayHintId
-                  }
-                  aria-invalid={error ? true : undefined}
-                  maxLength={2}
-                  disabled={rejected}
-                  required
-                />
-                <span id={dayHintId} className="sr-only">
-                  Deux chiffres, de 01 à 31, correspondant au jour de votre
-                  naissance.
-                </span>
-              </label>
-              <label
-                id={monthLabelId}
-                className="flex flex-1 flex-col text-xs text-muted-foreground"
-              >
-                <span className="mb-1">Mois</span>
-                <input
-                  ref={monthRef}
-                  inputMode="numeric"
-                  autoComplete="bday-month"
-                  placeholder="MM"
-                  value={month}
-                  onChange={onDigitChange(setMonth, 2, yearRef)}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Mois de naissance"
-                  aria-describedby={
-                    error ? `${errorId} ${monthHintId}` : monthHintId
-                  }
-                  aria-invalid={error ? true : undefined}
-                  maxLength={2}
-                  disabled={rejected}
-                  required
-                />
-                <span id={monthHintId} className="sr-only">
-                  Deux chiffres, de 01 à 12, correspondant au mois de votre
-                  naissance. Janvier est 01, décembre 12.
-                </span>
-              </label>
-              <label
-                id={yearLabelId}
-                className="flex flex-[1.4] flex-col text-xs text-muted-foreground"
-              >
-                <span className="mb-1">Année</span>
-                <input
-                  ref={yearRef}
-                  inputMode="numeric"
-                  autoComplete="bday-year"
-                  placeholder="AAAA"
-                  value={year}
-                  onChange={onDigitChange(setYear, 4)}
-                  className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Année de naissance"
-                  aria-describedby={
-                    error ? `${errorId} ${yearHintId}` : yearHintId
-                  }
-                  aria-invalid={error ? true : undefined}
-                  maxLength={4}
-                  disabled={rejected}
-                  required
-                />
-                <span id={yearHintId} className="sr-only">
-                  Quatre chiffres, par exemple 1990, correspondant à l'année de
-                  votre naissance. L'année doit être comprise entre
-                  {new Date().getFullYear() - 120} et {new Date().getFullYear()}.
-                </span>
-              </label>
-            </div>
-          </fieldset>
-
-          {error ? (
-            <p
-              id={errorId}
-              role="alert"
-              aria-live="assertive"
-              className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
-            >
-              {error}
-            </p>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            aria-disabled={!canSubmit}
-            className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+          <div className="mb-6 flex justify-center sm:mb-8">
+            <img
+              src={logoAsset.url}
+              alt="Break & Vap CBD"
+              className="h-20 w-auto sm:h-24"
+              width={280}
+              height={180}
+            />
+          </div>
+          <DialogPrimitive.Title
+            id={titleId}
+            className="text-center text-2xl font-semibold"
+            style={{ fontFamily: "var(--font-serif)" }}
           >
-            {checking ? "Vérification…" : "Valider"}
-          </button>
+            Confirmez votre âge
+          </DialogPrimitive.Title>
+          <DialogPrimitive.Description id={descId} className="mt-4 text-center text-sm leading-relaxed text-muted-foreground">
+            Ce site propose des produits à base de nicotine et de CBD dont la
+            vente est strictement réservée aux personnes majeures. Merci
+            d'indiquer votre date de naissance pour continuer.
+          </DialogPrimitive.Description>
 
-          <p className="text-xs text-muted-foreground">
-            La nicotine crée une forte dépendance. Vente interdite aux
-            mineurs (art. L.3513-5 du Code de la santé publique). Votre date
-            de naissance n'est pas transmise à nos serveurs ; seule une
-            confirmation de majorité est mémorisée dans un cookie pendant
-            {" "}
-            {COOKIE_MAX_AGE_DAYS} jours.
-          </p>
-        </form>
+          <form onSubmit={submit} className="mt-8 space-y-6" noValidate>
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium">Date de naissance</legend>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Saisissez votre date au format jour / mois / année, en chiffres.
+              </p>
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <label
+                  id={dayLabelId}
+                  className="flex min-w-0 flex-col text-xs text-muted-foreground"
+                >
+                  <span className="mb-1.5">Jour</span>
+                  <input
+                    ref={dayRef}
+                    inputMode="numeric"
+                    autoComplete="bday-day"
+                    placeholder="JJ"
+                    value={day}
+                    onChange={onDigitChange(setDay, 2, monthRef)}
+                    className="w-full min-w-0 rounded-md border border-input bg-background px-2 py-2.5 text-center text-base text-foreground sm:px-3"
+                    aria-label="Jour de naissance"
+                    aria-describedby={
+                      error ? `${errorId} ${dayHintId}` : dayHintId
+                    }
+                    aria-invalid={error ? true : undefined}
+                    maxLength={2}
+                    disabled={rejected}
+                    required
+                  />
+                  <span id={dayHintId} className="sr-only">
+                    Deux chiffres, de 01 à 31, correspondant au jour de votre
+                    naissance.
+                  </span>
+                </label>
+                <label
+                  id={monthLabelId}
+                  className="flex min-w-0 flex-col text-xs text-muted-foreground"
+                >
+                  <span className="mb-1.5">Mois</span>
+                  <input
+                    ref={monthRef}
+                    inputMode="numeric"
+                    autoComplete="bday-month"
+                    placeholder="MM"
+                    value={month}
+                    onChange={onDigitChange(setMonth, 2, yearRef)}
+                    className="w-full min-w-0 rounded-md border border-input bg-background px-2 py-2.5 text-center text-base text-foreground sm:px-3"
+                    aria-label="Mois de naissance"
+                    aria-describedby={
+                      error ? `${errorId} ${monthHintId}` : monthHintId
+                    }
+                    aria-invalid={error ? true : undefined}
+                    maxLength={2}
+                    disabled={rejected}
+                    required
+                  />
+                  <span id={monthHintId} className="sr-only">
+                    Deux chiffres, de 01 à 12, correspondant au mois de votre
+                    naissance. Janvier est 01, décembre 12.
+                  </span>
+                </label>
+                <label
+                  id={yearLabelId}
+                  className="flex min-w-0 flex-col text-xs text-muted-foreground"
+                >
+                  <span className="mb-1.5">Année</span>
+                  <input
+                    ref={yearRef}
+                    inputMode="numeric"
+                    autoComplete="bday-year"
+                    placeholder="AAAA"
+                    value={year}
+                    onChange={onDigitChange(setYear, 4)}
+                    className="w-full min-w-0 rounded-md border border-input bg-background px-2 py-2.5 text-center text-base text-foreground sm:px-3"
+                    aria-label="Année de naissance"
+                    aria-describedby={
+                      error ? `${errorId} ${yearHintId}` : yearHintId
+                    }
+                    aria-invalid={error ? true : undefined}
+                    maxLength={4}
+                    disabled={rejected}
+                    required
+                  />
+                  <span id={yearHintId} className="sr-only">
+                    Quatre chiffres, par exemple 1990, correspondant à l'année de
+                    votre naissance. L'année doit être comprise entre
+                    {new Date().getFullYear() - 120} et {new Date().getFullYear()}.
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+
+            {error ? (
+              <p
+                id={errorId}
+                role="alert"
+                aria-live="assertive"
+                className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+              >
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={!canSubmit}
+              aria-disabled={!canSubmit}
+              className="h-12 w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {checking ? "Vérification…" : "Valider"}
+            </button>
+
+            <p className="text-center text-xs leading-relaxed text-muted-foreground">
+              La nicotine crée une forte dépendance. Vente interdite aux
+              mineurs (art. L.3513-5 du Code de la santé publique). Votre date
+              de naissance n'est pas transmise à nos serveurs ; seule une
+              confirmation de majorité est mémorisée dans un cookie pendant
+              {" "}
+              {COOKIE_MAX_AGE_DAYS} jours.
+            </p>
+          </form>
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>
