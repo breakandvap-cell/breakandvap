@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  assertUpdateTransition,
+  assertDeliverTransition,
+  assertCancelTransition,
+  assertRefundAllowed,
+  type OrderStatus,
+} from "@/lib/order-transitions";
 
 const productInputSchema = z.object({
   id: z.string().uuid().optional(),
@@ -465,20 +472,7 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
     if (!current) throw new Error("Commande introuvable.");
-    if (current.status === "livree" || current.status === "annulee") {
-      throw new Error("Cette commande est dans un état final et ne peut plus être modifiée.");
-    }
-    // Depuis cet endpoint (édition libre), on autorise uniquement :
-    //  - a_preparer → a_preparer (mise à jour de suivi)
-    //  - a_preparer → expediee
-    //  - expediee → expediee (mise à jour du suivi)
-    // Livraison et annulation passent par leurs endpoints dédiés.
-    if (data.status !== "a_preparer" && data.status !== "expediee") {
-      throw new Error("Utilisez l'action dédiée pour ce changement de statut.");
-    }
-    if (current.status === "expediee" && data.status === "a_preparer") {
-      throw new Error("Impossible de repasser une commande expédiée en préparation.");
-    }
+    assertUpdateTransition(current.status as OrderStatus, data.status as OrderStatus);
     const patch: Record<string, unknown> = {
       status: data.status,
       tracking_number: data.tracking_number || null,
@@ -507,9 +501,7 @@ export const adminMarkOrderDelivered = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
     if (!current) throw new Error("Commande introuvable.");
-    if (current.status !== "expediee") {
-      throw new Error("Seule une commande expédiée peut être marquée comme livrée.");
-    }
+    assertDeliverTransition(current.status as OrderStatus);
     const { error } = await supabaseAdmin
       .from("orders")
       .update({ status: "livree", delivered_at: new Date().toISOString() } as never)
@@ -546,9 +538,7 @@ export const adminCancelOrder = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
     if (!current) throw new Error("Commande introuvable.");
-    if (current.status === "livree" || current.status === "annulee") {
-      throw new Error("Impossible d'annuler une commande déjà livrée ou annulée.");
-    }
+    assertCancelTransition(current.status as OrderStatus);
     const reason = (data.reason ?? "").trim() || null;
     const { error } = await supabaseAdmin
       .from("orders")
@@ -586,9 +576,7 @@ export const adminSetOrderRefundProcessed = createServerFn({ method: "POST" })
       .maybeSingle();
     if (readErr) throw new Error(readErr.message);
     if (!current) throw new Error("Commande introuvable.");
-    if (current.status !== "annulee") {
-      throw new Error("Le remboursement ne concerne que les commandes annulées.");
-    }
+    assertRefundAllowed(current.status as OrderStatus);
     const { error } = await supabaseAdmin
       .from("orders")
       .update({
