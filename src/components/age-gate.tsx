@@ -121,7 +121,7 @@ function AgeGateOverlay({
     const y = Number(year);
     const m = Number(month);
     const d = Number(day);
-    if (!year || !month || !year) return null;
+    if (!year || !month || !day) return null;
     if (!isPlausibleBirthDate(y, m, d)) return null;
     return { y, m, d };
   }, [day, month, year]);
