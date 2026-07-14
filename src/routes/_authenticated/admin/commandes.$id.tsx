@@ -113,7 +113,10 @@ function OrderDetail() {
   }, [order.id, order.status, order.tracking_number]);
 
   async function refreshAll() {
-    await qc.invalidateQueries({ queryKey: ["admin", "order", id] });
+    // Refetch the current order immediately so the status badge and
+    // action panel reflect the change without a manual reload; then
+    // invalidate the surrounding lists so they update in the background.
+    await qc.refetchQueries({ queryKey: ["admin", "order", id] });
     await qc.invalidateQueries({ queryKey: ["admin", "orders"] });
     await qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
   }
