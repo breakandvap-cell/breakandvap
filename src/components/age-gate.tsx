@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
 
 // Cookie de validation de majorité — valable 30 jours.
@@ -59,12 +60,11 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
       >
         {children}
       </div>
-      {showOverlay ? (
-        <AgeGateOverlay
-          checking={status === "checking"}
-          onVerified={onVerified}
-        />
-      ) : null}
+      <AgeGateOverlay
+        open={showOverlay}
+        checking={status === "checking"}
+        onVerified={onVerified}
+      />
     </>
   );
 }
@@ -102,9 +102,11 @@ export function isPlausibleBirthDate(
 }
 
 function AgeGateOverlay({
+  open,
   checking,
   onVerified,
 }: {
+  open: boolean;
   checking: boolean;
   onVerified: () => void;
 }) {
@@ -116,6 +118,9 @@ function AgeGateOverlay({
   const dayRef = useRef<HTMLInputElement>(null);
   const monthRef = useRef<HTMLInputElement>(null);
   const yearRef = useRef<HTMLInputElement>(null);
+  const titleId = useId();
+  const descId = useId();
+  const errorId = useId();
 
   const parsed = useMemo(() => {
     const y = Number(year);
@@ -161,17 +166,25 @@ function AgeGateOverlay({
     };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="age-gate-title"
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/95 px-4 backdrop-blur-sm"
-      // Bloque l'échappement clavier — pas de fermeture sans validation.
-      onKeyDown={(e) => {
-        if (e.key === "Escape") e.preventDefault();
-      }}
-    >
-      <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-lg sm:p-8">
+    <DialogPrimitive.Root open={open} modal>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[9998] bg-background/95 backdrop-blur-sm" />
+        <DialogPrimitive.Content
+          aria-labelledby={titleId}
+          aria-describedby={descId}
+          // Empêche toute fermeture non voulue : Escape, clic hors modal,
+          // interactions sous-jacentes. Radix conserve le focus-trap et
+          // renvoie le focus au bon endroit à la fermeture.
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          // Donne le focus initial au premier champ plutôt qu'au wrapper.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault();
+            dayRef.current?.focus();
+          }}
+          className="fixed left-1/2 top-1/2 z-[9999] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-lg outline-none sm:p-8"
+        >
         <div className="mb-4 flex justify-center">
           <img
             src={logoAsset.url}
@@ -181,18 +194,18 @@ function AgeGateOverlay({
             height={180}
           />
         </div>
-        <h2
-          id="age-gate-title"
+        <DialogPrimitive.Title
+          id={titleId}
           className="text-2xl font-semibold"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Confirmez votre âge
-        </h2>
-        <p className="mt-3 text-sm text-muted-foreground">
+        </DialogPrimitive.Title>
+        <DialogPrimitive.Description id={descId} className="mt-3 text-sm text-muted-foreground">
           Ce site propose des produits à base de nicotine et de CBD dont la
           vente est strictement réservée aux personnes majeures. Merci
           d'indiquer votre date de naissance pour continuer.
-        </p>
+        </DialogPrimitive.Description>
 
         <form onSubmit={submit} className="mt-6 space-y-4" noValidate>
           <fieldset className="space-y-2">
@@ -208,9 +221,12 @@ function AgeGateOverlay({
                   value={day}
                   onChange={onDigitChange(setDay, 2, monthRef)}
                   className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Jour de naissance"
+                  aria-label="Jour de naissance (1 à 31)"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? errorId : undefined}
                   maxLength={2}
                   disabled={rejected}
+                  required
                 />
               </label>
               <label className="flex flex-1 flex-col text-xs text-muted-foreground">
@@ -223,9 +239,12 @@ function AgeGateOverlay({
                   value={month}
                   onChange={onDigitChange(setMonth, 2, yearRef)}
                   className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Mois de naissance"
+                  aria-label="Mois de naissance (1 à 12)"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? errorId : undefined}
                   maxLength={2}
                   disabled={rejected}
+                  required
                 />
               </label>
               <label className="flex flex-[1.4] flex-col text-xs text-muted-foreground">
@@ -238,9 +257,12 @@ function AgeGateOverlay({
                   value={year}
                   onChange={onDigitChange(setYear, 4)}
                   className="rounded-md border border-input bg-background px-3 py-2 text-center text-base text-foreground"
-                  aria-label="Année de naissance"
+                  aria-label="Année de naissance (4 chiffres)"
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? errorId : undefined}
                   maxLength={4}
                   disabled={rejected}
+                  required
                 />
               </label>
             </div>
@@ -248,7 +270,9 @@ function AgeGateOverlay({
 
           {error ? (
             <p
+              id={errorId}
               role="alert"
+              aria-live="assertive"
               className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800"
             >
               {error}
@@ -258,6 +282,7 @@ function AgeGateOverlay({
           <button
             type="submit"
             disabled={!canSubmit}
+            aria-disabled={!canSubmit}
             className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {checking ? "Vérification…" : "Valider"}
@@ -272,7 +297,8 @@ function AgeGateOverlay({
             {COOKIE_MAX_AGE_DAYS} jours.
           </p>
         </form>
-      </div>
-    </div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
