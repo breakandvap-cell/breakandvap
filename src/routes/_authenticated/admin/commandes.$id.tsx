@@ -99,7 +99,7 @@ function OrderDetail() {
   const m = useMutation({
     mutationFn: () => upd({ data: { id, status, tracking_number: tracking } }),
     onSuccess: async () => {
-      toast.success("Commande mise à jour.");
+      toast.success("Statut mis à jour avec succès.");
       await refreshAll();
     },
     onError: (e) => toast.error((e as Error).message),
@@ -136,6 +136,10 @@ function OrderDetail() {
 
   function submit(e: FormEvent) {
     e.preventDefault();
+    if (status === "expediee" && !tracking.trim()) {
+      toast.error("Le numéro de suivi est obligatoire pour marquer la commande comme expédiée.");
+      return;
+    }
     m.mutate();
   }
 
@@ -180,6 +184,10 @@ function OrderDetail() {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Statut & suivi
           </h2>
+          <div className="mb-4 flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">Statut actuel :</span>
+            <StatusBadge status={order.status} />
+          </div>
           {isFinal ? (
             <div className="space-y-3 text-sm">
               {order.status === "livree" ? (
@@ -239,6 +247,7 @@ function OrderDetail() {
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as Status)}
+                    className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     <option value="a_preparer" disabled={order.status === "expediee"}>
                       À préparer
@@ -247,12 +256,21 @@ function OrderDetail() {
                   </select>
                 </label>
                 <label className="block text-sm">
-                  <span className="mb-1 block font-medium">Numéro de suivi</span>
+                  <span className="mb-1 block font-medium">
+                    Numéro de suivi
+                    {status === "expediee" ? <span className="text-red-600"> *</span> : null}
+                  </span>
                   <input
                     value={tracking}
                     onChange={(e) => setTracking(e.target.value)}
                     placeholder="Ex. 1Z999..."
+                    className="block w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                   />
+                  {status === "expediee" ? (
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      Obligatoire pour passer la commande en « Expédiée ». Un email de suivi sera envoyé au client.
+                    </span>
+                  ) : null}
                 </label>
                 <button
                   type="submit"
