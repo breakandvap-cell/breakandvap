@@ -16,6 +16,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { InvoiceDownloadButton } from "@/components/invoice-download-button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   itemDescription,
   lineTaxBreakdown,
   productRef,
@@ -452,6 +459,7 @@ function describeEntry(e: OrderAuditEntry): { title: string; detail?: string } {
 
 function OrderAuditTimeline({ orderId }: { orderId: string }) {
   const { data } = useSuspenseQuery(auditOpts(orderId));
+  const [selected, setSelected] = useState<OrderAuditEntry | null>(null);
   return (
     <section>
       <h2 className="mb-3 text-lg font-semibold">Journal d'activité</h2>
@@ -464,27 +472,130 @@ function OrderAuditTimeline({ orderId }: { orderId: string }) {
           {data.map((e) => {
             const d = describeEntry(e);
             return (
-              <li
-                key={e.id}
-                className="rounded-md border bg-card p-3 text-sm"
-              >
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <span className="font-medium">{d.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(e.created_at).toLocaleString("fr-FR")}
-                  </span>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  Par {e.admin_label}
-                </div>
-                {d.detail ? (
-                  <div className="mt-1 text-xs text-muted-foreground">{d.detail}</div>
-                ) : null}
+              <li key={e.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelected(e)}
+                  className="w-full rounded-md border bg-card p-3 text-left text-sm transition hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium">{d.title}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(e.created_at).toLocaleString("fr-FR")}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Par {e.admin_label}
+                  </div>
+                  {d.detail ? (
+                    <div className="mt-1 text-xs text-muted-foreground">{d.detail}</div>
+                  ) : null}
+                </button>
               </li>
             );
           })}
         </ol>
       )}
+      <AuditEntryDialog entry={selected} onClose={() => setSelected(null)} />
     </section>
+  );
+}
+
+const ACTION_LABELS: Record<string, string> = {
+  "order.update": "Mise à jour",
+  "order.deliver": "Livraison confirmée",
+  "order.cancel": "Annulation",
+  "order.refund": "Statut de remboursement",
+};
+
+function AuditEntryDialog({
+  entry,
+  onClose,
+}: {
+  entry: OrderAuditEntry | null;
+  onClose: () => void;
+}) {
+  const open = entry !== null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => (!o ? onClose() : undefined)}>
+      <DialogContent className="max-w-md">
+        {entry ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>
+                {ACTION_LABELS[entry.action] ?? entry.action}
+              </DialogTitle>
+              <DialogDescription>
+                {new Date(entry.created_at).toLocaleString("fr-FR")}
+              </DialogDescription>
+            </DialogHeader>
+            <dl className="mt-2 grid grid-cols-[9rem_1fr] gap-y-2 text-sm">
+              <Row label="Auteur" value={entry.admin_label} />
+              <Row
+                label="Ancien statut"
+                value={
+                  entry.from_status
+                    ? STATUS_LABELS[entry.from_status] ?? entry.from_status
+                    : "—"
+                }
+              />
+              <Row
+                label="Nouveau statut"
+                value={
+                  entry.to_status
+                    ? STATUS_LABELS[entry.to_status] ?? entry.to_status
+                    : "—"
+                }
+              />
+              <Row label="N° de suivi" value={entry.tracking_number ?? "—"} />
+              <Row label="Motif" value={entry.reason ?? "—"} multiline />
+              {entry.action === "order.refund" ? (
+                <Row
+                  label="Remboursement"
+                  value={
+                    entry.refund_processed === true
+                      ? "Marqué comme traité"
+                      : entry.refund_processed === false
+                        ? "Marqué comme non traité"
+                        : "—"
+                  }
+                />
+              ) : null}
+              <Row label="Identifiant" value={entry.id} mono />
+              <Row label="Action" value={entry.action} mono />
+            </dl>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({
+  label,
+  value,
+  mono,
+  multiline,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  multiline?: boolean;
+}) {
+  return (
+    <>
+      <dt className="text-xs uppercase tracking-wide text-muted-foreground">
+        {label}
+      </dt>
+      <dd
+        className={
+          (mono ? "font-mono text-xs " : "") +
+          (multiline ? "whitespace-pre-wrap " : "break-words ") +
+          "text-foreground"
+        }
+      >
+        {value}
+      </dd>
+    </>
   );
 }
