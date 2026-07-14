@@ -482,7 +482,11 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
     }
     const { error } = await supabaseAdmin.from("orders").update(patch as never).eq("id", data.id);
     if (error) throw new Error(error.message);
-    await logAction(context.userId, "order.update", "order", data.id, { status: data.status });
+    await logAction(context.userId, "order.update", "order", data.id, {
+      from: current.status,
+      to: data.status,
+      tracking_number: data.tracking_number || null,
+    });
     return { ok: true };
   });
 
@@ -507,7 +511,10 @@ export const adminMarkOrderDelivered = createServerFn({ method: "POST" })
       .update({ status: "livree", delivered_at: new Date().toISOString() } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    await logAction(context.userId, "order.deliver", "order", data.id, null);
+    await logAction(context.userId, "order.deliver", "order", data.id, {
+      from: current.status,
+      to: "livree",
+    });
     // Email de suivi (optionnel) — best-effort.
     try {
       const { sendOrderDeliveredEmail } = await import("@/lib/order-emails.server");
@@ -549,7 +556,11 @@ export const adminCancelOrder = createServerFn({ method: "POST" })
       } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    await logAction(context.userId, "order.cancel", "order", data.id, { reason });
+    await logAction(context.userId, "order.cancel", "order", data.id, {
+      from: current.status,
+      to: "annulee",
+      reason,
+    });
     try {
       const { sendOrderCancelledEmail } = await import("@/lib/order-emails.server");
       await sendOrderCancelledEmail(data.id, reason);
@@ -584,8 +595,75 @@ export const adminSetOrderRefundProcessed = createServerFn({ method: "POST" })
       } as never)
       .eq("id", data.id);
     if (error) throw new Error(error.message);
-    await logAction(context.userId, "order.refund", "order", data.id, { processed: data.processed });
+    await logAction(context.userId, "order.refund", "order", data.id, {
+      processed: data.processed,
+    });
     return { ok: true };
+  });
+
+// ---------- Journal d'audit d'une commande ----------
+
+export type OrderAuditEntry = {
+  id: string;
+  created_at: string;
+  action: string;
+  admin_id: string | null;
+  admin_label: string;
+  from_status: OrderStatus | null;
+  to_status: OrderStatus | null;
+  reason: string | null;
+  tracking_number: string | null;
+  refund_processed: boolean | null;
+};
+
+export const adminGetOrderAuditLog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }): Promise<OrderAuditEntry[]> => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("admin_action_log")
+      .select("id, created_at, action, admin_id, details")
+      .eq("entity_type", "order")
+      .eq("entity_id", data.id)
+      .in("action", ["order.update", "order.deliver", "order.cancel", "order.refund"])
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+
+    // Résoudre les libellés admin en un seul appel.
+    const adminIds = Array.from(
+      new Set((rows ?? []).map((r) => r.admin_id).filter((v): v is string => !!v)),
+    );
+    const labels = new Map<string, string>();
+    if (adminIds.length > 0) {
+      const { data: profiles } = await supabaseAdmin
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", adminIds);
+      for (const p of profiles ?? []) {
+        labels.set(p.id, p.full_name?.trim() || p.email || "Admin");
+      }
+    }
+
+    return (rows ?? []).map((r) => {
+      const d = (r.details ?? {}) as Record<string, unknown>;
+      return {
+        id: r.id,
+        created_at: r.created_at,
+        action: r.action,
+        admin_id: r.admin_id,
+        admin_label: r.admin_id ? labels.get(r.admin_id) ?? "Admin" : "Système",
+        from_status: (d.from as OrderStatus) ?? null,
+        to_status: (d.to as OrderStatus) ?? null,
+        reason: typeof d.reason === "string" ? d.reason : null,
+        tracking_number:
+          typeof d.tracking_number === "string" ? d.tracking_number : null,
+        refund_processed:
+          typeof d.processed === "boolean" ? (d.processed as boolean) : null,
+      };
+    });
   });
 
 // ---------- Historique commandes (recherche + filtres) ----------
