@@ -364,6 +364,15 @@
   color: var(--color-muted-foreground);
   transition: color 0.2s ease;
 }
+
+/* Global mobile safeguards: no horizontal scroll, larger tap targets. */
+html, body { overflow-x: hidden; }
+@media (max-width: 767px) {
+  /* Ensure any button/link acting as a control has a comfortable tap area */
+  button, a[role="button"], [data-tap] {
+    min-height: 40px;
+  }
+}
 .nav-link:hover { color: var(--color-foreground); }
 .nav-link::after {
   content: "";
