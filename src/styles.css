@@ -364,6 +364,9 @@
   color: var(--color-muted-foreground);
   transition: color 0.2s ease;
 }
+
+/* Global mobile safeguard: prevent unintended horizontal scroll. */
+html, body { overflow-x: hidden; }
 .nav-link:hover { color: var(--color-foreground); }
 .nav-link::after {
   content: "";
