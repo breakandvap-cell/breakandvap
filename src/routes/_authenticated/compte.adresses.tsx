@@ -113,7 +113,7 @@ function AddressesPage() {
                 className="rounded-lg border border-border bg-card p-4 text-sm"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 break-words">
                     <p className="font-medium">
                       {a.full_name}
                       {a.is_default ? (
@@ -132,7 +132,7 @@ function AddressesPage() {
                   </div>
                   <button
                     onClick={() => deleteMutation.mutate(a.id)}
-                    className="text-muted-foreground hover:text-destructive"
+                    className="-mr-2 -mt-2 shrink-0 rounded-md p-2 text-muted-foreground hover:text-destructive"
                     aria-label="Supprimer"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -174,7 +174,7 @@ function AddressesPage() {
           <button
             type="submit"
             disabled={addMutation.isPending}
-            className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            className="w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
           >
             {addMutation.isPending ? "Enregistrement…" : "Enregistrer"}
           </button>
