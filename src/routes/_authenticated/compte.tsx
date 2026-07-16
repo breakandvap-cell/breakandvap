@@ -213,10 +213,10 @@ function TabLink({
     <Link
       to={to}
       activeOptions={{ exact }}
-      className="inline-flex items-center gap-2 border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       activeProps={{
         className:
-          "inline-flex items-center gap-2 border-b-2 border-primary px-3 py-2 text-sm text-foreground font-medium",
+          "inline-flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 border-primary px-3 py-2 text-sm text-foreground font-medium",
       }}
     >
       {icon} {children}
