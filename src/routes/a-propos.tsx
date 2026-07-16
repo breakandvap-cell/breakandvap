@@ -28,8 +28,8 @@ function About() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto max-w-3xl px-4 py-16">
-        <h1 className="text-4xl font-semibold tracking-tight">Notre histoire</h1>
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight break-words">Notre histoire</h1>
         <p className="mt-6 text-lg text-muted-foreground">
           Break and Vap est une SAS française fondée en 2018. Nous exploitons
           deux boutiques physiques au Creusot et à Montceau-les-Mines, et
