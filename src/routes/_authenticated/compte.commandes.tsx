@@ -99,7 +99,7 @@ function OrdersPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex items-baseline justify-between border-t border-border pt-3">
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-2 border-t border-border pt-3">
             <span className="text-xs text-muted-foreground">
               {o.tracking_number
                 ? `Suivi : ${o.tracking_number}`
