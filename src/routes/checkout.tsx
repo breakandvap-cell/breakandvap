@@ -413,7 +413,7 @@ function CheckoutPage() {
 
 function Fieldset({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <fieldset className="rounded-lg border border-border bg-card p-6">
+    <fieldset className="rounded-lg border border-border bg-card p-4 sm:p-6">
       <legend className="px-2 text-sm font-semibold">{title}</legend>
       <div className="mt-2 space-y-4">{children}</div>
     </fieldset>
