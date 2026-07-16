@@ -110,8 +110,8 @@ function AuthPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto flex max-w-md flex-col px-4 py-16">
-        <h1 className="text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
+      <main className="mx-auto flex max-w-md flex-col px-4 py-10 sm:py-16">
+        <h1 className="text-2xl sm:text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
           {tab === "signup" ? "Créer un compte" : "Se connecter"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -119,16 +119,16 @@ function AuthPage() {
           passage en caisse.
         </p>
 
-        <div className="mt-6 inline-flex self-start rounded-md border border-border bg-card p-1 text-sm">
+        <div className="mt-6 inline-flex w-full rounded-md border border-border bg-card p-1 text-sm sm:w-auto sm:self-start">
           <button
-            className={`rounded px-3 py-1 ${tab === "signin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            className={`flex-1 rounded px-3 py-2 sm:flex-none sm:py-1 ${tab === "signin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
             onClick={() => setTab("signin")}
             type="button"
           >
             Connexion
           </button>
           <button
-            className={`rounded px-3 py-1 ${tab === "signup" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            className={`flex-1 rounded px-3 py-2 sm:flex-none sm:py-1 ${tab === "signup" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
             onClick={() => setTab("signup")}
             type="button"
           >
@@ -247,7 +247,7 @@ function AuthPage() {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              className="w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
               {busy
                 ? "Veuillez patienter…"
