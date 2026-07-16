@@ -23,7 +23,7 @@ function AdminLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AdminNav />
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
         <Outlet />
       </main>
     </div>
@@ -47,11 +47,19 @@ function AdminNav() {
   ];
   return (
     <div className="border-b border-border bg-card">
-      <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-4">
-        <span className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Espace gérant
-        </span>
-        <nav className="flex flex-1 items-center gap-4 text-sm">
+      <div className="mx-auto max-w-6xl px-4 pt-3 sm:pt-4">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:text-sm">
+            Espace gérant
+          </span>
+          <Link
+            to="/"
+            className="whitespace-nowrap text-xs text-muted-foreground hover:text-foreground"
+          >
+            ← Boutique
+          </Link>
+        </div>
+        <nav className="-mx-4 mt-3 flex gap-1 overflow-x-auto px-4 pb-1 text-sm sm:mx-0 sm:mt-2 sm:flex-wrap sm:gap-4 sm:px-0 sm:pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {links.map((l) => {
             const active = l.exact ? pathname === l.to : pathname.startsWith(l.to);
             return (
@@ -59,9 +67,10 @@ function AdminNav() {
                 key={l.to}
                 to={l.to}
                 className={
-                  active
-                    ? "font-medium text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                  "shrink-0 whitespace-nowrap border-b-2 px-2 py-2 transition-colors sm:border-b-0 sm:px-0 sm:py-2 " +
+                  (active
+                    ? "border-primary font-medium text-foreground sm:border-transparent"
+                    : "border-transparent text-muted-foreground hover:text-foreground")
                 }
               >
                 {l.label}
@@ -69,9 +78,6 @@ function AdminNav() {
             );
           })}
         </nav>
-        <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">
-          ← Retour boutique
-        </Link>
       </div>
     </div>
   );
