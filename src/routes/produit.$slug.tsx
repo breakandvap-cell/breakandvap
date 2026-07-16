@@ -140,15 +140,15 @@ function ProductDetail() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto max-w-6xl px-4 py-10">
+      <main className="mx-auto max-w-6xl px-4 py-6 sm:py-10">
         <button
           onClick={() => router.history.back()}
-          className="mb-6 inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+          className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground sm:mb-6"
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Retour
         </button>
 
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-10">
           <div className="overflow-hidden rounded-lg border border-border bg-secondary">
             {photo ? (
               <img
@@ -169,14 +169,14 @@ function ProductDetail() {
               {product.subcategory ? ` · ${product.subcategory}` : ""}
             </span>
             <h1
-              className="mt-2 text-3xl leading-tight sm:text-4xl"
+              className="mt-2 text-2xl leading-tight sm:text-4xl"
               style={{ fontFamily: "var(--font-serif)" }}
             >
               {product.name}
             </h1>
 
-            <div className="mt-4 flex items-center gap-3">
-              <span className="text-3xl font-semibold">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="text-2xl font-semibold sm:text-3xl">
                 {formatPrice(product.price_cents, product.currency)}
               </span>
               <span
@@ -226,12 +226,12 @@ function ProductDetail() {
             ) : null}
 
             {product.stock_status !== "out_of_stock" ? (
-              <div className="mt-4 flex items-center gap-3">
+              <div className="mt-4 flex flex-wrap items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    className="px-4 py-2.5 text-base hover:bg-secondary"
                     aria-label="Diminuer la quantité"
                   >
                     −
@@ -244,7 +244,7 @@ function ProductDetail() {
                     onClick={() =>
                       setQty((q) => Math.min(maxStock, q + 1))
                     }
-                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    className="px-4 py-2.5 text-base hover:bg-secondary"
                     aria-label="Augmenter la quantité"
                   >
                     +
@@ -276,7 +276,7 @@ function ProductDetail() {
                       description: `${qty} × ${displayName}`,
                     });
                   }}
-                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  className="inline-flex min-w-0 flex-1 basis-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:basis-0"
                 >
                   {hasFlavors && !flavor ? "Choisir un goût" : "Ajouter au panier"}
                 </button>
@@ -846,12 +846,12 @@ function EliquideDetail({
             )}
 
             {variant && effectiveStock > 0 ? (
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    className="px-4 py-2.5 text-base hover:bg-secondary"
                     aria-label="Diminuer la quantité"
                   >
                     −
@@ -864,7 +864,7 @@ function EliquideDetail({
                     onClick={() =>
                       setQty((q) => Math.min(effectiveStock, q + 1))
                     }
-                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    className="px-4 py-2.5 text-base hover:bg-secondary"
                     aria-label="Augmenter la quantité"
                   >
                     +
@@ -905,7 +905,7 @@ function EliquideDetail({
                       description: `${qty} × ${displayName}`,
                     });
                   }}
-                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  className="inline-flex min-w-0 flex-1 basis-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:basis-0"
                 >
                   {nicotine === null
                     ? "Choisir un taux de nicotine"
