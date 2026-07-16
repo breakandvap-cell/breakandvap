@@ -846,12 +846,12 @@ function EliquideDetail({
             )}
 
             {variant && effectiveStock > 0 ? (
-              <div className="mt-6 flex items-center gap-3">
+              <div className="mt-6 flex flex-wrap items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
                     onClick={() => setQty((q) => Math.max(1, q - 1))}
-                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    className="px-4 py-2.5 text-base hover:bg-secondary"
                     aria-label="Diminuer la quantité"
                   >
                     −
@@ -864,7 +864,7 @@ function EliquideDetail({
                     onClick={() =>
                       setQty((q) => Math.min(effectiveStock, q + 1))
                     }
-                    className="px-3 py-2 text-sm hover:bg-secondary"
+                    className="px-4 py-2.5 text-base hover:bg-secondary"
                     aria-label="Augmenter la quantité"
                   >
                     +
@@ -905,7 +905,7 @@ function EliquideDetail({
                       description: `${qty} × ${displayName}`,
                     });
                   }}
-                  className="inline-flex flex-1 items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                  className="inline-flex min-w-0 flex-1 basis-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:basis-0"
                 >
                   {nicotine === null
                     ? "Choisir un taux de nicotine"
