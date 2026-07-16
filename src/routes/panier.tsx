@@ -37,8 +37,8 @@ function CartPage() {
           <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]">
             <ul className="divide-y divide-border rounded-lg border border-border bg-card">
               {items.map((item) => (
-                <li key={item.key} className="flex gap-4 p-4">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md bg-secondary">
+                <li key={item.key} className="flex gap-3 p-3 sm:gap-4 sm:p-4">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md bg-secondary sm:h-20 sm:w-20">
                     {item.photo ? (
                       <img
                         src={item.photo}
@@ -47,11 +47,11 @@ function CartPage() {
                       />
                     ) : null}
                   </div>
-                  <div className="flex flex-1 flex-col">
+                  <div className="flex min-w-0 flex-1 flex-col">
                     <Link
                       to="/produit/$slug"
                       params={{ slug: item.slug }}
-                      className="text-sm font-medium hover:underline"
+                      className="text-sm font-medium hover:underline line-clamp-2"
                     >
                       {item.name}
                     </Link>
@@ -84,18 +84,18 @@ function CartPage() {
                         </div>
                       </div>
                     ) : null}
-                    <div className="mt-auto flex items-center justify-between pt-2">
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2">
                       <div className="inline-flex items-center rounded-md border border-border">
                         <button
                           onClick={() =>
                             setQuantity(item.key, item.quantity - 1)
                           }
-                          className="px-2 py-1 hover:bg-secondary"
+                          className="px-3 py-2 hover:bg-secondary"
                           aria-label="Diminuer"
                         >
-                          <Minus className="h-3.5 w-3.5" />
+                          <Minus className="h-4 w-4" />
                         </button>
-                        <span className="w-8 text-center text-sm">
+                        <span className="w-10 text-center text-sm">
                           {item.quantity}
                         </span>
                         <button
@@ -103,22 +103,25 @@ function CartPage() {
                             setQuantity(item.key, item.quantity + 1)
                           }
                           disabled={item.quantity >= item.maxStock}
-                          className="px-2 py-1 hover:bg-secondary disabled:opacity-40"
+                          className="px-3 py-2 hover:bg-secondary disabled:opacity-40"
                           aria-label="Augmenter"
                         >
-                          <Plus className="h-3.5 w-3.5" />
+                          <Plus className="h-4 w-4" />
                         </button>
                       </div>
-                      <button
-                        onClick={() => remove(item.key)}
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" /> Retirer
-                      </button>
+                      <div className="ml-auto flex items-center gap-3">
+                        <span className="text-sm font-semibold whitespace-nowrap">
+                          {formatPrice(item.priceCents * item.quantity)}
+                        </span>
+                        <button
+                          onClick={() => remove(item.key)}
+                          aria-label="Retirer"
+                          className="inline-flex items-center gap-1 rounded-md p-2 text-xs text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right text-sm font-semibold">
-                    {formatPrice(item.priceCents * item.quantity)}
                   </div>
                 </li>
               ))}
