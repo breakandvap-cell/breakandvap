@@ -47,29 +47,29 @@ function AccountLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto max-w-5xl px-4 py-12">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
+        <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
+          <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
               Espace client
             </p>
             <h1
-              className="mt-1 text-3xl"
+              className="mt-1 text-2xl sm:text-3xl break-words"
               style={{ fontFamily: "var(--font-serif)" }}
             >
               Bonjour{user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">{user?.email}</p>
+            <p className="mt-1 truncate text-sm text-muted-foreground">{user?.email}</p>
           </div>
           <button
             onClick={handleSignOut}
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary"
+            className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md border border-border bg-card px-3 py-2 text-sm hover:bg-secondary"
           >
             <LogOut className="h-4 w-4" /> Se déconnecter
           </button>
         </div>
 
-        <nav className="mt-8 flex flex-wrap gap-2 border-b border-border">
+        <nav className="mt-8 -mx-4 flex gap-1 overflow-x-auto border-b border-border px-4 sm:mx-0 sm:flex-wrap sm:gap-2 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <TabLink to="/compte" exact icon={<UserIcon className="h-4 w-4" />}>
             Tableau de bord
           </TabLink>
