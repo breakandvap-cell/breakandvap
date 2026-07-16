@@ -17,7 +17,7 @@ function OrderConfirmationPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto max-w-2xl px-4 py-20 text-center">
+      <main className="mx-auto max-w-2xl px-4 py-12 sm:py-20 text-center">
         <div
           className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
           style={{ backgroundColor: "var(--secondary)", color: "var(--accent)" }}
@@ -25,7 +25,7 @@ function OrderConfirmationPage() {
           <CheckCircle2 className="h-7 w-7" />
         </div>
         <h1
-          className="mt-6 text-3xl"
+          className="mt-6 text-2xl sm:text-3xl"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Merci pour votre commande
@@ -50,16 +50,16 @@ function OrderConfirmationPage() {
             </Link>.
           </p>
         </div>
-        <div className="mt-8 flex justify-center gap-3">
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
           <Link
             to="/boutique"
-            className="inline-flex items-center justify-center rounded-md border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-secondary"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-card px-4 py-3 text-sm font-medium hover:bg-secondary sm:py-2"
           >
             Continuer mes achats
           </Link>
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 sm:py-2"
           >
             Accueil
           </Link>

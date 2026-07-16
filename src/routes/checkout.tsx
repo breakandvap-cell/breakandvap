@@ -165,9 +165,9 @@ function CheckoutPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto max-w-5xl px-4 py-12">
+      <main className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
         <h1
-          className="text-4xl leading-tight"
+          className="text-3xl leading-tight sm:text-4xl"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           Finaliser la commande
@@ -180,7 +180,7 @@ function CheckoutPage() {
 
         <form
           onSubmit={onSubmit}
-          className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1fr_320px]"
+          className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px] lg:gap-8"
         >
           <section className="space-y-8">
             <Fieldset title="Contact">
@@ -352,7 +352,7 @@ function CheckoutPage() {
             </Fieldset>
           </section>
 
-          <aside className="h-fit rounded-lg border border-border bg-card p-6">
+          <aside className="h-fit rounded-lg border border-border bg-card p-4 sm:p-6 lg:sticky lg:top-4">
             <h2 className="text-lg font-semibold">Votre commande</h2>
             <ul className="mt-4 space-y-3 text-sm">
               {cart.items.map((it) => (
@@ -413,7 +413,7 @@ function CheckoutPage() {
 
 function Fieldset({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <fieldset className="rounded-lg border border-border bg-card p-6">
+    <fieldset className="rounded-lg border border-border bg-card p-4 sm:p-6">
       <legend className="px-2 text-sm font-semibold">{title}</legend>
       <div className="mt-2 space-y-4">{children}</div>
     </fieldset>
