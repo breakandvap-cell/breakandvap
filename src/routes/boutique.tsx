@@ -192,7 +192,7 @@ function BoutiquePage() {
                 Aucun produit disponible pour le moment.
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {filteredProducts.map((p) => (
                   <ProductCard
                     key={p.id}
@@ -267,7 +267,7 @@ function CategoryTiles({
     (c) => c.is_active && KNOWN_CATEGORY_KEYS.has(c.key),
   );
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5">
       {visible.map((c) => {
         const photos = allProducts
           .filter((p) => p.category === c.key && (p.photos?.length ?? 0) > 0)
@@ -276,7 +276,7 @@ function CategoryTiles({
         <button
           key={c.id}
           onClick={() => onPick(c.key)}
-          className="group relative flex h-64 flex-col justify-end overflow-hidden rounded-2xl border border-border bg-card text-left transition-transform hover:-translate-y-0.5"
+          className="group relative flex h-52 flex-col justify-end overflow-hidden rounded-2xl border border-border bg-card text-left transition-transform hover:-translate-y-0.5 sm:h-64"
         >
           {c.image_url ? (
             <img
@@ -333,12 +333,12 @@ function SubcategoryTiles({
     );
   }
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
       {subcategories.map((s) => (
         <button
           key={s.id}
           onClick={() => onPick(s.slug)}
-          className="group relative flex h-52 flex-col justify-end overflow-hidden rounded-xl border border-border bg-card text-left transition-transform hover:-translate-y-0.5"
+          className="group relative flex h-40 flex-col justify-end overflow-hidden rounded-xl border border-border bg-card text-left transition-transform hover:-translate-y-0.5 sm:h-52"
         >
           {s.image_url ? (
             <img
@@ -402,24 +402,24 @@ function ProductCard({
           </div>
         )}
       </div>
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+      <div className="flex flex-1 flex-col gap-1.5 p-3 sm:gap-2 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 truncate text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
             {categoryName}
           </span>
           <StockBadge tone={stock.tone}>{stock.label}</StockBadge>
         </div>
         <h3
-          className="text-base leading-snug"
+          className="line-clamp-2 text-sm leading-snug sm:text-base"
           style={{ fontFamily: "var(--font-serif)" }}
         >
           {product.name}
         </h3>
-        <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="text-lg font-semibold">
+        <div className="mt-auto flex items-center justify-between gap-2 pt-1 sm:pt-2">
+          <span className="text-base font-semibold sm:text-lg">
             {formatPrice(product.price_cents, product.currency)}
           </span>
-          <span className="text-xs text-muted-foreground group-hover:text-foreground">
+          <span className="hidden text-xs text-muted-foreground group-hover:text-foreground sm:inline">
             Voir →
           </span>
         </div>
@@ -442,7 +442,7 @@ function StockBadge({
         ? "bg-accent/15 text-accent-foreground"
         : "bg-destructive/10 text-destructive";
   return (
-    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${style}`}>
+    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${style}`}>
       {children}
     </span>
   );
