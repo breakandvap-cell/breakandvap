@@ -26,8 +26,8 @@ function Contact() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto max-w-3xl px-4 py-16">
-        <h1 className="text-4xl font-semibold tracking-tight">Contact</h1>
+      <main className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
+        <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight break-words">Contact</h1>
         <p className="mt-6 text-muted-foreground">
           Une question sur une commande, un produit ou un partenariat ? Écrivez-
           nous ou passez en boutique.
