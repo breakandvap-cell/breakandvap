@@ -52,8 +52,8 @@ function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
-      <main className="mx-auto flex max-w-md flex-col px-4 py-16">
-        <h1 className="text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
+      <main className="mx-auto flex max-w-md flex-col px-4 py-10 sm:py-16">
+        <h1 className="text-2xl sm:text-3xl" style={{ fontFamily: "var(--font-serif)" }}>
           Nouveau mot de passe
         </h1>
         {!ready ? (
@@ -83,7 +83,7 @@ function ResetPasswordPage() {
             <button
               type="submit"
               disabled={busy}
-              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              className="w-full rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
             >
               Mettre à jour
             </button>
