@@ -166,8 +166,9 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-background);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+  /* 16px min prevents iOS Safari zoom-on-focus. Downshift on >=sm screens. */
+  font-size: 16px;
   color: var(--color-foreground);
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -176,6 +177,10 @@
     border-color: var(--color-ring);
     box-shadow: 0 0 0 3px color-mix(in oklch, var(--color-ring) 25%, transparent);
   }
+}
+
+@media (min-width: 640px) {
+  .input { font-size: 0.875rem; padding: 0.5rem 0.75rem; }
 }
 
 /* =====================================================================
