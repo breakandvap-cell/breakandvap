@@ -856,6 +856,7 @@ function EliquideDetail({
                     : "Ajouter au panier"}
                 </button>
               </div>
+              </>
             ) : variant ? (
               <button
                 disabled
