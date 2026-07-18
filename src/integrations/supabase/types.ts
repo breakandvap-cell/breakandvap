@@ -581,6 +581,30 @@ export type Database = {
           },
         ]
       }
+      site_settings: {
+        Row: {
+          booster_concentration_mg_per_ml: number
+          booster_volume_ml: number
+          created_at: string
+          singleton: boolean
+          updated_at: string
+        }
+        Insert: {
+          booster_concentration_mg_per_ml?: number
+          booster_volume_ml?: number
+          created_at?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Update: {
+          booster_concentration_mg_per_ml?: number
+          booster_volume_ml?: number
+          created_at?: string
+          singleton?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       testimonials: {
         Row: {
           author_name: string
