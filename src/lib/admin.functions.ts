@@ -75,7 +75,7 @@ const productInputSchema = z.object({
         // si vide, modifiable par l'admin.
         sku: z.string().trim().max(40).optional().or(z.literal("")),
         // Désactivée = disparaît du catalogue mais reste dans l'historique.
-        is_active: z.boolean().optional().default(true),
+        is_active: z.boolean().optional(),
         // Paliers de prix dégressif optionnels (par variante).
         quantity_tiers: z
           .array(
@@ -86,8 +86,7 @@ const productInputSchema = z.object({
             }),
           )
           .max(10)
-          .optional()
-          .default([]),
+          .optional(),
       }),
     )
     .max(20)
@@ -112,7 +111,7 @@ const productInputSchema = z.object({
         // produit quand ce goût est sélectionné côté boutique.
         photo: z.string().url().nullable().optional().or(z.literal("")),
         sku: z.string().trim().max(40).optional().or(z.literal("")),
-        is_active: z.boolean().optional().default(true),
+        is_active: z.boolean().optional(),
       }),
     )
     .max(50)
