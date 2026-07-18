@@ -232,3 +232,42 @@ export const adminListInvoices = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
+
+// Régénère (ou génère rétroactivement) le PDF d'une facture pour une commande.
+// Admin uniquement.
+export const adminRegenerateInvoicePdf = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ orderId: z.string().uuid().optional(), all: z.boolean().optional() }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    const { data: isAdminRes } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdminRes) throw new Error("Accès refusé.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let orderIds: string[] = [];
+    if (data.all) {
+      const { data: rows, error } = await supabaseAdmin
+        .from("invoices")
+        .select("order_id")
+        .is("pdf_path", null);
+      if (error) throw new Error(error.message);
+      orderIds = (rows ?? []).map((r) => r.order_id as string);
+    } else if (data.orderId) {
+      orderIds = [data.orderId];
+    }
+
+    const results: Array<{ orderId: string; ok: boolean; error?: string; number?: string; pdf_path?: string | null }> = [];
+    for (const oid of orderIds) {
+      try {
+        const inv = await ensureInvoiceForOrderInternal(oid);
+        results.push({ orderId: oid, ok: true, number: inv.number, pdf_path: inv.pdf_path });
+      } catch (e) {
+        results.push({ orderId: oid, ok: false, error: (e as Error).message });
+      }
+    }
+    return { count: results.length, results };
+  });
