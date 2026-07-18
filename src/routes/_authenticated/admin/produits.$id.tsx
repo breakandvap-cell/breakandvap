@@ -352,15 +352,14 @@ function EditProduct() {
           toast.error(`${file.name} : trop lourd (4 Mo max).`);
           continue;
         }
-        const base64 = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(String(reader.result));
-          reader.onerror = () => reject(new Error("Lecture du fichier échouée."));
-          reader.readAsDataURL(file);
-        });
         try {
+          const optimized = await optimizeImage(file);
           const res = await upload({
-            data: { filename: file.name, contentType: file.type, base64 },
+            data: {
+              filename: optimized.filename,
+              contentType: optimized.contentType,
+              base64: optimized.base64,
+            },
           });
           setForm((f) => ({ ...f, photos: [...(f.photos ?? []), res.url] }));
           toast.success(`${file.name} ajoutée.`);
@@ -1563,14 +1562,13 @@ function VariantPhotoField({
     }
     setBusy(true);
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("Lecture du fichier échouée."));
-        reader.readAsDataURL(file);
-      });
+      const optimized = await optimizeImage(file);
       const res = await upload({
-        data: { filename: file.name, contentType: file.type, base64 },
+        data: {
+          filename: optimized.filename,
+          contentType: optimized.contentType,
+          base64: optimized.base64,
+        },
       });
       onChange(res.url);
       toast.success("Photo de la variante mise à jour.");
