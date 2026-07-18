@@ -24,7 +24,7 @@ const ordersOptions = (s: SearchParams) =>
       }),
   });
 
-export const Route = createFileRoute("/_authenticated/admin/commandes")({
+export const Route = createFileRoute("/_authenticated/admin/commandes/")({
   ssr: false,
   validateSearch: (s) => searchSchema.parse(s),
   loaderDeps: ({ search }) => search,
