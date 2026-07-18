@@ -12,13 +12,12 @@ import {
 import {
   CATEGORY_LABELS,
   NICOTINE_STEPS_MG_10ML,
-  NICOTINE_STEPS_MG_BOOSTER,
-  VOLUME_OPTIONS_ML,
   BOOSTER_TYPE_PRESETS,
   boosterTypeLabel,
   boosterProductsQueryOptions,
   normalizeBoosterTypeKey,
 } from "@/lib/products";
+import { siteSettingsQueryOptions, computeNicotineRateMgPerMl } from "@/lib/site-settings.functions";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
