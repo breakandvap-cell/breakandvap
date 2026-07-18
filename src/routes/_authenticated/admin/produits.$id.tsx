@@ -1499,7 +1499,7 @@ function FlavorsEditor({
       toast.error("Ce goût est déjà dans la liste.");
       return;
     }
-    onChange([...flavors, { name, stock: 0 }]);
+    onChange([...flavors, { name, stock: 0, sku: "", is_active: true }]);
     setDraft("");
   };
 
