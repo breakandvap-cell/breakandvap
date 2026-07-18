@@ -53,7 +53,7 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const { width, height } = page.getSize();
   const marginX = 40;
-  const footerReserve = 90; // bas de page réservé pour les mentions légales
+  const footerReserve = 120; // bas de page réservé pour les mentions légales
   const black = rgb(0.1, 0.1, 0.1);
   const gray = rgb(0.4, 0.4, 0.4);
   const line = rgb(0.85, 0.85, 0.85);
