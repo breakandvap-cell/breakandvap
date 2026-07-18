@@ -38,6 +38,7 @@ export type InvoiceData = {
   total_cents: number;
   buyer: InvoiceBuyer;
   items: InvoiceItem[];
+  payment_method?: string | null;
 };
 
 function formatMoney(cents: number, currency: string): string {
@@ -84,8 +85,6 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   draw(`SIREN : ${INVOICE_SELLER.siren} · ${INVOICE_SELLER.rcs}`, marginX, y, 9, font, gray);
   y -= 12;
   draw(`N° TVA : ${INVOICE_SELLER.vat_number}`, marginX, y, 9, font, gray);
-  y -= 12;
-  draw(`Président : ${INVOICE_SELLER.president}`, marginX, y, 9, font, gray);
   y -= 12;
   if (INVOICE_SELLER.email) {
     const contact = INVOICE_SELLER.phone
@@ -290,6 +289,18 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   y -= 14;
   page.drawText("Total TTC", { x: labelRight - 60, y, size: 11, font: bold, color: black });
   drawRightOn(page, formatMoney(data.total_cents, data.currency), valRight, y, 11, bold);
+
+  // Mode de paiement (mention obligatoire simplifiée)
+  if (data.payment_method) {
+    y -= 20;
+    page.drawText(`Mode de paiement : ${data.payment_method}`, {
+      x: marginX,
+      y,
+      size: 9,
+      font,
+      color: black,
+    });
+  }
 
   // Mentions légales bas de page — sur chaque page
   const pages = doc.getPages();
