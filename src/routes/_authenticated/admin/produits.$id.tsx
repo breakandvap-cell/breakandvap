@@ -1042,16 +1042,15 @@ function VariantsEditor({
   variants: FormVariant[];
   onChange: (next: FormVariant[]) => void;
 }) {
-  const usedVolumes = new Set(variants.map((v) => v.volume_ml));
-  const nextVolume =
-    VOLUME_OPTIONS_ML.find((v) => !usedVolumes.has(v)) ?? 10;
-
   const update = (idx: number, patch: Partial<FormVariant>) => {
     onChange(variants.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
   };
   const remove = (idx: number) =>
     onChange(variants.filter((_, i) => i !== idx));
-  const add = () =>
+  const addVolume = () => {
+    const usedVolumes = new Set(variants.map((v) => v.volume_ml));
+    const nextVolume =
+      VOLUME_OPTIONS_ML.find((v) => !usedVolumes.has(v)) ?? 10;
     onChange([
       ...variants,
       {
@@ -1066,6 +1065,43 @@ function VariantsEditor({
         photo_url: null,
       },
     ]);
+  };
+  const addTypeForVolume = (volume_ml: number) => {
+    const usedKeys = new Set(
+      variants
+        .filter((v) => v.volume_ml === volume_ml)
+        .map((v) => normalizeBoosterTypeKey(v.nicotine_type)),
+    );
+    const nextType =
+      BOOSTER_TYPE_PRESETS.find((p) => !usedKeys.has(p.key))?.key ?? "normale";
+    onChange([
+      ...variants,
+      {
+        volume_ml,
+        price_cents: 0,
+        stock: 0,
+        max_nicotine_mg: null,
+        available_nicotine_mg: [],
+        boosters_per_nicotine: {},
+        nicotine_type: nextType,
+        max_boosters: null,
+        photo_url: null,
+      },
+    ]);
+  };
+
+  // Regroupement par volume pour l'affichage : chaque groupe rend un
+  // accordéon pliable avec ses différents « types de nicotine » (une
+  // FormVariant = un couple volume+type).
+  const groups = useMemo(() => {
+    const map = new Map<number, Array<{ v: FormVariant; idx: number }>>();
+    variants.forEach((v, idx) => {
+      const arr = map.get(v.volume_ml) ?? [];
+      arr.push({ v, idx });
+      map.set(v.volume_ml, arr);
+    });
+    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
+  }, [variants]);
 
   return (
     <div className="space-y-3">
@@ -1075,39 +1111,166 @@ function VariantsEditor({
             Variantes de volume <span className="text-destructive">*</span>
           </h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Ajoute un bloc par format. <strong>10 ml</strong> : liquide prêt à
-            l'emploi, un seul prix quel que soit le taux de nicotine coché.
-            <strong> 50 / 100 / 200 ml</strong> : base + boosters — coche les
-            taux disponibles et indique combien de boosters sont nécessaires
-            pour chaque taux (sauf 0 mg).
+            Un bloc par volume, cumulable par type de nicotine (Normal / Sel /
+            Ice…). <strong>10 ml</strong> : prêt à l'emploi. <strong>50 /
+            100 / 200 ml</strong> : base + boosters — indique les taux
+            disponibles et le nombre de boosters requis (sauf 0 mg).
           </p>
         </div>
         <button
           type="button"
-          onClick={add}
+          onClick={addVolume}
           className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
         >
-          <Plus className="h-3.5 w-3.5" /> Ajouter une variante
+          <Plus className="h-3.5 w-3.5" /> Ajouter un volume
         </button>
       </div>
 
       {variants.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/70 bg-background/30 p-4 text-center text-xs text-muted-foreground">
-          Aucune variante. Ajoute au moins une taille de flacon.
+          Aucune variante. Ajoute au moins un volume de flacon.
         </div>
       ) : (
         <div className="space-y-3">
-          {variants.map((v, idx) => (
-            <VariantBlock
-              key={idx}
-              variant={v}
-              onUpdate={(patch) => update(idx, patch)}
-              onRemove={() => remove(idx)}
+          {groups.map(([volume_ml, entries]) => (
+            <VolumeGroup
+              key={volume_ml}
+              volume_ml={volume_ml}
+              entries={entries}
+              onUpdate={update}
+              onRemove={remove}
+              onAddType={() => addTypeForVolume(volume_ml)}
             />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function VariantsRecap({
+  variants,
+  currency,
+  flavorsCount,
+}: {
+  variants: FormVariant[];
+  currency: string;
+  flavorsCount: number;
+}) {
+  const volumes = new Set(variants.map((v) => v.volume_ml));
+  const typesGlobal = new Set(
+    variants.map((v) => normalizeBoosterTypeKey(v.nicotine_type)),
+  );
+  const prices = variants.map((v) => v.price_cents || 0).filter((p) => p > 0);
+  const minPrice = prices.length ? Math.min(...prices) : 0;
+  const stockTotal = variants.reduce((s, v) => s + (v.stock || 0), 0);
+  return (
+    <div className="rounded-md border border-primary/30 bg-primary/5 p-4 text-sm">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Récapitulatif produit (piloté par les variantes)
+      </p>
+      <div className="mt-2 grid gap-3 sm:grid-cols-4">
+        <Stat label="Volumes" value={String(volumes.size)} />
+        <Stat label="Types de nicotine" value={String(typesGlobal.size)} />
+        <Stat
+          label="Prix à partir de"
+          value={
+            minPrice > 0
+              ? new Intl.NumberFormat("fr-FR", {
+                  style: "currency",
+                  currency,
+                }).format(minPrice / 100)
+              : "—"
+          }
+        />
+        <Stat label="Stock total" value={String(stockTotal)} />
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Le prix et le stock « produit » sont calculés automatiquement à partir
+        des variantes ci-dessous (prix minimum + somme des stocks).{" "}
+        {flavorsCount > 0
+          ? `${flavorsCount} goût${flavorsCount > 1 ? "s" : ""} configuré${flavorsCount > 1 ? "s" : ""}.`
+          : ""}
+      </p>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background/40 p-2">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        {label}
+      </div>
+      <div className="mt-0.5 text-base font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function VolumeGroup({
+  volume_ml,
+  entries,
+  onUpdate,
+  onRemove,
+  onAddType,
+}: {
+  volume_ml: number;
+  entries: Array<{ v: FormVariant; idx: number }>;
+  onUpdate: (idx: number, patch: Partial<FormVariant>) => void;
+  onRemove: (idx: number) => void;
+  onAddType: () => void;
+}) {
+  const minPrice = Math.min(
+    ...entries.map((e) => e.v.price_cents || 0).filter((p) => p > 0),
+    Infinity,
+  );
+  const typesLabel = entries
+    .map((e) => boosterTypeLabel(e.v.nicotine_type))
+    .join(" · ");
+  return (
+    <details
+      open
+      className="group rounded-md border border-border bg-card/40 [&_summary::-webkit-details-marker]:hidden"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="font-semibold">{volume_ml} ml</span>
+          <span className="text-xs text-muted-foreground">
+            {entries.length} type{entries.length > 1 ? "s" : ""} · {typesLabel}
+          </span>
+          {Number.isFinite(minPrice) && (
+            <span className="text-xs text-muted-foreground">
+              — à partir de {(minPrice / 100).toFixed(2)} €
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground group-open:hidden">
+          Déplier
+        </span>
+        <span className="hidden text-xs text-muted-foreground group-open:inline">
+          Replier
+        </span>
+      </summary>
+      <div className="space-y-3 border-t border-border p-3">
+        {entries.map(({ v, idx }) => (
+          <VariantBlock
+            key={idx}
+            variant={v}
+            hideVolume
+            onUpdate={(patch) => onUpdate(idx, patch)}
+            onRemove={() => onRemove(idx)}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={onAddType}
+          className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-xs hover:bg-secondary"
+        >
+          <Plus className="h-3.5 w-3.5" /> Ajouter un type de nicotine sur ce
+          volume
+        </button>
+      </div>
+    </details>
   );
 }
 
