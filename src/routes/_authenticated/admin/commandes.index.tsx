@@ -183,12 +183,16 @@ function OrdersList() {
 }
 
 const FINAL_STATUSES = new Set(["livree", "annulee"]);
-const STATUS_OPTIONS: { value: "a_preparer" | "expediee" | "livree" | "annulee"; label: string }[] = [
-  { value: "a_preparer", label: "À préparer" },
-  { value: "expediee", label: "Expédiée" },
-  { value: "livree", label: "Livrée" },
-  { value: "annulee", label: "Annulée" },
-];
+const STATUS_LABELS: Record<string, string> = {
+  a_preparer: "À préparer",
+  expediee: "Expédiée",
+  livree: "Livrée",
+  annulee: "Annulée",
+};
+const ALLOWED_NEXT: Record<string, string[]> = {
+  a_preparer: ["a_preparer", "expediee", "annulee"],
+  expediee: ["expediee", "livree", "annulee"],
+};
 
 type PendingAction =
   | { kind: "tracking"; target: "expediee" }
@@ -294,9 +298,9 @@ function RowStatusControl({
         }
         aria-label="Changer le statut"
       >
-        {STATUS_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
+        {(ALLOWED_NEXT[status] ?? [status]).map((v) => (
+          <option key={v} value={v}>
+            {STATUS_LABELS[v] ?? v}
           </option>
         ))}
       </select>
