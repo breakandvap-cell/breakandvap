@@ -1413,6 +1413,128 @@ function ContenanceRow({
           </p>
         </div>
       )}
+
+      <QuantityTiersEditor
+        tiers={(variant.quantity_tiers ?? []) as Array<{ min_qty: number; max_qty?: number | null; price_cents: number }>}
+        basePriceCents={variant.price_cents}
+        onChange={(next) => onUpdate({ quantity_tiers: next } as Partial<FormVariant>)}
+      />
+    </div>
+  );
+}
+
+function QuantityTiersEditor({
+  tiers,
+  basePriceCents,
+  onChange,
+}: {
+  tiers: Array<{ min_qty: number; max_qty?: number | null; price_cents: number }>;
+  basePriceCents: number;
+  onChange: (
+    next: Array<{ min_qty: number; max_qty?: number | null; price_cents: number }>,
+  ) => void;
+}) {
+  const enabled = tiers.length > 0;
+  return (
+    <div className="mt-3 rounded-md border border-border/60 bg-background/40 p-3 text-xs">
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => {
+            if (e.target.checked) {
+              onChange([{ min_qty: 2, max_qty: null, price_cents: basePriceCents }]);
+            } else {
+              onChange([]);
+            }
+          }}
+        />
+        <span className="font-medium text-foreground">Prix dégressif selon quantité</span>
+      </label>
+      {enabled && (
+        <div className="mt-3 space-y-2">
+          {tiers.map((t, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
+              <label>
+                <span className="mb-1 block text-muted-foreground">À partir de (qté)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={t.min_qty}
+                  onChange={(e) =>
+                    onChange(
+                      tiers.map((x, j) =>
+                        j === i ? { ...x, min_qty: Math.max(1, Math.trunc(Number(e.target.value) || 1)) } : x,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-muted-foreground">Jusqu'à (optionnel)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  placeholder="∞"
+                  value={t.max_qty ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const v = raw === "" ? null : Math.max(1, Math.trunc(Number(raw) || 1));
+                    onChange(tiers.map((x, j) => (j === i ? { ...x, max_qty: v } : x)));
+                  }}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-muted-foreground">Prix unitaire (€)</span>
+                <input
+                  className="input"
+                  type="text"
+                  inputMode="decimal"
+                  value={(t.price_cents / 100).toFixed(2)}
+                  onChange={(e) => {
+                    const n = Number(e.target.value.replace(",", "."));
+                    const cents = Number.isFinite(n) ? Math.round(n * 100) : 0;
+                    onChange(tiers.map((x, j) => (j === i ? { ...x, price_cents: cents } : x)));
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => onChange(tiers.filter((_, j) => j !== i))}
+                className="inline-flex items-center justify-center rounded-md border border-border p-2 text-destructive hover:bg-destructive/10"
+                aria-label="Supprimer ce palier"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange([
+                ...tiers,
+                {
+                  min_qty:
+                    (tiers[tiers.length - 1]?.max_qty ??
+                      tiers[tiers.length - 1]?.min_qty ??
+                      1) + 1,
+                  max_qty: null,
+                  price_cents: basePriceCents,
+                },
+              ])
+            }
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-secondary"
+          >
+            <Plus className="h-3.5 w-3.5" /> Ajouter un palier
+          </button>
+          <p className="text-[11px] text-muted-foreground">
+            Les tranches ne doivent pas se chevaucher. Laisse « Jusqu'à » vide
+            pour définir la tranche haute.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
