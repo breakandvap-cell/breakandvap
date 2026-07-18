@@ -274,7 +274,13 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
         data.category === "e_liquide" ? data.booster_product_id ?? null : null,
       empty_bottle_product_id:
         data.category === "e_liquide" ? data.empty_bottle_product_id ?? null : null,
-      flavors: (data.flavors ?? []) as never,
+      flavors: ((data.flavors ?? []).map((f) => ({
+        name: f.name,
+        stock: f.stock,
+        photo: (f as { photo?: string | null }).photo ?? null,
+        sku: ((f as { sku?: string }).sku ?? "").toString().trim() || slugSku(data.name, f.name),
+        is_active: (f as { is_active?: boolean }).is_active ?? true,
+      }))) as never,
       updated_by: context.userId,
     };
     // Plusieurs boosters simultanés sont désormais autorisés : le rôle n'est
@@ -299,18 +305,58 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       // Fetch current variants to compute delete set
       const { data: existingVariants } = await supabaseAdmin
         .from("product_variants")
-        .select("id")
+        .select("id, sku")
         .eq("product_id", productId);
       const submittedIds = new Set(
         submittedVariants.filter((v) => v.id).map((v) => v.id as string),
       );
-      const toDelete = (existingVariants ?? [])
+      // Soft-delete : les variantes retirées côté formulaire sont désactivées
+      // (is_active=false) et non supprimées, afin de préserver l'historique
+      // des commandes qui les référencent.
+      const toDeactivate = (existingVariants ?? [])
         .filter((v) => !submittedIds.has(v.id))
         .map((v) => v.id);
-      if (toDelete.length > 0) {
-        await supabaseAdmin.from("product_variants").delete().in("id", toDelete);
+      if (toDeactivate.length > 0) {
+        await supabaseAdmin
+          .from("product_variants")
+          .update({ is_active: false } as never)
+          .in("id", toDeactivate);
       }
+
+      // Génération SKU auto pour nouvelles variantes / champs vides.
+      const existingSkus = new Set(
+        ((existingVariants ?? []) as Array<{ sku?: string | null }>)
+          .map((v) => (v.sku ?? "").toString().trim().toUpperCase())
+          .filter(Boolean),
+      );
       for (const v of submittedVariants) {
+        // Validation paliers : min croissants, pas de chevauchement.
+        const tiers = (v.quantity_tiers ?? []).map((t) => ({
+          min_qty: t.min_qty,
+          max_qty: t.max_qty ?? null,
+          price_cents: t.price_cents,
+        }));
+        if (tiers.length > 0) {
+          const sorted = [...tiers].sort((a, b) => a.min_qty - b.min_qty);
+          for (let i = 0; i < sorted.length; i++) {
+            const t = sorted[i];
+            if (t.max_qty != null && t.max_qty < t.min_qty) {
+              throw new Error(`Variante ${v.volume_ml} ml : palier « ${t.min_qty} » invalide (max < min).`);
+            }
+            if (i > 0) {
+              const prev = sorted[i - 1];
+              const prevEnd = prev.max_qty ?? Infinity;
+              if (t.min_qty <= prevEnd) {
+                throw new Error(
+                  `Variante ${v.volume_ml} ml : chevauchement des paliers de prix dégressif.`,
+                );
+              }
+            }
+          }
+        }
+        let sku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
+        if (!sku) sku = ensureUniqueSku(slugSku(data.name, `${v.volume_ml}ML-${v.nicotine_type ?? "N"}`), existingSkus);
+        existingSkus.add(sku);
         const row = {
           product_id: productId,
           volume_ml: v.volume_ml,
@@ -328,6 +374,9 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
               ? Math.max(0, Math.trunc(v.max_boosters))
               : null,
           photo_url: v.photo_url ? v.photo_url : null,
+          sku,
+          is_active: (v as { is_active?: boolean }).is_active ?? true,
+          quantity_tiers: tiers as never,
         };
         if (v.id) {
           const { error } = await supabaseAdmin
@@ -343,12 +392,42 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
         }
       }
     } else {
-      // Non e-liquide products should never carry variants; clean up if any.
-      await supabaseAdmin.from("product_variants").delete().eq("product_id", productId);
+      // Non e-liquide products should never carry active variants; désactive plutôt que supprimer.
+      await supabaseAdmin
+        .from("product_variants")
+        .update({ is_active: false } as never)
+        .eq("product_id", productId);
     }
 
     return { id: productId };
   });
+
+// ---------- SKU helpers ----------
+
+function slugSku(productName: string, suffix: string): string {
+  const base = (productName ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 8);
+  const sfx = (suffix ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 10);
+  return (`${base}-${sfx}` || "SKU").slice(0, 32);
+}
+
+function ensureUniqueSku(base: string, taken: Set<string>): string {
+  if (!taken.has(base)) return base;
+  for (let i = 2; i < 999; i++) {
+    const candidate = `${base}-${i}`.slice(0, 40);
+    if (!taken.has(candidate)) return candidate;
+  }
+  return `${base}-${Date.now()}`.slice(0, 40);
+}
 
 // Fetch variants for a product (admin editor)
 export const adminListVariants = createServerFn({ method: "GET" })
