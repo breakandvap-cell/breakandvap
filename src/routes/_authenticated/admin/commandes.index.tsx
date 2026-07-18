@@ -181,3 +181,193 @@ function OrdersList() {
     </div>
   );
 }
+
+const FINAL_STATUSES = new Set(["livree", "annulee"]);
+const STATUS_OPTIONS: { value: "a_preparer" | "expediee" | "livree" | "annulee"; label: string }[] = [
+  { value: "a_preparer", label: "À préparer" },
+  { value: "expediee", label: "Expédiée" },
+  { value: "livree", label: "Livrée" },
+  { value: "annulee", label: "Annulée" },
+];
+
+type PendingAction =
+  | { kind: "tracking"; target: "expediee" }
+  | { kind: "cancel" }
+  | null;
+
+function RowStatusControl({
+  id,
+  status,
+  trackingNumber,
+}: {
+  id: string;
+  status: string;
+  trackingNumber: string | null;
+}) {
+  const qc = useQueryClient();
+  const update = useServerFn(adminUpdateOrder);
+  const deliver = useServerFn(adminMarkOrderDelivered);
+  const cancel = useServerFn(adminCancelOrder);
+  const [pending, setPending] = useState<PendingAction>(null);
+  const [tracking, setTracking] = useState(trackingNumber ?? "");
+  const [reason, setReason] = useState("");
+  const popRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!pending) return;
+    const onClick = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) {
+        setPending(null);
+      }
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, [pending]);
+
+  const invalidate = () =>
+    qc.invalidateQueries({ queryKey: ["admin", "orders", "search"] });
+
+  const mutation = useMutation({
+    mutationFn: async (next: string) => {
+      if (next === "expediee") {
+        await update({
+          data: { id, status: "expediee", tracking_number: tracking.trim() },
+        });
+      } else if (next === "livree") {
+        await deliver({ data: { id } });
+      } else if (next === "annulee") {
+        await cancel({ data: { id, reason: reason.trim() } });
+      } else if (next === "a_preparer") {
+        await update({
+          data: { id, status: "a_preparer", tracking_number: "" },
+        });
+      }
+    },
+    onSuccess: async () => {
+      setPending(null);
+      setReason("");
+      toast.success("Statut mis à jour");
+      await invalidate();
+    },
+    onError: (e: unknown) => {
+      toast.error(e instanceof Error ? e.message : "Échec de la mise à jour");
+    },
+  });
+
+  if (FINAL_STATUSES.has(status)) {
+    return <StatusBadge status={status} />;
+  }
+
+  const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const next = e.target.value;
+    e.target.value = status; // reset select display; state drives it
+    if (next === status) return;
+    if (next === "expediee") {
+      setTracking(trackingNumber ?? "");
+      setPending({ kind: "tracking", target: "expediee" });
+      return;
+    }
+    if (next === "annulee") {
+      setReason("");
+      setPending({ kind: "cancel" });
+      return;
+    }
+    mutation.mutate(next);
+  };
+
+  const cls =
+    status === "a_preparer"
+      ? "bg-amber-100 text-amber-800"
+      : status === "expediee"
+        ? "bg-blue-100 text-blue-800"
+        : "bg-muted text-foreground";
+
+  return (
+    <div className="relative inline-block">
+      <select
+        value={status}
+        onChange={onChange}
+        disabled={mutation.isPending}
+        className={
+          "cursor-pointer rounded px-2 py-0.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 " +
+          cls
+        }
+        aria-label="Changer le statut"
+      >
+        {STATUS_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {pending?.kind === "tracking" && (
+        <div
+          ref={popRef}
+          className="absolute left-0 z-20 mt-1 w-64 rounded-md border bg-popover p-3 shadow-md"
+        >
+          <label className="mb-1 block text-xs font-medium">N° de suivi</label>
+          <input
+            autoFocus
+            value={tracking}
+            onChange={(e) => setTracking(e.target.value)}
+            className="input w-full"
+            maxLength={40}
+            placeholder="Ex. 1Z999AA10123456784"
+          />
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPending(null)}
+              className="rounded-md border px-2 py-1 text-xs"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              disabled={tracking.trim().length < 8 || mutation.isPending}
+              onClick={() => mutation.mutate("expediee")}
+              className="rounded-md bg-primary px-2 py-1 text-xs text-primary-foreground disabled:opacity-50"
+            >
+              Valider
+            </button>
+          </div>
+        </div>
+      )}
+      {pending?.kind === "cancel" && (
+        <div
+          ref={popRef}
+          className="absolute left-0 z-20 mt-1 w-72 rounded-md border bg-popover p-3 shadow-md"
+        >
+          <p className="mb-2 text-xs">
+            Annuler cette commande ? Cette action est <strong>définitive</strong> et un email d'annulation sera envoyé.
+          </p>
+          <label className="mb-1 block text-xs font-medium">Motif (optionnel)</label>
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="input w-full"
+            rows={2}
+            maxLength={1000}
+          />
+          <div className="mt-2 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setPending(null)}
+              className="rounded-md border px-2 py-1 text-xs"
+            >
+              Retour
+            </button>
+            <button
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => mutation.mutate("annulee")}
+              className="rounded-md bg-red-600 px-2 py-1 text-xs text-white disabled:opacity-50"
+            >
+              Confirmer l'annulation
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
