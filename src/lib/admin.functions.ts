@@ -71,6 +71,23 @@ const productInputSchema = z.object({
         // Photo spécifique optionnelle qui remplace la photo principale
         // lorsque cette variante est sélectionnée sur la fiche produit.
         photo_url: z.string().url().nullable().optional().or(z.literal("")),
+        // Référence interne courte, unique par variante. Générée automatiquement
+        // si vide, modifiable par l'admin.
+        sku: z.string().trim().max(40).optional().or(z.literal("")),
+        // Désactivée = disparaît du catalogue mais reste dans l'historique.
+        is_active: z.boolean().optional().default(true),
+        // Paliers de prix dégressif optionnels (par variante).
+        quantity_tiers: z
+          .array(
+            z.object({
+              min_qty: z.number().int().min(1).max(10_000),
+              max_qty: z.number().int().min(1).max(10_000).nullable().optional(),
+              price_cents: z.number().int().min(0).max(1_000_000),
+            }),
+          )
+          .max(10)
+          .optional()
+          .default([]),
       }),
     )
     .max(20)
@@ -94,6 +111,8 @@ const productInputSchema = z.object({
         // Photo optionnelle par goût : remplace la photo principale du
         // produit quand ce goût est sélectionné côté boutique.
         photo: z.string().url().nullable().optional().or(z.literal("")),
+        sku: z.string().trim().max(40).optional().or(z.literal("")),
+        is_active: z.boolean().optional().default(true),
       }),
     )
     .max(50)
