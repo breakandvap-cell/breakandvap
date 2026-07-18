@@ -1712,6 +1712,40 @@ function FlavorsEditor({
                 maxLength={80}
               />
               <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span>SKU :</span>
+                <input
+                  className="input h-8 w-32 px-2 py-1 font-mono text-[11px] uppercase"
+                  type="text"
+                  placeholder="Auto"
+                  value={(f as FormFlavor & { sku?: string }).sku ?? ""}
+                  onChange={(e) =>
+                    update(idx, {
+                      sku: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""),
+                    } as Partial<FormFlavor>)
+                  }
+                />
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={(f as FormFlavor & { is_active?: boolean }).is_active !== false}
+                  onChange={(e) =>
+                    update(idx, {
+                      is_active: e.target.checked,
+                    } as Partial<FormFlavor>)
+                  }
+                />
+                <span
+                  className={
+                    (f as FormFlavor & { is_active?: boolean }).is_active === false
+                      ? "text-muted-foreground line-through"
+                      : "text-foreground"
+                  }
+                >
+                  Actif
+                </span>
+              </label>
+              <label className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Stock :</span>
                 <input
                   className="input h-8 w-20 px-2 py-1 text-xs"
