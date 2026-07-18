@@ -421,6 +421,11 @@ function EditProduct() {
             stock: Math.max(0, Math.trunc(f.stock)),
             photo:
               (f as FormFlavor & { photo?: string | null }).photo || null,
+            sku: ((f as FormFlavor & { sku?: string }).sku ?? "").toString().trim(),
+            is_active:
+              typeof (f as FormFlavor & { is_active?: boolean }).is_active === "boolean"
+                ? (f as FormFlavor & { is_active: boolean }).is_active
+                : true,
           }))
         : [],
     };
