@@ -545,6 +545,11 @@ function describeEntry(e: OrderAuditEntry): { title: string; detail?: string } {
   const from = e.from_status ? STATUS_LABELS[e.from_status] ?? e.from_status : null;
   const to = e.to_status ? STATUS_LABELS[e.to_status] ?? e.to_status : null;
   switch (e.action) {
+    case "order.manual_status_change":
+      return {
+        title: `Changement manuel de statut${from && to ? ` : ${from} → ${to}` : to ? ` → ${to}` : ""}`,
+        detail: "Modification manuelle (aucun email envoyé au client).",
+      };
     case "order.deliver":
       return { title: `Commande marquée « Livrée »${from ? ` (depuis ${from})` : ""}` };
     case "order.cancel":
@@ -626,6 +631,7 @@ const ACTION_LABELS: Record<string, string> = {
   "order.deliver": "Livraison confirmée",
   "order.cancel": "Annulation",
   "order.refund": "Statut de remboursement",
+  "order.manual_status_change": "Changement manuel de statut",
 };
 
 function AuditEntryDialog({
