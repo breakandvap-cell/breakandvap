@@ -85,8 +85,6 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   y -= 12;
   draw(`N° TVA : ${INVOICE_SELLER.vat_number}`, marginX, y, 9, font, gray);
   y -= 12;
-  draw(`Président : ${INVOICE_SELLER.president}`, marginX, y, 9, font, gray);
-  y -= 12;
   if (INVOICE_SELLER.email) {
     const contact = INVOICE_SELLER.phone
       ? `${INVOICE_SELLER.email} · ${INVOICE_SELLER.phone}`
