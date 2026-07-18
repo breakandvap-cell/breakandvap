@@ -13,6 +13,7 @@ export type InvoiceItem = {
   nicotine_mg?: number | null;
   volume_ml?: number | null;
   flavor?: string | null;
+  variant_sku?: string | null;
 };
 
 export type InvoiceBuyer = {
@@ -222,7 +223,9 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
       y -= 10;
     }
     y -= 14;
-    const ref = productRef(it.product_name, it.volume_ml);
+    const ref = (it.variant_sku && it.variant_sku.trim().length > 0)
+      ? it.variant_sku
+      : productRef(it.product_name, it.volume_ml);
     const desc = clipToWidth(itemDescription(it), descMaxWidth, 9, font);
     const b = lineTaxBreakdown(it.unit_price_cents, it.quantity, data.tax_rate);
     totals.ht += b.ht;
