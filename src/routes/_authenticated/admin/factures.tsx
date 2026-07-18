@@ -1,11 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { adminListInvoices } from "@/lib/invoices.functions";
+import { adminListInvoices, adminRegenerateInvoicePdf } from "@/lib/invoices.functions";
 import { formatPrice } from "@/lib/products";
 import { InvoiceDownloadButton } from "@/components/invoice-download-button";
 import { z } from "zod";
 import { useMemo, useState, type FormEvent } from "react";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, RefreshCw } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 const searchSchema = z.object({
   q: z.string().optional(),
@@ -73,10 +76,29 @@ function InvoicesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const { data } = useSuspenseQuery(invoicesOptions(search));
+  const regenFn = useServerFn(adminRegenerateInvoicePdf);
+  const qc = useQueryClient();
+  const [regenLoading, setRegenLoading] = useState(false);
 
   const [q, setQ] = useState(search.q ?? "");
   const [from, setFrom] = useState(search.from ?? "");
   const [to, setTo] = useState(search.to ?? "");
+
+  const regenerateMissing = async () => {
+    setRegenLoading(true);
+    try {
+      const res = await regenFn({ data: { all: true } });
+      const ok = res.results.filter((r) => r.ok).length;
+      const ko = res.results.length - ok;
+      toast.success(`PDFs générés : ${ok} · Échecs : ${ko}`);
+      if (ko > 0) console.warn("[regen] failures", res.results.filter((r) => !r.ok));
+      await qc.invalidateQueries({ queryKey: ["admin", "invoices"] });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setRegenLoading(false);
+    }
+  };
 
   const totals = useMemo(() => {
     let ht = 0, tva = 0, ttc = 0;
@@ -180,6 +202,19 @@ function InvoicesPage() {
         <span className="text-xs text-muted-foreground">
           {data.length} facture(s) affichée(s)
         </span>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={regenerateMissing}
+          disabled={regenLoading}
+          data-testid="regen-missing-pdfs"
+          className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium hover:bg-accent disabled:opacity-50"
+        >
+          <RefreshCw className={"h-4 w-4 " + (regenLoading ? "animate-spin" : "")} />
+          {regenLoading ? "Génération en cours…" : "Régénérer les PDF manquants"}
+        </button>
       </div>
 
       {/* Totaux période */}
