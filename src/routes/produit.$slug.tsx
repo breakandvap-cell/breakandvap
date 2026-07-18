@@ -353,8 +353,9 @@ function EliquideDetail({
     productVariantsQueryOptions(product.id),
   );
   const { data: boosterList } = useSuspenseQuery(boosterProductsQueryOptions());
+  const { data: cfg } = useSuspenseQuery(siteSettingsQueryOptions());
   const boosterMap = useMemo(() => boostersByType(boosterList), [boosterList]);
-  // Flacon vide associé à cet e-liquide (proposé si capacité dépassée).
+  // Flacon vide associé (proposé si capacité dépassée — legacy).
   const emptyBottleId =
     (product as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null;
   const { data: emptyBottle } = useQuery(
@@ -371,117 +372,72 @@ function EliquideDetail({
     : null;
   const flavorOK = !hasFlavors || (selectedFlavor !== null && selectedFlavor.stock > 0);
 
+  // Contenances = variantes de volume, une par ligne.
   const availableVolumes = useMemo(
     () => [...variants].sort((a, b) => a.volume_ml - b.volume_ml),
     [variants],
   );
 
-  // Types de nicotine proposés (uniques parmi les variantes).
-  const availableTypes = useMemo(() => {
-    const seen: string[] = [];
-    for (const v of availableVolumes) {
-      const k = normalizeBoosterTypeKey(
-        (v as { nicotine_type?: string | null }).nicotine_type,
-      );
-      if (!seen.includes(k)) seen.push(k);
-    }
-    return seen;
-  }, [availableVolumes]);
-  const [nicotineType, setNicotineType] = useState<string>(
-    () => availableTypes[0] ?? "normale",
-  );
-  // Volumes disponibles pour le type sélectionné.
-  const volumesForType = useMemo(
-    () =>
-      availableVolumes.filter(
-        (v) =>
-          normalizeBoosterTypeKey(
-            (v as { nicotine_type?: string | null }).nicotine_type,
-          ) === nicotineType,
-      ),
-    [availableVolumes, nicotineType],
-  );
-
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     () => {
-      const list = availableVolumes.filter(
-        (v) =>
-          normalizeBoosterTypeKey(
-            (v as { nicotine_type?: string | null }).nicotine_type,
-          ) === (availableTypes[0] ?? "normale"),
-      );
-      const firstInStock = list.find((v) => v.stock > 0);
-      return firstInStock?.id ?? list[0]?.id ?? availableVolumes[0]?.id ?? null;
+      const firstInStock = availableVolumes.find((v) => v.stock > 0);
+      return firstInStock?.id ?? availableVolumes[0]?.id ?? null;
     },
   );
-  // Quand le type change, réaligne la variante sélectionnée.
-  useEffect(() => {
-    if (volumesForType.length === 0) {
-      setSelectedVariantId(null);
-      return;
-    }
-    const stillOk = volumesForType.some((v) => v.id === selectedVariantId);
-    if (!stillOk) {
-      const firstInStock = volumesForType.find((v) => v.stock > 0);
-      setSelectedVariantId(firstInStock?.id ?? volumesForType[0].id);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nicotineType, volumesForType.length]);
-  const [nicotine, setNicotine] = useState<number | null>(null);
-  // Suivi du couple (variante, taux) déjà refusé, pour ne pas rouvrir la pop-up
-  // en boucle si le client a cliqué « Non merci ».
-  const [bottleDismissedFor, setBottleDismissedFor] = useState<string | null>(null);
-
   const variant =
-    volumesForType.find((v) => v.id === selectedVariantId) ?? null;
-  // Booster correspondant au type de la variante sélectionnée.
-  const effectiveBooster = variant
-    ? boosterMap[
-        normalizeBoosterTypeKey(
-          (variant as { nicotine_type?: string | null }).nicotine_type,
-        )
-      ] ?? null
-    : null;
-  const missingBooster =
-    variant !== null &&
-    variant.volume_ml !== 10 &&
-    effectiveBooster === null;
-  const nicotineChoices = useMemo(() => {
-    if (!variant) return NICOTINE_STEPS_MG_BOOSTER;
-    return variant.volume_ml === 10
-      ? NICOTINE_STEPS_MG_10ML
-      : NICOTINE_STEPS_MG_BOOSTER;
-  }, [variant]);
-  const allowedForVariant = useMemo(
-    () => new Set<number>(variant?.available_nicotine_mg ?? []),
-    [variant],
-  );
-  const nicotineOK =
-    nicotine !== null && variant !== null && allowedForVariant.has(nicotine);
+    availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
 
+  // Capacité max de boosters (0 = flacon prêt à l'emploi).
+  const variantCapacity = variant
+    ? typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
+      ? Math.max(0, (variant as { max_boosters: number }).max_boosters)
+      : 0
+    : 0;
+  const isReadyToUse = variant !== null && variantCapacity === 0;
+
+  // -- Flacon PRÊT À L'EMPLOI (10 ml) : choix direct parmi les mg cochés.
+  const readyMgList = useMemo<number[]>(() => {
+    if (!variant || !isReadyToUse) return [];
+    return (variant.available_nicotine_mg ?? []).slice().sort((a, b) => a - b);
+  }, [variant, isReadyToUse]);
+
+  // -- Flacon AVEC BOOSTERS : choix du nombre de boosters puis type.
+  const [boostersCount, setBoostersCount] = useState<number>(0);
+  const [nicotineType, setNicotineType] = useState<string>("normale");
+  useEffect(() => {
+    // À chaque changement de variante, on remet les choix à zéro.
+    setBoostersCount(0);
+    setReadyMg(null);
+  }, [selectedVariantId]);
+  const [readyMg, setReadyMg] = useState<number | null>(null);
+
+  const computedMg = useMemo(() => {
+    if (!variant || isReadyToUse) return 0;
+    return computeNicotineRateMgPerMl(
+      variant.volume_ml,
+      boostersCount,
+      cfg ?? DEFAULT_BOOSTER_CONFIG,
+    );
+  }, [variant, isReadyToUse, boostersCount, cfg]);
+
+  // Effective nicotine (mg/ml) — sert au libellé panier / cart.
+  const effectiveNicotineMg = isReadyToUse ? readyMg ?? null : computedMg;
+
+  // Booster produit correspondant au type choisi.
+  const effectiveBooster = !isReadyToUse ? boosterMap[nicotineType] ?? null : null;
+  const missingBooster =
+    !isReadyToUse && boostersCount > 0 && effectiveBooster === null;
   const boosterPrice =
     effectiveBooster && effectiveBooster.is_published
       ? effectiveBooster.price_cents
       : null;
-  // Fallback : si la table product_variants n'a pas de mapping
-  // boosters_per_nicotine, on suppose la règle standard 1 booster = 3 mg.
-  const boostersFor = useMemo(() => {
-    return (mg: number) => {
-      if (!variant || variant.volume_ml === 10 || mg <= 0) return 0;
-      const n = boostersNeeded(variant, mg);
-      if (n > 0) return n;
-      return Math.ceil(mg / 3);
-    };
-  }, [variant]);
+
   const displayPrice = useMemo(() => {
     if (!variant) return null;
-    const nic = nicotine ?? 0;
-    const n = boostersFor(nic);
-    if (variant.volume_ml === 10 || !n || !boosterPrice) return variant.price_cents;
-    return variant.price_cents + n * boosterPrice;
-  }, [variant, nicotine, boosterPrice, boostersFor]);
-  const boostersCount =
-    variant && nicotine !== null ? boostersFor(nicotine) : 0;
+    if (isReadyToUse) return variant.price_cents;
+    if (boostersCount === 0 || !boosterPrice) return variant.price_cents;
+    return variant.price_cents + boostersCount * boosterPrice;
+  }, [variant, isReadyToUse, boostersCount, boosterPrice]);
 
   const effectiveStock = variant
     ? hasFlavors
@@ -489,57 +445,29 @@ function EliquideDetail({
       : variant.stock
     : 0;
 
-  // Photo dynamique : la variante prime, puis le goût, sinon photo principale.
   const photo =
     (variant as { photo_url?: string | null } | null)?.photo_url ??
     selectedFlavor?.photo ??
     product.photos?.[0] ??
     null;
 
-  // Capacité physique du flacon : au-delà, le taux reste sélectionnable mais
-  // on affiche une alerte + une alternative cliquable.
-  const variantCapacity =
-    variant && typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
-      ? (variant as { max_boosters: number }).max_boosters
-      : null;
-  const exceedsCapacity =
-    variant !== null &&
-    variant.volume_ml !== 10 &&
-    variantCapacity !== null &&
-    boostersCount > variantCapacity;
-  const achievableMg = useMemo(() => {
-    if (!variant || variantCapacity === null) return null;
-    const bpn = (variant.boosters_per_nicotine as Record<string, number> | null) ?? {};
-    const feasible = (variant.available_nicotine_mg ?? [])
-      .filter((mg) => mg === 0 || (bpn[String(mg)] ?? 0) <= variantCapacity);
-    return feasible.length > 0 ? Math.max(...feasible) : 0;
-  }, [variant, variantCapacity]);
-  const alternative200 = useMemo(() => {
-    if (!exceedsCapacity || nicotine === null) return null;
-    const v200 = volumesForType.find(
-      (v) =>
-        v.volume_ml === 200 &&
-        v.id !== variant?.id &&
-        (v.available_nicotine_mg ?? []).includes(nicotine),
-    );
-    if (!v200) return null;
-    const cap = (v200 as { max_boosters?: number | null }).max_boosters ?? null;
-    const needed =
-      ((v200.boosters_per_nicotine as Record<string, number> | null) ?? {})[
-        String(nicotine)
-      ] ?? 0;
-    if (cap !== null && needed > cap) return null;
-    return v200;
-  }, [exceedsCapacity, nicotine, volumesForType, variant]);
+  // Types de booster proposés côté client : tous les presets connus (Normal/
+  // Sel/Ice) sont proposés dès qu'un booster est ajouté ; ceux dont le
+  // produit booster n'existe pas encore sont désactivés avec un avis.
+  const boosterTypes = useMemo(() => {
+    const keys = new Set<string>(["normale", "sel", "ice"]);
+    for (const k of Object.keys(boosterMap)) keys.add(k);
+    return Array.from(keys);
+  }, [boosterMap]);
 
-  const hasEmptyBottleFallback = emptyBottle && emptyBottle.is_published;
+  // Validation « peut être ajouté au panier ».
+  const readyOK = !isReadyToUse || readyMg !== null;
   const addDisabled =
-    nicotine === null ||
-    !nicotineOK ||
+    variant === null ||
     !flavorOK ||
-    (exceedsCapacity && !hasEmptyBottleFallback) ||
+    !readyOK ||
+    effectiveStock <= 0 ||
     missingBooster;
-
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -590,35 +518,12 @@ function EliquideDetail({
                     )}`
                   : formatPrice(product.price_cents, product.currency)}
               </span>
-              {variant && boostersCount > 0 && boosterPrice !== null && (
+              {variant && !isReadyToUse && boostersCount > 0 && boosterPrice !== null && (
                 <span className="text-xs text-muted-foreground">
                   ({formatPrice(variant.price_cents, product.currency)} base + {boostersCount} × {formatPrice(boosterPrice, product.currency)} booster)
                 </span>
               )}
             </div>
-
-            {variant && (
-              <p className="mt-2 text-xs text-muted-foreground">
-                Flacon {variant.volume_ml} ml :{" "}
-                {formatPrice(variant.price_cents, product.currency)}
-                {boostersCount > 0 && boosterPrice !== null ? (
-                  <>
-                    {" "}
-                    + {boostersCount} booster{boostersCount > 1 ? "s" : ""}
-                    {nicotine !== null ? ` (${nicotine} mg)` : ""} ×{" "}
-                    {formatPrice(boosterPrice, product.currency)} ={" "}
-                    <strong className="text-foreground">
-                      {formatPrice(
-                        variant.price_cents + boostersCount * boosterPrice,
-                        product.currency,
-                      )}
-                    </strong>
-                  </>
-                ) : nicotine !== null && nicotine === 0 && variant.volume_ml !== 10 ? (
-                  <> · sans booster</>
-                ) : null}
-              </p>
-            )}
 
             {product.description ? (
               <p className="mt-6 text-muted-foreground">{product.description}</p>
@@ -626,56 +531,16 @@ function EliquideDetail({
 
             {availableVolumes.length === 0 ? (
               <div className="mt-6 rounded-md border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-                Ce e-liquide n'a pas encore de variantes de volume disponibles.
+                Ce e-liquide n'a pas encore de contenance disponible.
               </div>
             ) : (
               <div className="mt-6 space-y-5">
-                {availableTypes.length > 1 && (
-                  <div>
-                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Type de nicotine
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {availableTypes.map((t) => {
-                        const selected = t === nicotineType;
-                        const boosterAvail = Boolean(boosterMap[t]);
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => {
-                              setNicotineType(t);
-                              setNicotine(null);
-                            }}
-                            className={`rounded-md border px-3 py-2 text-sm transition-colors ${
-                              selected
-                                ? "border-primary bg-primary/10 text-foreground"
-                                : "border-border text-muted-foreground hover:text-foreground"
-                            }`}
-                            title={
-                              boosterAvail
-                                ? undefined
-                                : "Aucun produit booster de ce type actuellement disponible"
-                            }
-                          >
-                            {boosterTypeLabel(t)}
-                            {!boosterAvail && (
-                              <span className="ml-1 text-[10px] text-amber-300">
-                                (booster indisponible)
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
                 <div>
                   <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Volume du flacon
+                    1. Contenance
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {volumesForType.map((v) => {
+                    {availableVolumes.map((v) => {
                       const outOfStock = v.stock <= 0;
                       const selected = v.id === selectedVariantId;
                       return (
@@ -683,16 +548,7 @@ function EliquideDetail({
                           key={v.id}
                           type="button"
                           disabled={outOfStock}
-                          onClick={() => {
-                            setSelectedVariantId(v.id);
-                            setNicotine((n) => {
-                              if (n === null) return n;
-                              const allowed = new Set<number>(
-                                v.available_nicotine_mg ?? [],
-                              );
-                              return allowed.has(n) ? n : null;
-                            });
-                          }}
+                          onClick={() => setSelectedVariantId(v.id)}
                           className={`rounded-md border px-3 py-2 text-sm transition-colors ${
                             selected
                               ? "border-primary bg-primary/10 text-foreground"
@@ -707,145 +563,159 @@ function EliquideDetail({
                   </div>
                 </div>
 
-                <div>
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                    Taux de nicotine souhaité
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {nicotineChoices.map((mg) => {
-                      const disabled = !variant || !allowedForVariant.has(mg);
-                      const selected = nicotine === mg;
-                      const nBoost =
-                        variant && variant.volume_ml !== 10 && mg > 0
-                          ? boostersFor(mg)
-                          : 0;
-                      const surcharge =
-                        nBoost > 0 && boosterPrice !== null
-                          ? nBoost * boosterPrice
-                          : 0;
-                      return (
-                        <button
-                          key={mg}
-                          type="button"
-                          disabled={disabled}
-                          onClick={() => setNicotine(mg)}
-                          title={
-                            disabled
-                              ? `Indisponible en ${variant?.volume_ml ?? "?"} ml`
-                              : undefined
-                          }
-                          className={`flex min-w-[64px] flex-col items-center rounded-md border px-3 py-2 text-sm leading-tight transition-colors ${
-                            selected
-                              ? "border-primary bg-primary/10 text-foreground"
-                              : "border-border text-muted-foreground hover:text-foreground"
-                          } ${disabled ? "opacity-40" : ""}`}
-                        >
-                          <span>{mg} mg</span>
-                          {surcharge > 0 ? (
-                            <span className="mt-0.5 text-[10px] font-medium text-accent-foreground/80">
-                              +{formatPrice(surcharge, product.currency)}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {variant && nicotine !== null && !nicotineOK && (
-                    <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-                      Ce taux de {nicotine} mg n'est pas disponible en{" "}
-                      {variant.volume_ml} ml pour ce produit. Optez pour un
-                      flacon plus grand, ou complétez avec un{" "}
-                      <Link
-                        to="/boutique"
-                        search={{ categorie: "accessoire_vape" as const }}
-                        className="underline"
-                      >
-                        flacon vide (Accessoires Vape)
-                      </Link>
-                      .
-                    </div>
-                  )}
-                  {missingBooster && (
-                    <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
-                      Le booster « {boosterTypeLabel(nicotineType)} » n'est pas
-                      encore disponible en boutique. Choisis un autre type de
-                      nicotine ou un flacon 10 ml prêt à l'emploi.
-                    </div>
-                  )}
-                  {variant && nicotine !== null && nicotineOK && exceedsCapacity && (
-                    <div className="mt-3 space-y-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
-                      <p>
-                        Ce flacon de <strong>{variant.volume_ml} ml</strong> ne
-                        peut contenir que <strong>{variantCapacity}</strong>{" "}
-                        booster{(variantCapacity ?? 0) > 1 ? "s" : ""}, soit un
-                        maximum réel de{" "}
-                        <strong>{achievableMg ?? 0} mg</strong> de nicotine, et
-                        non <strong>{nicotine} mg</strong>.
-                        {!hasEmptyBottleFallback && (
-                          <>
-                            {" "}
-                            Aucun flacon vide n'est associé à ce produit : cette
-                            combinaison ne peut pas être ajoutée au panier.
-                          </>
-                        )}
+                {variant && isReadyToUse && (
+                  <div>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      2. Taux de nicotine
+                    </p>
+                    {readyMgList.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        Aucun taux n'est configuré pour cette contenance.
                       </p>
-                      {alternative200 && (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedVariantId(alternative200.id)}
-                          className="inline-flex items-center gap-1 rounded-md border border-amber-400/60 bg-amber-500/20 px-3 py-1.5 text-xs font-medium text-amber-50 hover:bg-amber-500/30"
-                        >
-                          Passer à un flacon de {alternative200.volume_ml} ml à la place
-                        </button>
-                      )}
-                    </div>
-                  )}
-                  {variant &&
-                    nicotine !== null &&
-                    nicotineOK &&
-                    !exceedsCapacity &&
-                    variant.volume_ml !== 10 &&
-                    boostersCount > 0 &&
-                    boosterPrice !== null && (
-                      <div className="mt-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
-                        <p className="text-foreground">
-                          Prix du flacon ({variant.volume_ml} ml) :{" "}
-                          <strong>
-                            {formatPrice(variant.price_cents, product.currency)}
-                          </strong>
-                        </p>
-                        <p className="mt-1">
-                          + {boostersCount} booster{boostersCount > 1 ? "s" : ""} de nicotine à{" "}
-                          {formatPrice(boosterPrice, product.currency)} ={" "}
-                          <strong className="text-foreground">
-                            {formatPrice(
-                              boostersCount * boosterPrice,
-                              product.currency,
-                            )}
-                          </strong>
-                        </p>
-                        <p className="mt-1 border-t border-border/60 pt-1 text-foreground">
-                          = Total :{" "}
-                          <strong>
-                            {formatPrice(
-                              variant.price_cents + boostersCount * boosterPrice,
-                              product.currency,
-                            )}
-                          </strong>{" "}
-                          <span className="text-muted-foreground">
-                            ({nicotine} mg sur {variant.volume_ml} ml)
-                          </span>
-                        </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {readyMgList.map((mg) => {
+                          const selected = readyMg === mg;
+                          return (
+                            <button
+                              key={mg}
+                              type="button"
+                              onClick={() => setReadyMg(mg)}
+                              className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                                selected
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              {mg} mg
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
-                </div>
+                  </div>
+                )}
+
+                {variant && !isReadyToUse && (
+                  <>
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        2. Nombre de boosters
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from({ length: variantCapacity + 1 }, (_, i) => i).map((n) => {
+                          const mg = computeNicotineRateMgPerMl(
+                            variant.volume_ml,
+                            n,
+                            cfg ?? DEFAULT_BOOSTER_CONFIG,
+                          );
+                          const selected = boostersCount === n;
+                          return (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setBoostersCount(n)}
+                              className={`flex min-w-[72px] flex-col items-center rounded-md border px-3 py-2 text-sm leading-tight transition-colors ${
+                                selected
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              <span className="font-medium">{n} booster{n > 1 ? "s" : ""}</span>
+                              <span className="mt-0.5 text-[11px] text-muted-foreground">
+                                {mg} mg/ml
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        3. Type de nicotine
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {boosterTypes.map((t) => {
+                          const selected = t === nicotineType;
+                          const available = Boolean(boosterMap[t]);
+                          const disabled = boostersCount > 0 && !available;
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              disabled={disabled}
+                              onClick={() => setNicotineType(t)}
+                              className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+                                selected
+                                  ? "border-primary bg-primary/10 text-foreground"
+                                  : "border-border text-muted-foreground hover:text-foreground"
+                              } ${disabled ? "opacity-40" : ""}`}
+                              title={
+                                available
+                                  ? undefined
+                                  : "Booster de ce type indisponible actuellement"
+                              }
+                            >
+                              {boosterTypeLabel(t)}
+                              {!available && boostersCount > 0 && (
+                                <span className="ml-1 text-[10px] text-amber-300">
+                                  (indispo)
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {missingBooster && (
+                        <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-200">
+                          Le booster « {boosterTypeLabel(nicotineType)} » n'est pas
+                          disponible actuellement. Choisis un autre type ou une
+                          contenance prête à l'emploi.
+                        </div>
+                      )}
+                      {variant && boostersCount > 0 && boosterPrice !== null && !missingBooster && (
+                        <div className="mt-3 rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+                          <p className="text-foreground">
+                            Flacon {variant.volume_ml} ml :{" "}
+                            <strong>{formatPrice(variant.price_cents, product.currency)}</strong>
+                          </p>
+                          <p className="mt-1">
+                            + {boostersCount} booster{boostersCount > 1 ? "s" : ""} à{" "}
+                            {formatPrice(boosterPrice, product.currency)} ={" "}
+                            <strong className="text-foreground">
+                              {formatPrice(boostersCount * boosterPrice, product.currency)}
+                            </strong>
+                          </p>
+                          <p className="mt-1 border-t border-border/60 pt-1 text-foreground">
+                            = Total :{" "}
+                            <strong>
+                              {formatPrice(
+                                variant.price_cents + boostersCount * boosterPrice,
+                                product.currency,
+                              )}
+                            </strong>{" "}
+                            <span className="text-muted-foreground">
+                              ({computedMg} mg/ml sur {variant.volume_ml} ml)
+                            </span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {hasFlavors && (
-                  <FlavorPicker
-                    flavors={flavors}
-                    selected={flavor}
-                    onSelect={setFlavor}
-                  />
+                  <div>
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                      {isReadyToUse ? "3." : "4."} Goût
+                    </p>
+                    <FlavorPicker
+                      flavors={flavors}
+                      selected={flavor}
+                      onSelect={setFlavor}
+                    />
+                  </div>
                 )}
               </div>
             )}
@@ -878,29 +748,38 @@ function EliquideDetail({
                 <button
                   disabled={addDisabled}
                   onClick={() => {
-                    if (addDisabled) return;
+                    if (addDisabled || !variant) return;
                     const flavorSuffix = hasFlavors && flavor ? `, ${flavor}` : "";
-                    const displayName = `${product.name} — ${variant.volume_ml} ml, ${nicotine} mg${flavorSuffix}`;
-                    const boosters = boostersFor(nicotine);
+                    const nicLabel =
+                      effectiveNicotineMg !== null && effectiveNicotineMg !== 0
+                        ? `, ${effectiveNicotineMg} mg`
+                        : effectiveNicotineMg === 0
+                        ? ", 0 mg"
+                        : "";
+                    const typeLabel =
+                      !isReadyToUse && boostersCount > 0
+                        ? ` ${boosterTypeLabel(nicotineType)}`
+                        : "";
+                    const displayName = `${product.name} — ${variant.volume_ml} ml${nicLabel}${typeLabel}${flavorSuffix}`;
                     const unitPrice =
-                      variant.volume_ml === 10 || !boosters || !boosterPrice
+                      isReadyToUse || boostersCount === 0 || !boosterPrice
                         ? variant.price_cents
-                        : variant.price_cents + boosters * boosterPrice;
+                        : variant.price_cents + boostersCount * boosterPrice;
                     cart.add(
                       {
-                        key: `${product.id}:${variant.id}:${nicotine}:${flavor ?? ""}`,
+                        key: `${product.id}:${variant.id}:${boostersCount}:${nicotineType}:${effectiveNicotineMg ?? ""}:${flavor ?? ""}`,
                         productId: product.id,
                         variantId: variant.id,
                         volumeMl: variant.volume_ml,
-                        nicotineMg: nicotine,
+                        nicotineMg: effectiveNicotineMg,
                         flavor: hasFlavors ? flavor : null,
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
                         baseUnitPriceCents: variant.price_cents,
-                        boostersCount: boosters,
+                        boostersCount: isReadyToUse ? 0 : boostersCount,
                         boosterUnitPriceCents:
-                          boosters > 0 ? boosterPrice : null,
+                          !isReadyToUse && boostersCount > 0 ? boosterPrice : null,
                         photo: photo,
                         maxStock: effectiveStock,
                       },
@@ -912,12 +791,10 @@ function EliquideDetail({
                   }}
                   className="inline-flex min-w-0 flex-1 basis-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 sm:basis-0"
                 >
-                  {nicotine === null
+                  {isReadyToUse && readyMg === null
                     ? "Choisir un taux de nicotine"
                     : missingBooster
                     ? "Booster indisponible"
-                    : exceedsCapacity && !hasEmptyBottleFallback
-                    ? "Combinaison indisponible"
                     : hasFlavors && !flavor
                     ? "Choisir un goût"
                     : "Ajouter au panier"}
@@ -960,112 +837,10 @@ function EliquideDetail({
         </div>
       </main>
       <SiteFooter />
-      {variant &&
-        nicotine !== null &&
-        nicotineOK &&
-        exceedsCapacity &&
-        bottleDismissedFor !== `${variant.id}:${nicotine}` && (
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="empty-bottle-title"
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
-            onClick={() => setBottleDismissedFor(`${variant.id}:${nicotine}`)}
-          >
-            <div
-              className="w-full max-w-md rounded-lg border border-border bg-card p-5 shadow-xl"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3
-                id="empty-bottle-title"
-                className="text-lg font-semibold text-foreground"
-              >
-                Capacité du flacon dépassée
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Ce flacon de <strong>{variant.volume_ml} ml</strong> ne peut
-                contenir que <strong>{variantCapacity}</strong> booster
-                {(variantCapacity ?? 0) > 1 ? "s" : ""}, soit au maximum{" "}
-                <strong>{achievableMg ?? 0} mg</strong> de nicotine.
-              </p>
-              {hasEmptyBottleFallback ? (
-                <>
-                  <p className="mt-3 text-sm text-foreground">
-                    Voulez-vous ajouter un flacon vide{" "}
-                    <strong>{emptyBottle.name}</strong> (
-                    {formatPrice(emptyBottle.price_cents, emptyBottle.currency)}
-                    ) à votre commande pour atteindre les {nicotine} mg
-                    souhaités ? Le total du panier sera mis à jour
-                    automatiquement.
-                  </p>
-                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBottleDismissedFor(`${variant.id}:${nicotine}`)
-                      }
-                      className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      Non merci
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        cart.add(
-                          {
-                            key: `product:${emptyBottle.id}`,
-                            productId: emptyBottle.id,
-                            slug: emptyBottle.slug,
-                            name: emptyBottle.name,
-                            priceCents: emptyBottle.price_cents,
-                            photo: emptyBottle.photos?.[0] ?? null,
-                            maxStock: Math.max(1, emptyBottle.stock ?? 1),
-                          },
-                          1,
-                        );
-                        toast.success("Flacon vide ajouté au panier", {
-                          description: `${emptyBottle.name} · ${formatPrice(
-                            emptyBottle.price_cents,
-                            emptyBottle.currency,
-                          )}`,
-                        });
-                        setBottleDismissedFor(`${variant.id}:${nicotine}`);
-                      }}
-                      className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                    >
-                      Oui, ajouter au panier
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <p className="mt-3 text-sm text-foreground">
-                    Cette combinaison ({nicotine} mg sur{" "}
-                    {variant.volume_ml} ml) dépasse la capacité du flacon et
-                    aucun flacon vide n'est configuré pour ce produit. Vous ne
-                    pouvez donc pas l'ajouter au panier. Veuillez choisir un
-                    volume plus grand, un taux de nicotine plus faible, ou
-                    contactez-nous pour plus d'options.
-                  </p>
-                  <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setBottleDismissedFor(`${variant.id}:${nicotine}`)
-                      }
-                      className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                    >
-                      Compris
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
     </div>
   );
 }
+
 function FlavorPicker({
   flavors,
   selected,
