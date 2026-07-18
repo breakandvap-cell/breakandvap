@@ -195,6 +195,7 @@ export type Database = {
           product_name: string
           quantity: number
           unit_price_cents: number
+          variant_sku: string | null
           volume_ml: number | null
         }
         Insert: {
@@ -210,6 +211,7 @@ export type Database = {
           product_name: string
           quantity: number
           unit_price_cents: number
+          variant_sku?: string | null
           volume_ml?: number | null
         }
         Update: {
@@ -225,6 +227,7 @@ export type Database = {
           product_name?: string
           quantity?: number
           unit_price_cents?: number
+          variant_sku?: string | null
           volume_ml?: number | null
         }
         Relationships: [
@@ -316,12 +319,15 @@ export type Database = {
           boosters_per_nicotine: Json
           created_at: string
           id: string
+          is_active: boolean
           max_boosters: number | null
           max_nicotine_mg: number | null
           nicotine_type: string
           photo_url: string | null
           price_cents: number
           product_id: string
+          quantity_tiers: Json
+          sku: string | null
           stock: number
           updated_at: string
           volume_ml: number
@@ -331,12 +337,15 @@ export type Database = {
           boosters_per_nicotine?: Json
           created_at?: string
           id?: string
+          is_active?: boolean
           max_boosters?: number | null
           max_nicotine_mg?: number | null
           nicotine_type?: string
           photo_url?: string | null
           price_cents: number
           product_id: string
+          quantity_tiers?: Json
+          sku?: string | null
           stock?: number
           updated_at?: string
           volume_ml: number
@@ -346,12 +355,15 @@ export type Database = {
           boosters_per_nicotine?: Json
           created_at?: string
           id?: string
+          is_active?: boolean
           max_boosters?: number | null
           max_nicotine_mg?: number | null
           nicotine_type?: string
           photo_url?: string | null
           price_cents?: number
           product_id?: string
+          quantity_tiers?: Json
+          sku?: string | null
           stock?: number
           updated_at?: string
           volume_ml?: number
