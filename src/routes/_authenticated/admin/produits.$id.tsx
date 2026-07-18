@@ -380,7 +380,8 @@ function EditProduct() {
     }
     // Si l'option variantes n'est pas activée, on n'envoie aucune variante,
     // même si le formulaire en contenait (édition ultérieure).
-    const useVariants = form.category === "e_liquide" && hasVariants;
+    const useVariants =
+      form.category === "e_liquide" && (form.variants ?? []).length > 0;
     const vs = form.variants ?? [];
     // Quand les variantes pilotent le prix, on synchronise le prix/stock
     // « produit » sur le plus petit prix variante et la somme des stocks
@@ -541,39 +542,12 @@ function EditProduct() {
 
           {form.category === "e_liquide" && (
             <div className="space-y-3">
-              <label className="flex items-start gap-2 rounded-md border border-border bg-background/30 p-3 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={hasVariants}
-                  onChange={(e) => setHasVariants(e.target.checked)}
-                />
-                <span>
-                  <strong>Ce produit a plusieurs formats / volumes.</strong>{" "}
-                  Coche cette case uniquement pour les e-liquides déclinés en
-                  50 / 100 / 200 ml (base + boosters) ou avec plusieurs taux de
-                  nicotine sur un même 10 ml. Sinon, laisse décoché : le prix
-                  et le stock du produit s'appliquent tels quels.
-                </span>
-              </label>
-              {hasVariants && (
-                <VariantsEditor
-                  variants={form.variants ?? []}
-                  onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
-                />
-              )}
-              {hasVariants && (
-                <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4 sm:grid-cols-2">
-                  <div className="rounded-md border border-border/60 bg-background/40 p-3 text-xs text-muted-foreground">
-                    <p className="font-medium text-foreground">Boosters de nicotine</p>
-                    <p className="mt-1">
-                      Chaque variante ci-dessous a son propre <em>type de
-                      nicotine</em> (Normal / Sel / Ice / …). Le prix booster
-                      appliqué est automatiquement celui du produit accessoire
-                      « Booster de nicotine » du même type. Aucun choix manuel
-                      n'est nécessaire ici.
-                    </p>
-                  </div>
+              <VariantsEditor
+                variants={form.variants ?? []}
+                onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+              />
+              {(form.variants ?? []).length > 0 && (
+                <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4">
                   <Field
                     label="Produit flacon vide associé (optionnel)"
                     hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
@@ -655,7 +629,7 @@ function EditProduct() {
 
         {/* Bloc 3 — prix & stock */}
         <section className="space-y-4 rounded-md border border-border bg-card/40 p-5">
-          {form.category === "e_liquide" && hasVariants ? (
+          {form.category === "e_liquide" && (form.variants ?? []).length > 0 ? (
             <VariantsRecap
               variants={form.variants ?? []}
               currency={form.currency}
