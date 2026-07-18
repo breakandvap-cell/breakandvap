@@ -394,6 +394,7 @@ export type Database = {
           id: string
           is_nicotine_booster: boolean
           is_published: boolean
+          low_stock_notified_at: string | null
           name: string
           nicotine_mg: number | null
           photos: string[]
@@ -421,6 +422,7 @@ export type Database = {
           id?: string
           is_nicotine_booster?: boolean
           is_published?: boolean
+          low_stock_notified_at?: string | null
           name: string
           nicotine_mg?: number | null
           photos?: string[]
@@ -448,6 +450,7 @@ export type Database = {
           id?: string
           is_nicotine_booster?: boolean
           is_published?: boolean
+          low_stock_notified_at?: string | null
           name?: string
           nicotine_mg?: number | null
           photos?: string[]
@@ -715,12 +718,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      decrement_flavor_stock: {
+        Args: { _flavor: string; _product_id: string; _qty: number }
+        Returns: number
+      }
+      decrement_product_stock: {
+        Args: { _id: string; _qty: number }
+        Returns: number
+      }
+      decrement_variant_stock: {
+        Args: { _id: string; _qty: number }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_flavor_stock: {
+        Args: { _flavor: string; _product_id: string; _qty: number }
+        Returns: undefined
+      }
+      increment_product_stock: {
+        Args: { _id: string; _qty: number }
+        Returns: number
+      }
+      increment_variant_stock: {
+        Args: { _id: string; _qty: number }
+        Returns: number
       }
     }
     Enums: {
