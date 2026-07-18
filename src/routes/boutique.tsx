@@ -283,6 +283,8 @@ function CategoryTiles({
               src={c.image_url}
               alt=""
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary to-background" />
@@ -345,6 +347,8 @@ function SubcategoryTiles({
               src={s.image_url}
               alt=""
               className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-secondary via-secondary to-background" />
@@ -394,6 +398,7 @@ function ProductCard({
             src={photo}
             alt={product.name}
             loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (

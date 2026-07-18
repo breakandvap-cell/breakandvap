@@ -160,6 +160,8 @@ function ProductDetail() {
                 src={photo}
                 alt={product.name}
                 className="aspect-square w-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="flex aspect-square items-center justify-center text-sm text-muted-foreground">
@@ -501,6 +503,8 @@ function EliquideDetail({
                 src={photo}
                 alt={product.name}
                 className="aspect-square w-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="flex aspect-square items-center justify-center text-sm text-muted-foreground">
