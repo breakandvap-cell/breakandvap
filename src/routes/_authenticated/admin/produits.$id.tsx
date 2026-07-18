@@ -136,6 +136,14 @@ function EditProduct() {
                 typeof (f as { photo?: unknown })?.photo === "string"
                   ? ((f as { photo: string }).photo)
                   : null,
+              sku:
+                typeof (f as { sku?: unknown })?.sku === "string"
+                  ? (f as { sku: string }).sku
+                  : "",
+              is_active:
+                typeof (f as { is_active?: unknown })?.is_active === "boolean"
+                  ? (f as { is_active: boolean }).is_active
+                  : true,
             }))
             .filter((f) => f.name.trim().length > 0)
         : [];
