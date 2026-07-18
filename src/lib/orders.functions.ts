@@ -115,13 +115,16 @@ export const createOrder = createServerFn({ method: "POST" })
         available_nicotine_mg: number[];
         boosters_per_nicotine: Record<string, number> | null;
         nicotine_type: string;
+        sku: string | null;
+        is_active: boolean;
+        quantity_tiers: Array<{ min_qty: number; max_qty: number | null; price_cents: number }>;
       }
     >();
     if (variantIds.length > 0) {
       const { data: variants, error: vErr } = await supabaseAdmin
         .from("product_variants")
         .select(
-          "id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine, nicotine_type",
+          "id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine, nicotine_type, sku, is_active, quantity_tiers",
         )
         .in("id", variantIds);
       if (vErr) {
@@ -129,6 +132,18 @@ export const createOrder = createServerFn({ method: "POST" })
         throw new Error("Impossible de créer la commande, réessayez.");
       }
       for (const v of variants ?? []) {
+        const rawTiers = ((v as { quantity_tiers?: unknown }).quantity_tiers ?? []) as unknown;
+        const tiers: Array<{ min_qty: number; max_qty: number | null; price_cents: number }> =
+          Array.isArray(rawTiers)
+            ? (rawTiers as Array<Record<string, unknown>>)
+                .filter((t) => typeof t?.min_qty === "number" && typeof t?.price_cents === "number")
+                .map((t) => ({
+                  min_qty: Math.trunc(t.min_qty as number),
+                  max_qty:
+                    typeof t.max_qty === "number" ? Math.trunc(t.max_qty as number) : null,
+                  price_cents: Math.trunc(t.price_cents as number),
+                }))
+            : [];
         variantMap.set(v.id, {
           id: v.id,
           product_id: v.product_id,
@@ -142,6 +157,12 @@ export const createOrder = createServerFn({ method: "POST" })
             .toString()
             .trim()
             .toLowerCase() || "normale",
+          sku: (v as { sku?: string | null }).sku ?? null,
+          is_active:
+            typeof (v as { is_active?: boolean }).is_active === "boolean"
+              ? (v as { is_active: boolean }).is_active
+              : true,
+          quantity_tiers: tiers,
         });
       }
     }
@@ -180,6 +201,7 @@ export const createOrder = createServerFn({ method: "POST" })
       nicotine_mg: number | null;
       volume_ml: number | null;
       flavor: string | null;
+      variant_sku: string | null;
     }[] = [];
     const variantStockOps: { id: string; nextStock: number }[] = [];
 
@@ -192,6 +214,7 @@ export const createOrder = createServerFn({ method: "POST" })
       // Flavor handling (independent axis): validate & decrement working copy.
       const productFlavors = flavorMap.get(p.id) ?? null;
       let flavorLabel: string | null = null;
+      let flavorSku: string | null = null;
       if (productFlavors) {
         if (!line.flavor) {
           throw new Error(`Choisis un goût pour "${p.name}".`);
@@ -203,6 +226,20 @@ export const createOrder = createServerFn({ method: "POST" })
         if (!entry) {
           throw new Error(`Goût « ${line.flavor} » indisponible pour "${p.name}".`);
         }
+        // Rejette les goûts désactivés côté admin.
+        const originalFlavor = (Array.isArray((p as { flavors?: unknown }).flavors)
+          ? ((p as { flavors: unknown[] }).flavors as Array<Record<string, unknown>>)
+          : []
+        ).find(
+          (f) => typeof f?.name === "string" && (f.name as string).toLowerCase() === entry.name.toLowerCase(),
+        );
+        if (originalFlavor && originalFlavor.is_active === false) {
+          throw new Error(`Goût « ${entry.name} » indisponible.`);
+        }
+        flavorSku =
+          originalFlavor && typeof originalFlavor.sku === "string" && (originalFlavor.sku as string).length > 0
+            ? (originalFlavor.sku as string)
+            : null;
         if (entry.stock < line.quantity) {
           throw new Error(
             `Stock insuffisant pour "${p.name}" (goût ${entry.name}).`,
@@ -217,6 +254,9 @@ export const createOrder = createServerFn({ method: "POST" })
         if (!v || v.product_id !== p.id) {
           throw new Error(`Variante indisponible pour "${p.name}".`);
         }
+        if (!v.is_active) {
+          throw new Error(`Variante ${v.volume_ml} ml indisponible pour "${p.name}".`);
+        }
         if (v.stock < line.quantity) {
           throw new Error(
             `Stock insuffisant pour "${p.name}" (${v.volume_ml} ml).`,
@@ -228,7 +268,14 @@ export const createOrder = createServerFn({ method: "POST" })
             `Taux de nicotine ${nic} mg indisponible en ${v.volume_ml} ml pour "${p.name}".`,
           );
         }
-        let unitPrice = v.price_cents;
+        // Applique le prix dégressif éventuel (basé sur la quantité de la ligne).
+        let basePrice = v.price_cents;
+        for (const t of v.quantity_tiers) {
+          if (line.quantity >= t.min_qty && (t.max_qty == null || line.quantity <= t.max_qty)) {
+            basePrice = t.price_cents;
+          }
+        }
+        let unitPrice = basePrice;
         let boostersUsed = 0;
         let boosterUnitPrice: number | null = null;
         if (v.volume_ml !== 10 && nic > 0) {
@@ -254,12 +301,13 @@ export const createOrder = createServerFn({ method: "POST" })
           product_name: `${p.name} — ${v.volume_ml} ml${nameSuffix}${flavorSuffix}`,
           quantity: line.quantity,
           unit_price_cents: unitPrice,
-          base_price_cents: v.price_cents,
+          base_price_cents: basePrice,
           boosters_count: boostersUsed,
           booster_unit_price_cents: boosterUnitPrice,
           nicotine_mg: nic,
           volume_ml: v.volume_ml,
           flavor: flavorLabel,
+          variant_sku: v.sku ?? flavorSku,
         });
         variantStockOps.push({
           id: v.id,
@@ -281,6 +329,7 @@ export const createOrder = createServerFn({ method: "POST" })
           nicotine_mg: null,
           volume_ml: null,
           flavor: flavorLabel,
+          variant_sku: flavorSku,
         });
       }
     }
