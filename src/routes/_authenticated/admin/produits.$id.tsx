@@ -1034,6 +1034,9 @@ function VariantsEditor({
         nicotine_type: "normale",
         max_boosters: 0,
         photo_url: null,
+        sku: "",
+        is_active: true,
+        quantity_tiers: [],
       },
     ]);
   };
