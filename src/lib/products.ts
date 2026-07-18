@@ -193,29 +193,10 @@ export function nicotineChoicesForVolume(volumeMl: number): readonly number[] {
   return volumeMl === 10 ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
 }
 
-/** Nombre de boosters requis pour atteindre `nicotineMg` sur cette variante. */
-export function boostersNeeded(
-  variant: Pick<ProductVariantRow, "boosters_per_nicotine">,
-  nicotineMg: number,
-): number {
-  if (!nicotineMg) return 0;
-  const raw = variant.boosters_per_nicotine as Record<string, number> | null;
-  if (!raw) return 0;
-  const v = raw[String(nicotineMg)];
-  return typeof v === "number" && v > 0 ? v : 0;
-}
-
-/** Prix final = prix de base de la variante + (boosters × prix booster). */
-export function computeVariantPrice(
-  variant: Pick<ProductVariantRow, "price_cents" | "boosters_per_nicotine" | "volume_ml">,
-  nicotineMg: number,
-  boosterUnitPriceCents: number | null,
-): number {
-  if (variant.volume_ml === 10) return variant.price_cents;
-  const n = boostersNeeded(variant, nicotineMg);
-  if (!n || !boosterUnitPriceCents) return variant.price_cents;
-  return variant.price_cents + n * boosterUnitPriceCents;
-}
+// Les helpers `boostersNeeded` / `computeVariantPrice` ont été supprimés :
+// le nombre de boosters et le taux résultant sont calculés à la volée par
+// `computeNicotineRateMgPerMl` (site-settings.functions.ts), et la colonne
+// obsolète `product_variants.boosters_per_nicotine` n'est plus lue nulle part.
 
 export function formatPrice(cents: number, currency = "EUR") {
   return new Intl.NumberFormat("fr-FR", {
