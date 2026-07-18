@@ -111,6 +111,13 @@ export async function ensureInvoiceForOrderInternal(orderId: string): Promise<{
     total_cents: total,
     buyer,
     items,
+    payment_method: order.payment_provider
+      ? (order.payment_provider === "stripe"
+          ? "Carte bancaire (Stripe)"
+          : order.payment_provider === "paypal"
+            ? "PayPal"
+            : order.payment_provider)
+      : null,
   });
 
   // 6. Upload dans le bucket privé
