@@ -3,6 +3,11 @@ import { getRequestHeader } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  computeNicotineRateMgPerMl,
+  DEFAULT_BOOSTER_CONFIG,
+  type BoosterConfig,
+} from "@/lib/site-settings.functions";
 
 const orderInputSchema = z.object({
   email: z.string().trim().email().max(255),
@@ -113,7 +118,7 @@ export const createOrder = createServerFn({ method: "POST" })
         price_cents: number;
         stock: number;
         available_nicotine_mg: number[];
-        boosters_per_nicotine: Record<string, number> | null;
+        max_boosters: number | null;
         nicotine_type: string;
         sku: string | null;
         is_active: boolean;
@@ -124,7 +129,7 @@ export const createOrder = createServerFn({ method: "POST" })
       const { data: variants, error: vErr } = await supabaseAdmin
         .from("product_variants")
         .select(
-          "id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, boosters_per_nicotine, nicotine_type, sku, is_active, quantity_tiers",
+          "id, product_id, volume_ml, price_cents, stock, available_nicotine_mg, max_boosters, nicotine_type, sku, is_active, quantity_tiers",
         )
         .in("id", variantIds);
       if (vErr) {
@@ -151,8 +156,10 @@ export const createOrder = createServerFn({ method: "POST" })
           price_cents: v.price_cents,
           stock: v.stock,
           available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
-          boosters_per_nicotine:
-            (v.boosters_per_nicotine as Record<string, number> | null) ?? null,
+          max_boosters:
+            typeof (v as { max_boosters?: number | null }).max_boosters === "number"
+              ? Math.max(0, (v as { max_boosters: number }).max_boosters)
+              : null,
           nicotine_type: ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
             .toString()
             .trim()
@@ -164,6 +171,28 @@ export const createOrder = createServerFn({ method: "POST" })
               : true,
           quantity_tiers: tiers,
         });
+      }
+    }
+
+    // Charge le réglage global du dosage booster (formule de dilution).
+    // Utilisé pour retrouver le nombre de boosters correspondant au taux
+    // choisi par le client — l'ancienne colonne boosters_per_nicotine n'est
+    // plus lue nulle part.
+    let boosterCfg: BoosterConfig = DEFAULT_BOOSTER_CONFIG;
+    {
+      const { data: settings } = await supabaseAdmin
+        .from("site_settings")
+        .select("booster_volume_ml, booster_concentration_mg_per_ml")
+        .eq("singleton", true)
+        .maybeSingle();
+      if (settings) {
+        boosterCfg = {
+          boosterVolumeMl:
+            Number(settings.booster_volume_ml) || DEFAULT_BOOSTER_CONFIG.boosterVolumeMl,
+          boosterConcentrationMgPerMl:
+            Number(settings.booster_concentration_mg_per_ml) ||
+            DEFAULT_BOOSTER_CONFIG.boosterConcentrationMgPerMl,
+        };
       }
     }
 
@@ -279,8 +308,27 @@ export const createOrder = createServerFn({ method: "POST" })
         let boostersUsed = 0;
         let boosterUnitPrice: number | null = null;
         if (v.volume_ml !== 10 && nic > 0) {
-          const boostersN =
-            (v.boosters_per_nicotine ?? {})[String(nic)] ?? 0;
+          // Formule de dilution inverse : cherche le plus petit nombre de
+          // boosters (dans la limite de max_boosters) dont le taux calculé
+          // correspond au taux choisi par le client.
+          const cap =
+            typeof v.max_boosters === "number" && v.max_boosters > 0
+              ? v.max_boosters
+              : 0;
+          let boostersN = 0;
+          if (cap > 0) {
+            for (let n = 1; n <= cap; n++) {
+              if (computeNicotineRateMgPerMl(v.volume_ml, n, boosterCfg) === nic) {
+                boostersN = n;
+                break;
+              }
+            }
+          }
+          if (boostersN === 0) {
+            throw new Error(
+              `Taux de nicotine ${nic} mg indisponible en ${v.volume_ml} ml pour "${p.name}".`,
+            );
+          }
           if (boostersN > 0) {
             const booster = boosterByType.get(v.nicotine_type);
             if (!booster) {
