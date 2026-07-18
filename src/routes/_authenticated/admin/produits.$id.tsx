@@ -997,104 +997,82 @@ function VariantsEditor({
   variants: FormVariant[];
   onChange: (next: FormVariant[]) => void;
 }) {
+  const { data: cfg } = useQuery(siteSettingsQueryOptions());
   const update = (idx: number, patch: Partial<FormVariant>) => {
     onChange(variants.map((v, i) => (i === idx ? { ...v, ...patch } : v)));
   };
   const remove = (idx: number) =>
     onChange(variants.filter((_, i) => i !== idx));
-  const addVolume = () => {
-    const usedVolumes = new Set(variants.map((v) => v.volume_ml));
-    const nextVolume =
-      VOLUME_OPTIONS_ML.find((v) => !usedVolumes.has(v)) ?? 10;
+  const addContenance = () => {
     onChange([
       ...variants,
       {
-        volume_ml: nextVolume,
+        volume_ml: 10,
         price_cents: 0,
         stock: 0,
         max_nicotine_mg: null,
         available_nicotine_mg: [],
         boosters_per_nicotine: {},
         nicotine_type: "normale",
-        max_boosters: null,
+        max_boosters: 0,
         photo_url: null,
       },
     ]);
   };
-  const addTypeForVolume = (volume_ml: number) => {
-    const usedKeys = new Set(
+  const sorted = useMemo(
+    () =>
       variants
-        .filter((v) => v.volume_ml === volume_ml)
-        .map((v) => normalizeBoosterTypeKey(v.nicotine_type)),
-    );
-    const nextType =
-      BOOSTER_TYPE_PRESETS.find((p) => !usedKeys.has(p.key))?.key ?? "normale";
-    onChange([
-      ...variants,
-      {
-        volume_ml,
-        price_cents: 0,
-        stock: 0,
-        max_nicotine_mg: null,
-        available_nicotine_mg: [],
-        boosters_per_nicotine: {},
-        nicotine_type: nextType,
-        max_boosters: null,
-        photo_url: null,
-      },
-    ]);
-  };
-
-  // Regroupement par volume pour l'affichage : chaque groupe rend un
-  // accordéon pliable avec ses différents « types de nicotine » (une
-  // FormVariant = un couple volume+type).
-  const groups = useMemo(() => {
-    const map = new Map<number, Array<{ v: FormVariant; idx: number }>>();
-    variants.forEach((v, idx) => {
-      const arr = map.get(v.volume_ml) ?? [];
-      arr.push({ v, idx });
-      map.set(v.volume_ml, arr);
-    });
-    return Array.from(map.entries()).sort((a, b) => a[0] - b[0]);
-  }, [variants]);
+        .map((v, idx) => ({ v, idx }))
+        .sort((a, b) => (a.v.volume_ml || 0) - (b.v.volume_ml || 0)),
+    [variants],
+  );
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-baseline justify-between">
+    <div className="space-y-3 rounded-md border border-border bg-background/30 p-4">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-medium">
-            Variantes de volume <span className="text-destructive">*</span>
-          </h3>
+          <h3 className="text-sm font-medium">Contenances</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Un bloc par volume, cumulable par type de nicotine (Normal / Sel /
-            Ice…). <strong>10 ml</strong> : prêt à l'emploi. <strong>50 /
-            100 / 200 ml</strong> : base + boosters — indique les taux
-            disponibles et le nombre de boosters requis (sauf 0 mg).
+            Une ligne par taille de flacon. Laisse « Capacité max de boosters »
+            à <strong>0</strong> pour un flacon prêt à l'emploi (10 ml) : tu
+            coches alors les taux de nicotine déjà présents. Pour un flacon
+            avec boosters (50 / 100 / 200 ml), indique la capacité maximale :
+            le site calcule automatiquement les taux résultants selon le
+            dosage global défini dans <em>Paramètres</em>.
           </p>
+          {cfg && (
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Dosage booster actuel :{" "}
+              <strong className="text-foreground">
+                {cfg.boosterVolumeMl} ml × {cfg.boosterConcentrationMgPerMl} mg/ml
+              </strong>{" "}
+              = {(cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl).toFixed(0)} mg / booster.
+            </p>
+          )}
         </div>
         <button
           type="button"
-          onClick={addVolume}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
+          onClick={addContenance}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary"
         >
-          <Plus className="h-3.5 w-3.5" /> Ajouter un volume
+          <Plus className="h-3.5 w-3.5" /> Ajouter une contenance
         </button>
       </div>
 
       {variants.length === 0 ? (
         <div className="rounded-md border border-dashed border-border/70 bg-background/30 p-4 text-center text-xs text-muted-foreground">
-          Aucune variante. Ajoute au moins un volume de flacon.
+          Aucune contenance ajoutée. Le produit sera vendu au prix / stock
+          uniques renseignés ci-dessous.
         </div>
       ) : (
         <div className="space-y-3">
-          {groups.map(([volume_ml, entries]) => (
-            <VolumeGroup
-              key={volume_ml}
-              volume_ml={volume_ml}
-              entries={entries}
-              onUpdate={update}
-              onRemove={remove}
-              onAddType={() => addTypeForVolume(volume_ml)}
+          {sorted.map(({ v, idx }) => (
+            <ContenanceRow
+              key={idx}
+              variant={v}
+              cfg={cfg ?? null}
+              onUpdate={(patch) => update(idx, patch)}
+              onRemove={() => remove(idx)}
             />
           ))}
         </div>
@@ -1113,20 +1091,16 @@ function VariantsRecap({
   flavorsCount: number;
 }) {
   const volumes = new Set(variants.map((v) => v.volume_ml));
-  const typesGlobal = new Set(
-    variants.map((v) => normalizeBoosterTypeKey(v.nicotine_type)),
-  );
   const prices = variants.map((v) => v.price_cents || 0).filter((p) => p > 0);
   const minPrice = prices.length ? Math.min(...prices) : 0;
   const stockTotal = variants.reduce((s, v) => s + (v.stock || 0), 0);
   return (
     <div className="rounded-md border border-primary/30 bg-primary/5 p-4 text-sm">
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        Récapitulatif produit (piloté par les variantes)
+        Récapitulatif produit (piloté par les contenances)
       </p>
-      <div className="mt-2 grid gap-3 sm:grid-cols-4">
-        <Stat label="Volumes" value={String(volumes.size)} />
-        <Stat label="Types de nicotine" value={String(typesGlobal.size)} />
+      <div className="mt-2 grid gap-3 sm:grid-cols-3">
+        <Stat label="Contenances" value={String(volumes.size)} />
         <Stat
           label="Prix à partir de"
           value={
@@ -1141,8 +1115,8 @@ function VariantsRecap({
         <Stat label="Stock total" value={String(stockTotal)} />
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        Le prix et le stock « produit » sont calculés automatiquement à partir
-        des variantes ci-dessous (prix minimum + somme des stocks).{" "}
+        Le prix et le stock « produit » sont calculés à partir des contenances
+        (prix minimum + somme des stocks).{" "}
         {flavorsCount > 0
           ? `${flavorsCount} goût${flavorsCount > 1 ? "s" : ""} configuré${flavorsCount > 1 ? "s" : ""}.`
           : ""}
@@ -1162,90 +1136,26 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function VolumeGroup({
-  volume_ml,
-  entries,
-  onUpdate,
-  onRemove,
-  onAddType,
-}: {
-  volume_ml: number;
-  entries: Array<{ v: FormVariant; idx: number }>;
-  onUpdate: (idx: number, patch: Partial<FormVariant>) => void;
-  onRemove: (idx: number) => void;
-  onAddType: () => void;
-}) {
-  const minPrice = Math.min(
-    ...entries.map((e) => e.v.price_cents || 0).filter((p) => p > 0),
-    Infinity,
-  );
-  const typesLabel = entries
-    .map((e) => boosterTypeLabel(e.v.nicotine_type))
-    .join(" · ");
-  return (
-    <details
-      open
-      className="group rounded-md border border-border bg-card/40 [&_summary::-webkit-details-marker]:hidden"
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="font-semibold">{volume_ml} ml</span>
-          <span className="text-xs text-muted-foreground">
-            {entries.length} type{entries.length > 1 ? "s" : ""} · {typesLabel}
-          </span>
-          {Number.isFinite(minPrice) && (
-            <span className="text-xs text-muted-foreground">
-              — à partir de {(minPrice / 100).toFixed(2)} €
-            </span>
-          )}
-        </div>
-        <span className="text-xs text-muted-foreground group-open:hidden">
-          Déplier
-        </span>
-        <span className="hidden text-xs text-muted-foreground group-open:inline">
-          Replier
-        </span>
-      </summary>
-      <div className="space-y-3 border-t border-border p-3">
-        {entries.map(({ v, idx }) => (
-          <VariantBlock
-            key={idx}
-            variant={v}
-            hideVolume
-            onUpdate={(patch) => onUpdate(idx, patch)}
-            onRemove={() => onRemove(idx)}
-          />
-        ))}
-        <button
-          type="button"
-          onClick={onAddType}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-border px-2 py-1 text-xs hover:bg-secondary"
-        >
-          <Plus className="h-3.5 w-3.5" /> Ajouter un type de nicotine sur ce
-          volume
-        </button>
-      </div>
-    </details>
-  );
-}
+// Liste fixe des taux proposés pour un flacon prêt à l'emploi.
+const READY_TO_USE_NICOTINE_MG = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
 
-function VariantBlock({
+function ContenanceRow({
   variant,
+  cfg,
   onUpdate,
   onRemove,
-  hideVolume,
 }: {
   variant: FormVariant;
+  cfg: { boosterVolumeMl: number; boosterConcentrationMgPerMl: number } | null;
   onUpdate: (patch: Partial<FormVariant>) => void;
   onRemove: () => void;
-  hideVolume?: boolean;
 }) {
-  const is10ml = variant.volume_ml === 10;
-  const choices = is10ml ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
+  const cap =
+    typeof variant.max_boosters === "number" && variant.max_boosters >= 0
+      ? variant.max_boosters
+      : 0;
+  const isReadyToUse = cap === 0;
   const selected = variant.available_nicotine_mg ?? [];
-  const boosters = (variant.boosters_per_nicotine ?? {}) as Record<string, number>;
-  // Saisie libre du prix : on garde la valeur brute tapée par l'admin, sinon
-  // le reformatage à chaque rendu empêche de taper naturellement « 24.90 ».
   const [priceRaw, setPriceRaw] = useState<string>(
     variant.price_cents ? (variant.price_cents / 100).toFixed(2) : "",
   );
@@ -1262,75 +1172,45 @@ function VariantBlock({
     const next = on
       ? Array.from(new Set([...selected, mg])).sort((a, b) => a - b)
       : selected.filter((x) => x !== mg);
-    const nextBoosters: Record<string, number> = {};
-    for (const [k, val] of Object.entries(boosters)) {
-      if (next.includes(Number(k))) nextBoosters[k] = val;
+    onUpdate({ available_nicotine_mg: next });
+  };
+
+  // Aperçu des taux calculés pour un flacon avec boosters.
+  const computedPreview = useMemo(() => {
+    if (isReadyToUse || !cfg || !variant.volume_ml) return [] as { n: number; mg: number }[];
+    const out: { n: number; mg: number }[] = [];
+    for (let n = 0; n <= cap; n++) {
+      const mg =
+        n === 0
+          ? 0
+          : Math.round(
+              ((n * cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl) /
+                variant.volume_ml) *
+                10,
+            ) / 10;
+      out.push({ n, mg });
     }
-    onUpdate({ available_nicotine_mg: next, boosters_per_nicotine: nextBoosters });
-  };
-
-  const setBoosters = (mg: number, n: number) => {
-    const next = { ...boosters, [String(mg)]: Math.max(0, Math.trunc(n)) };
-    onUpdate({ boosters_per_nicotine: next });
-  };
-
-  // Alerte capacité : liste des taux dont le nombre de boosters requis
-  // dépasse la capacité maximale déclarée du flacon.
-  const capacity =
-    typeof variant.max_boosters === "number" && variant.max_boosters >= 0
-      ? variant.max_boosters
-      : null;
-  const overCapacity =
-    !is10ml && capacity !== null
-      ? selected
-          .filter((mg) => mg > 0)
-          .filter((mg) => (boosters[String(mg)] ?? 0) > capacity)
-      : [];
+    return out;
+  }, [isReadyToUse, cfg, variant.volume_ml, cap]);
 
   return (
-    <div className="rounded-md border border-border bg-background/40 p-4">
-      <div
-        className={`grid gap-3 sm:items-end ${
-          hideVolume
-            ? "sm:grid-cols-[1fr_1fr_auto]"
-            : "sm:grid-cols-[150px_1fr_1fr_auto]"
-        }`}
-      >
-        {!hideVolume && (
+    <div className="rounded-md border border-border bg-card/40 p-4">
+      <div className="grid gap-3 sm:grid-cols-[110px_1fr_1fr_1fr_auto] sm:items-end">
         <label className="text-xs">
-          <span className="mb-1 block text-muted-foreground">Volume</span>
-          <select
+          <span className="mb-1 block text-muted-foreground">Volume (ml)</span>
+          <input
             className="input"
-            value={variant.volume_ml}
-            onChange={(e) => {
-              const vol = Number(e.target.value);
-              const allowed = vol === 10 ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
-              const nextSel = selected.filter((m) =>
-                (allowed as readonly number[]).includes(m),
-              );
-              const nextB: Record<string, number> = {};
-              for (const [k, val] of Object.entries(boosters)) {
-                if (nextSel.includes(Number(k))) nextB[k] = val;
-              }
-              onUpdate({
-                volume_ml: vol,
-                available_nicotine_mg: nextSel,
-                boosters_per_nicotine: vol === 10 ? {} : nextB,
-              });
-            }}
-          >
-            {VOLUME_OPTIONS_ML.map((vol) => (
-              <option key={vol} value={vol}>
-                {vol} ml{vol === 10 ? " (prêt à l'emploi)" : ""}
-              </option>
-            ))}
-          </select>
+            type="number"
+            min={1}
+            max={2000}
+            value={variant.volume_ml || ""}
+            onChange={(e) =>
+              onUpdate({ volume_ml: Math.max(0, Math.trunc(Number(e.target.value) || 0)) })
+            }
+          />
         </label>
-        )}
         <label className="text-xs">
-          <span className="mb-1 block text-muted-foreground">
-            Prix de base (€)
-          </span>
+          <span className="mb-1 block text-muted-foreground">Prix de base (€)</span>
           <input
             className="input"
             type="text"
@@ -1358,120 +1238,71 @@ function VariantBlock({
             onChange={(e) => onUpdate({ stock: Number(e.target.value) || 0 })}
           />
         </label>
+        <label className="text-xs">
+          <span className="mb-1 block text-muted-foreground">
+            Capacité max de boosters
+          </span>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={20}
+            placeholder="0"
+            value={typeof variant.max_boosters === "number" ? variant.max_boosters : 0}
+            onChange={(e) => {
+              const raw = e.target.value;
+              const n = raw === "" ? 0 : Math.max(0, Math.trunc(Number(raw) || 0));
+              const patch: Partial<FormVariant> = { max_boosters: n };
+              // Si on repasse en flacon avec boosters, on efface la liste
+              // fixe (elle ne sert plus qu'aux flacons prêts à l'emploi).
+              if (n > 0) patch.available_nicotine_mg = [];
+              onUpdate(patch);
+            }}
+          />
+        </label>
         <button
           type="button"
           onClick={onRemove}
           className="inline-flex items-center justify-center rounded-md border border-border p-2 text-destructive hover:bg-destructive/10"
-          aria-label="Supprimer cette variante"
+          aria-label="Supprimer cette contenance"
         >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
-      {/* Photo optionnelle + capacité max de boosters pour ce volume. */}
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
         <VariantPhotoField
           value={variant.photo_url ?? null}
           onChange={(url) => onUpdate({ photo_url: url })}
         />
-        {!is10ml && (
-          <label className="text-xs">
-            <span className="mb-1 block text-muted-foreground">
-              Capacité maximale de boosters de ce flacon
-            </span>
-            <input
-              className="input"
-              type="number"
-              min={0}
-              max={20}
-              placeholder="Ex. 2"
-              value={
-                typeof variant.max_boosters === "number"
-                  ? variant.max_boosters
-                  : ""
-              }
-              onChange={(e) =>
-                onUpdate({
-                  max_boosters:
-                    e.target.value === "" ? null : Number(e.target.value),
-                })
-              }
-            />
-            <span className="mt-1 block text-[11px] text-muted-foreground">
-              Nombre de boosters que le flacon peut physiquement contenir. Sert
-              à alerter le client si un taux nécessite plus de boosters.
-            </span>
-          </label>
-        )}
+        <p className="text-[11px] leading-tight text-muted-foreground sm:max-w-[240px]">
+          {isReadyToUse ? (
+            <>Flacon <strong className="text-foreground">prêt à l'emploi</strong>{" "}
+            (aucun booster). Coche les taux déjà présents dans le flacon
+            ci-dessous.</>
+          ) : (
+            <>Flacon avec <strong className="text-foreground">{cap} booster{cap > 1 ? "s" : ""}</strong>{" "}
+            max. Les 3 types (Normal / Sel / Ice) sont proposés côté client
+            dès qu'un booster est ajouté.</>
+          )}
+        </p>
       </div>
 
-      <div className="mt-3">
-        <p className="mb-2 text-xs font-medium text-muted-foreground">
-          Taux de nicotine disponibles pour ce volume
-          {is10ml ? " (prix unique, quel que soit le taux)" : " (base + boosters)"}
-        </p>
-        <div className="mb-3">
-          <span className="mb-1 block text-xs text-muted-foreground">
-            Type de nicotine (détermine quel booster est utilisé)
-          </span>
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            {BOOSTER_TYPE_PRESETS.map((t) => {
-              const active =
-                normalizeBoosterTypeKey(variant.nicotine_type) === t.key;
+      {isReadyToUse ? (
+        <div className="mt-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Taux de nicotine déjà présents dans ce flacon
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {READY_TO_USE_NICOTINE_MG.map((mg) => {
+              const on = selected.includes(mg);
               return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => onUpdate({ nicotine_type: t.key })}
-                  className={`rounded-md border px-3 py-1.5 transition-colors ${
-                    active
-                      ? "border-primary bg-primary/10 text-foreground"
-                      : "border-border text-muted-foreground hover:text-foreground"
+                <label
+                  key={mg}
+                  className={`flex items-center gap-2 rounded-md border p-2 text-xs ${
+                    on ? "border-primary/60 bg-primary/5" : "border-border"
                   }`}
                 >
-                  {t.label}
-                </button>
-              );
-            })}
-            <label className="flex items-center gap-1 text-muted-foreground">
-              <span>ou</span>
-              <input
-                type="text"
-                className="input h-8 w-32 px-2 py-1 text-xs"
-                placeholder="type libre"
-                value={
-                  BOOSTER_TYPE_PRESETS.some(
-                    (p) => p.key === normalizeBoosterTypeKey(variant.nicotine_type),
-                  )
-                    ? ""
-                    : (variant.nicotine_type ?? "")
-                }
-                onChange={(e) =>
-                  onUpdate({
-                    nicotine_type:
-                      e.target.value.toLowerCase().slice(0, 40) || "normale",
-                  })
-                }
-              />
-            </label>
-          </div>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Le prix booster utilisé sera celui de l'accessoire vape marqué
-            « booster de nicotine » avec ce même type.
-          </p>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {choices.map((mg) => {
-            const on = selected.includes(mg);
-            const boosterNeeded = boosters[String(mg)] ?? 0;
-            return (
-              <div
-                key={mg}
-                className={`flex items-center gap-3 rounded-md border p-2 text-xs ${
-                  on ? "border-primary/60 bg-primary/5" : "border-border"
-                }`}
-              >
-                <label className="flex flex-1 items-center gap-2">
                   <input
                     type="checkbox"
                     checked={on}
@@ -1479,48 +1310,57 @@ function VariantBlock({
                   />
                   <span className="font-medium">{mg} mg</span>
                 </label>
-                {!is10ml && on && mg > 0 && (
-                  <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <span>Boosters :</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={20}
-                      className="input h-7 w-16 px-1 py-0 text-xs"
-                      value={boosterNeeded || ""}
-                      onChange={(e) => setBoosters(mg, Number(e.target.value) || 0)}
-                    />
-                  </label>
-                )}
-                {!is10ml && on && mg === 0 && (
-                  <span className="text-[11px] text-muted-foreground">
-                    Aucun booster
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {!is10ml && (
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Prix final client = prix de base + (nombre de boosters × prix
-            actuel du produit « Booster de nicotine » référencé dans
-            Accessoires Vape).
-          </p>
-        )}
-        {overCapacity.length > 0 && (
-          <div className="mt-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-[11px] text-amber-200">
-            <strong>Attention :</strong> le(s) taux{" "}
-            {overCapacity.map((m) => `${m} mg`).join(", ")} nécessite(nt) plus
-            de boosters que la capacité déclarée du flacon ({capacity}). Le
-            client verra une alternative (flacon plus grand ou flacon vide
-            supplémentaire). Corrige la capacité si besoin.
+              );
+            })}
           </div>
-        )}
-      </div>
+          <label className="mt-3 block text-xs text-muted-foreground">
+            <span className="mb-1 block">Type (optionnel, texte libre)</span>
+            <input
+              className="input"
+              type="text"
+              maxLength={40}
+              placeholder="Ex. sel, ice, hybride…"
+              value={variant.nicotine_type ?? ""}
+              onChange={(e) =>
+                onUpdate({
+                  nicotine_type:
+                    e.target.value.toLowerCase().slice(0, 40) || "normale",
+                })
+              }
+            />
+          </label>
+        </div>
+      ) : (
+        <div className="mt-3 rounded-md border border-border/60 bg-background/40 p-3 text-xs">
+          <p className="mb-1 font-medium text-foreground">
+            Taux calculés automatiquement pour ce flacon
+          </p>
+          {cfg ? (
+            <div className="flex flex-wrap gap-2">
+              {computedPreview.map(({ n, mg }) => (
+                <span
+                  key={n}
+                  className="rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-foreground"
+                >
+                  {n} booster{n > 1 ? "s" : ""} = {mg} mg
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-muted-foreground">
+              Chargement du dosage global…
+            </p>
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Prix client = prix de base + (nombre de boosters × prix du booster
+            correspondant au type choisi).
+          </p>
+        </div>
+      )}
     </div>
   );
 }
+
 
 function VariantPhotoField({
   value,
