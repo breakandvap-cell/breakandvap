@@ -1278,10 +1278,12 @@ function VariantBlock({
   variant,
   onUpdate,
   onRemove,
+  hideVolume,
 }: {
   variant: FormVariant;
   onUpdate: (patch: Partial<FormVariant>) => void;
   onRemove: () => void;
+  hideVolume?: boolean;
 }) {
   const is10ml = variant.volume_ml === 10;
   const choices = is10ml ? NICOTINE_STEPS_MG_10ML : NICOTINE_STEPS_MG_BOOSTER;
@@ -1332,7 +1334,14 @@ function VariantBlock({
 
   return (
     <div className="rounded-md border border-border bg-background/40 p-4">
-      <div className="grid gap-3 sm:grid-cols-[150px_1fr_1fr_auto] sm:items-end">
+      <div
+        className={`grid gap-3 sm:items-end ${
+          hideVolume
+            ? "sm:grid-cols-[1fr_1fr_auto]"
+            : "sm:grid-cols-[150px_1fr_1fr_auto]"
+        }`}
+      >
+        {!hideVolume && (
         <label className="text-xs">
           <span className="mb-1 block text-muted-foreground">Volume</span>
           <select
@@ -1362,6 +1371,7 @@ function VariantBlock({
             ))}
           </select>
         </label>
+        )}
         <label className="text-xs">
           <span className="mb-1 block text-muted-foreground">
             Prix de base (€)
