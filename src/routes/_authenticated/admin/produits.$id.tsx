@@ -194,8 +194,10 @@ function EditProduct() {
         stock: v.stock,
         max_nicotine_mg: v.max_nicotine_mg ?? null,
         available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
-        boosters_per_nicotine:
-          (v.boosters_per_nicotine as Record<string, number> | null) ?? {},
+        // Ancien mapping figé — plus utilisé, le taux est calculé côté client
+        // via computeNicotineRateMgPerMl. Conservé vide pour rester compatible
+        // avec la validation Zod côté serveur.
+        boosters_per_nicotine: {},
         nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
         max_boosters: (v as { max_boosters?: number | null }).max_boosters ?? null,
         photo_url: (v as { photo_url?: string | null }).photo_url ?? null,

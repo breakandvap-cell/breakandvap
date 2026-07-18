@@ -367,7 +367,9 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
               ? Math.max(...v.available_nicotine_mg)
               : (v.max_nicotine_mg ?? 0),
           available_nicotine_mg: v.available_nicotine_mg ?? [],
-          boosters_per_nicotine: (v.boosters_per_nicotine ?? {}) as never,
+          // Champ obsolète : on force à `{}` à chaque écriture. Le taux de
+          // nicotine est désormais calculé par la formule de dilution.
+          boosters_per_nicotine: {} as never,
           nicotine_type: v.nicotine_type ?? "normale",
           max_boosters:
             typeof v.max_boosters === "number" && Number.isFinite(v.max_boosters)
