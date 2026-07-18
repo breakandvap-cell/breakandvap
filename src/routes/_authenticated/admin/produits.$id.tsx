@@ -198,6 +198,16 @@ function EditProduct() {
         nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
         max_boosters: (v as { max_boosters?: number | null }).max_boosters ?? null,
         photo_url: (v as { photo_url?: string | null }).photo_url ?? null,
+        sku: ((v as { sku?: string | null }).sku ?? "") as string,
+        is_active:
+          typeof (v as { is_active?: boolean }).is_active === "boolean"
+            ? (v as { is_active: boolean }).is_active
+            : true,
+        quantity_tiers: (((v as { quantity_tiers?: unknown }).quantity_tiers as Array<{
+          min_qty: number;
+          max_qty?: number | null;
+          price_cents: number;
+        }> | null) ?? []),
       }));
       setForm((f) => ({
         ...f,
