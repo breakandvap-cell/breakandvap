@@ -735,7 +735,38 @@ function EliquideDetail({
             )}
 
             {variant && effectiveStock > 0 ? (
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              <>
+                {(() => {
+                  const tiers = (((variant as { quantity_tiers?: unknown }).quantity_tiers ?? []) as Array<{
+                    min_qty: number;
+                    max_qty?: number | null;
+                    price_cents: number;
+                  }>).slice().sort((a, b) => a.min_qty - b.min_qty);
+                  if (tiers.length === 0) return null;
+                  return (
+                    <div className="mt-4 rounded-md border border-border bg-secondary/40 p-3 text-xs">
+                      <p className="mb-2 font-medium text-foreground">Prix dégressif</p>
+                      <ul className="space-y-1">
+                        {tiers.map((t) => {
+                          const active =
+                            qty >= t.min_qty && (t.max_qty == null || qty <= t.max_qty);
+                          return (
+                            <li
+                              key={`${t.min_qty}-${t.max_qty ?? "inf"}`}
+                              className={active ? "font-semibold text-foreground" : "text-muted-foreground"}
+                            >
+                              À partir de {t.min_qty}
+                              {t.max_qty ? ` (jusqu'à ${t.max_qty})` : ""} :{" "}
+                              {formatPrice(t.price_cents, product.currency)} / unité
+                              {active ? " ← tarif appliqué" : ""}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })()}
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
