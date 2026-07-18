@@ -537,7 +537,7 @@ export const adminGetOrder = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("order_items")
         .select(
-          "id, product_id, product_name, quantity, unit_price_cents, base_price_cents, boosters_count, booster_unit_price_cents, nicotine_mg, volume_ml, flavor",
+          "id, product_id, product_name, quantity, unit_price_cents, base_price_cents, boosters_count, booster_unit_price_cents, nicotine_mg, volume_ml, flavor, variant_sku",
         )
         .eq("order_id", data.id),
     ]);
