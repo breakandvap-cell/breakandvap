@@ -1,18 +1,21 @@
 // Configuration du vendeur pour les factures.
-// À COMPLÉTER avec les vraies informations légales de la société.
+// Informations légales officielles de la SAS Break And Vap.
 export const INVOICE_SELLER = {
-  company: "SAS Break and Vap",
-  legal_form: "SAS au capital de X €",
-  siret: "À COMPLÉTER (14 chiffres)",
-  vat_number: "FR XX XXXXXXXXX",
-  rcs: "RCS Dijon",
-  address_line1: "À COMPLÉTER — rue et numéro",
+  company: "Break And Vap",
+  legal_form: "SAS à capital variable de 27 000 €",
+  siret: "841 534 670 00010",
+  siren: "841 534 670",
+  vat_number: "FR57841534670",
+  rcs: "RCS Chalon-sur-Saône 841 534 670",
+  president: "Samuel Houssinger",
+  address_line1: "5 Boulevard de Lattre de Tassigny",
   address_line2: "",
-  postal_code: "21000",
-  city: "Dijon",
+  postal_code: "71300",
+  city: "Montceau-les-Mines",
   country: "France",
-  email: "contact@breakandvap.fr",
-  phone: "",
+  secondary_establishment: "46 Rue Maréchal Foch, 71200 Le Creusot",
+  email: "breakandvap@gmail.com",
+  phone: "06 10 25 47 26",
   website: "https://breakandvap.lovable.app",
 };
 
