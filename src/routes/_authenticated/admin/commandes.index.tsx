@@ -1,10 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
-import { adminSearchOrders } from "@/lib/admin.functions";
+import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  adminSearchOrders,
+  adminUpdateOrder,
+  adminMarkOrderDelivered,
+  adminCancelOrder,
+} from "@/lib/admin.functions";
 import { formatPrice } from "@/lib/products";
 import { StatusBadge } from "./index";
 import { z } from "zod";
-import { useState, type FormEvent } from "react";
+import { useState, useRef, useEffect, type FormEvent } from "react";
+import { toast } from "sonner";
 
 const statusEnum = z.enum(["a_preparer", "expediee", "livree", "annulee"]);
 const searchSchema = z.object({
@@ -150,7 +157,13 @@ function OrdersList() {
                     ? "—"
                     : o.items.map((it) => `${it.quantity}× ${it.product_name}`).join(", ")}
                 </td>
-                <td className="px-3 py-2"><StatusBadge status={o.status} /></td>
+                <td className="px-3 py-2">
+                  <RowStatusControl
+                    id={o.id}
+                    status={o.status}
+                    trackingNumber={o.tracking_number}
+                  />
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">{o.tracking_number ?? "—"}</td>
                 <td className="px-3 py-2 text-right">{formatPrice(o.total_cents, o.currency)}</td>
               </tr>
