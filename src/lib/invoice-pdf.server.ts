@@ -1,5 +1,5 @@
 // Génération de PDF de facture, edge-compatible via pdf-lib.
-import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, PDFFont, PDFPage, StandardFonts, rgb } from "@cantoo/pdf-lib";
 import { INVOICE_SELLER } from "./invoice-config";
 import { itemDescription, lineTaxBreakdown, productRef } from "./order-item-format";
 
