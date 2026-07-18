@@ -1221,6 +1221,36 @@ function ContenanceRow({
 
   return (
     <div className="rounded-md border border-border bg-card/40 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={variant.is_active !== false}
+            onChange={(e) =>
+              onUpdate({ is_active: e.target.checked } as Partial<FormVariant>)
+            }
+          />
+          <span className={variant.is_active === false ? "text-muted-foreground line-through" : "text-foreground"}>
+            {variant.is_active === false ? "Variante désactivée" : "Variante active"}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            (désactivée = masquée du catalogue, historique préservé)
+          </span>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>SKU</span>
+          <input
+            className="input h-8 w-40 px-2 py-1 font-mono text-[11px] uppercase"
+            type="text"
+            maxLength={40}
+            placeholder="Auto"
+            value={(variant as FormVariant & { sku?: string }).sku ?? ""}
+            onChange={(e) =>
+              onUpdate({ sku: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") } as Partial<FormVariant>)
+            }
+          />
+        </label>
+      </div>
       <div className="grid gap-3 sm:grid-cols-[110px_1fr_1fr_1fr_auto] sm:items-end">
         <label className="text-xs">
           <span className="mb-1 block text-muted-foreground">Volume (ml)</span>
