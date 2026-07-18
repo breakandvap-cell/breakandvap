@@ -11,22 +11,26 @@ import { toast } from "sonner";
 import { useCart } from "@/lib/cart";
 import {
   CATEGORY_LABELS,
-  NICOTINE_STEPS_MG_10ML,
-  NICOTINE_STEPS_MG_BOOSTER,
   STOCK_LABELS,
   formatPrice,
   productBySlugQueryOptions,
   productVariantsQueryOptions,
   productByIdQueryOptions,
-  boostersNeeded,
   parseFlavors,
   boosterProductsQueryOptions,
   boostersByType,
   boosterTypeLabel,
   normalizeBoosterTypeKey,
+  type BoosterProduct,
   type ProductFlavor,
   type ProductRow,
 } from "@/lib/products";
+import {
+  siteSettingsQueryOptions,
+  computeNicotineRateMgPerMl,
+  DEFAULT_BOOSTER_CONFIG,
+  type BoosterConfig,
+} from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 
 export const Route = createFileRoute("/produit/$slug")({
@@ -41,6 +45,7 @@ export const Route = createFileRoute("/produit/$slug")({
           productVariantsQueryOptions(product.id),
         ),
         context.queryClient.ensureQueryData(boosterProductsQueryOptions()),
+        context.queryClient.ensureQueryData(siteSettingsQueryOptions()),
       ]);
     }
     return null;
