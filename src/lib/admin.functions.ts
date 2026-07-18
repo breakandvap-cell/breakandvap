@@ -996,5 +996,67 @@ export const adminGetCustomer = createServerFn({ method: "GET" })
     if (prof.error) throw new Error(prof.error.message);
     if (orders.error) throw new Error(orders.error.message);
     if (!prof.data) throw new Error("Client introuvable.");
-    return { profile: prof.data, orders: orders.data ?? [] };
+    const orderRows = orders.data ?? [];
+    const orderIds = orderRows.map((o) => o.id);
+
+    // Charge le détail des lignes + les produits exclus du calcul « favori »
+    // (boosters de nicotine + flacons vides référencés par un e-liquide).
+    const [itemsRes, boostersRes, emptyRes] = await Promise.all([
+      orderIds.length
+        ? supabaseAdmin
+            .from("order_items")
+            .select(
+              "order_id, product_id, product_name, quantity, unit_price_cents, volume_ml, nicotine_mg, flavor, boosters_count, variant_sku",
+            )
+            .in("order_id", orderIds)
+        : Promise.resolve({ data: [], error: null } as const),
+      supabaseAdmin.from("products").select("id").eq("is_nicotine_booster", true),
+      supabaseAdmin
+        .from("products")
+        .select("empty_bottle_product_id")
+        .not("empty_bottle_product_id", "is", null),
+    ]);
+    if (itemsRes.error) throw new Error(itemsRes.error.message);
+    if (boostersRes.error) throw new Error(boostersRes.error.message);
+    if (emptyRes.error) throw new Error(emptyRes.error.message);
+
+    const excluded = new Set<string>();
+    for (const b of boostersRes.data ?? []) if (b.id) excluded.add(b.id);
+    for (const e of emptyRes.data ?? [])
+      if (e.empty_bottle_product_id) excluded.add(e.empty_bottle_product_id);
+
+    const itemsByOrder: Record<string, typeof itemsRes.data> = {};
+    for (const it of itemsRes.data ?? []) {
+      (itemsByOrder[it.order_id] ||= []).push(it);
+    }
+
+    // Total dépensé : commandes expédiées ou livrées uniquement.
+    const totalSpentCents = orderRows
+      .filter((o) => o.status === "expediee" || o.status === "livree")
+      .reduce((s, o) => s + (o.total_cents ?? 0), 0);
+
+    // Produit favori : agrégat des quantités par produit, hors exclusions.
+    const tally = new Map<string, { name: string; qty: number }>();
+    for (const it of itemsRes.data ?? []) {
+      if (!it.product_id || excluded.has(it.product_id)) continue;
+      const cur = tally.get(it.product_id);
+      if (cur) cur.qty += it.quantity;
+      else tally.set(it.product_id, { name: it.product_name, qty: it.quantity });
+    }
+    let favorite: { name: string; qty: number } | null = null;
+    for (const v of tally.values()) {
+      if (!favorite || v.qty > favorite.qty) favorite = v;
+    }
+
+    const ordersWithItems = orderRows.map((o) => ({
+      ...o,
+      items: itemsByOrder[o.id] ?? [],
+    }));
+
+    return {
+      profile: prof.data,
+      orders: ordersWithItems,
+      total_spent_cents: totalSpentCents,
+      favorite_product: favorite,
+    };
   });
