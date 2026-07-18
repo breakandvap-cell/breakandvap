@@ -27,7 +27,26 @@ async function loadSender(): Promise<SendFn | null> {
 export const Route = createFileRoute("/api/public/hooks/low-stock-alert")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const expected = process.env.LOW_STOCK_ALERT_SECRET;
+        if (!expected) {
+          console.error("[low-stock] LOW_STOCK_ALERT_SECRET not configured");
+          return new Response(JSON.stringify({ ok: false }), { status: 500 });
+        }
+        const provided =
+          request.headers.get("x-cron-secret") ??
+          request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+          "";
+        const a = new TextEncoder().encode(provided);
+        const b = new TextEncoder().encode(expected);
+        let ok = a.length === b.length;
+        const len = Math.max(a.length, b.length);
+        let diff = a.length ^ b.length;
+        for (let i = 0; i < len; i++) diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+        if (!ok || diff !== 0) {
+          return new Response(JSON.stringify({ ok: false }), { status: 401 });
+        }
+
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const cutoff = new Date(
