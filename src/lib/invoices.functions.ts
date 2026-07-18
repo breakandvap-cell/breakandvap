@@ -34,7 +34,7 @@ export async function ensureInvoiceForOrderInternal(orderId: string): Promise<{
     supabaseAdmin
       .from("order_items")
       .select(
-        "product_name, quantity, unit_price_cents, base_price_cents, boosters_count, booster_unit_price_cents, nicotine_mg, volume_ml, flavor",
+        "product_name, quantity, unit_price_cents, base_price_cents, boosters_count, booster_unit_price_cents, nicotine_mg, volume_ml, flavor, variant_sku",
       )
       .eq("order_id", orderId),
   ]);
