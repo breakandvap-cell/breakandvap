@@ -107,7 +107,7 @@ function ProductDetail() {
   const cart = useCart();
   const [qty, setQty] = useState(1);
   const flavors = useMemo(
-    () => parseFlavors(product?.flavors),
+    () => parseFlavors(product?.flavors).filter((f) => f.is_active !== false),
     [product?.flavors],
   );
   const [flavor, setFlavor] = useState<string | null>(() => {
