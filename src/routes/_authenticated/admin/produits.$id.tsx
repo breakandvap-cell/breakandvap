@@ -213,11 +213,18 @@ function EditProduct() {
     const errs: string[] = [];
     if (!form.name.trim()) errs.push("nom");
     if (!form.category) errs.push("catégorie");
-    if (!form.price_cents || form.price_cents <= 0) errs.push("prix");
+    const variantsCoverPrice =
+      form.category === "e_liquide" &&
+      hasVariants &&
+      (form.variants ?? []).length > 0 &&
+      (form.variants ?? []).every((v) => (v.price_cents ?? 0) > 0);
+    if (!variantsCoverPrice && (!form.price_cents || form.price_cents <= 0)) {
+      errs.push("prix");
+    }
     if (!form.photos || form.photos.length === 0) errs.push("au moins une photo");
     if (!form.slug || !/^[a-z0-9-]+$/.test(form.slug)) errs.push("slug URL valide");
     return errs;
-  }, [form]);
+  }, [form, hasVariants]);
 
   // Validations spécifiques catégorie CBD.
   const cbdErrors = useMemo(() => {
@@ -259,15 +266,19 @@ function EditProduct() {
         "Ajoute au moins une variante de volume (10, 50, 100 ou 200 ml) pour ce e-liquide.",
       );
     }
-    const seen = new Set<number>();
+    const seen = new Set<string>();
     for (const [i, v] of variants.entries()) {
       const label = `Variante #${i + 1}`;
+      const typeKey = normalizeBoosterTypeKey(v.nicotine_type);
+      const dupKey = `${v.volume_ml}::${typeKey}`;
       if (!v.volume_ml || v.volume_ml <= 0) {
         errs.push(`${label} : volume manquant.`);
-      } else if (seen.has(v.volume_ml)) {
-        errs.push(`${label} : le volume ${v.volume_ml} ml est déjà défini.`);
+      } else if (seen.has(dupKey)) {
+        errs.push(
+          `${label} : le volume ${v.volume_ml} ml en type « ${boosterTypeLabel(typeKey)} » est déjà défini. Chaque couple (volume + type de nicotine) doit être unique.`,
+        );
       } else {
-        seen.add(v.volume_ml);
+        seen.add(dupKey);
       }
       if (!Number.isInteger(v.price_cents) || v.price_cents <= 0) {
         errs.push(`${label} (${v.volume_ml || "?"} ml) : prix requis.`);
@@ -388,9 +399,22 @@ function EditProduct() {
     }
     // Si l'option variantes n'est pas activée, on n'envoie aucune variante,
     // même si le formulaire en contenait (édition ultérieure).
+    const useVariants = form.category === "e_liquide" && hasVariants;
+    const vs = form.variants ?? [];
+    // Quand les variantes pilotent le prix, on synchronise le prix/stock
+    // « produit » sur le plus petit prix variante et la somme des stocks
+    // pour rester cohérent avec le catalogue et les rapports.
+    const priceFromVariants = useVariants && vs.length > 0
+      ? Math.min(...vs.map((v) => v.price_cents || 0))
+      : form.price_cents;
+    const stockFromVariants = useVariants && vs.length > 0
+      ? vs.reduce((s, v) => s + (v.stock || 0), 0)
+      : form.stock;
     const payload: FormState = {
       ...form,
-      variants: form.category === "e_liquide" && hasVariants ? form.variants ?? [] : [],
+      price_cents: priceFromVariants,
+      stock: stockFromVariants,
+      variants: useVariants ? vs : [],
       flavors: hasFlavors
         ? (form.flavors ?? []).map((f) => ({
             name: f.name.trim(),
