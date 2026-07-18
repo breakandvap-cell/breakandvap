@@ -9,6 +9,7 @@ import {
   adminListProducts,
   type ProductInput,
 } from "@/lib/admin.functions";
+import { optimizeImage } from "@/lib/image-optimize";
 import {
   CATEGORY_LABELS,
   NICOTINE_STEPS_MG_10ML,
