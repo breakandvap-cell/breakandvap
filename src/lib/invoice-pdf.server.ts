@@ -65,6 +65,8 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   // En-tête vendeur
   draw(INVOICE_SELLER.company, marginX, y, 14, bold);
   y -= 16;
+  draw(INVOICE_SELLER.legal_form, marginX, y, 9, font, gray);
+  y -= 12;
   draw(INVOICE_SELLER.address_line1, marginX, y, 9, font, gray);
   y -= 12;
   if (INVOICE_SELLER.address_line2) {
@@ -73,12 +75,23 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   }
   draw(`${INVOICE_SELLER.postal_code} ${INVOICE_SELLER.city}, ${INVOICE_SELLER.country}`, marginX, y, 9, font, gray);
   y -= 12;
+  if (INVOICE_SELLER.secondary_establishment) {
+    draw(`Établissement secondaire : ${INVOICE_SELLER.secondary_establishment}`, marginX, y, 9, font, gray);
+    y -= 12;
+  }
   draw(`SIRET : ${INVOICE_SELLER.siret}`, marginX, y, 9, font, gray);
+  y -= 12;
+  draw(`SIREN : ${INVOICE_SELLER.siren} · ${INVOICE_SELLER.rcs}`, marginX, y, 9, font, gray);
   y -= 12;
   draw(`N° TVA : ${INVOICE_SELLER.vat_number}`, marginX, y, 9, font, gray);
   y -= 12;
+  draw(`Président : ${INVOICE_SELLER.president}`, marginX, y, 9, font, gray);
+  y -= 12;
   if (INVOICE_SELLER.email) {
-    draw(INVOICE_SELLER.email, marginX, y, 9, font, gray);
+    const contact = INVOICE_SELLER.phone
+      ? `${INVOICE_SELLER.email} · ${INVOICE_SELLER.phone}`
+      : INVOICE_SELLER.email;
+    draw(contact, marginX, y, 9, font, gray);
     y -= 12;
   }
 
@@ -281,7 +294,11 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   // Mentions légales bas de page — sur chaque page
   const pages = doc.getPages();
   pages.forEach((p, idx) => {
-    const footerY = 60;
+    const footerY = 74;
+    p.drawText(
+      "Vente interdite aux mineurs de moins de 18 ans (produits de vapotage et CBD). Une pièce d'identité peut être exigée.",
+      { x: marginX, y: footerY + 28, size: 8, font: bold, color: black },
+    );
     p.drawText(
       "TVA acquittée selon les débits. Pas d'escompte pour paiement anticipé.",
       { x: marginX, y: footerY + 14, size: 8, font, color: gray },
@@ -291,13 +308,17 @@ export async function renderInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
       { x: marginX, y: footerY, size: 8, font, color: gray },
     );
     p.drawText(
-      `${INVOICE_SELLER.company} · SIRET ${INVOICE_SELLER.siret} · TVA ${INVOICE_SELLER.vat_number}`,
+      `${INVOICE_SELLER.company} · ${INVOICE_SELLER.legal_form} · SIRET ${INVOICE_SELLER.siret} · ${INVOICE_SELLER.rcs} · TVA ${INVOICE_SELLER.vat_number}`,
       { x: marginX, y: footerY - 14, size: 8, font, color: gray },
+    );
+    p.drawText(
+      `Siège : ${INVOICE_SELLER.address_line1}, ${INVOICE_SELLER.postal_code} ${INVOICE_SELLER.city} · ${INVOICE_SELLER.email} · ${INVOICE_SELLER.phone}`,
+      { x: marginX, y: footerY - 26, size: 8, font, color: gray },
     );
     if (pages.length > 1) {
       const pageLabel = `Page ${idx + 1} / ${pages.length}`;
       const w = font.widthOfTextAtSize(pageLabel, 8);
-      p.drawText(pageLabel, { x: width - marginX - w, y: footerY - 14, size: 8, font, color: gray });
+      p.drawText(pageLabel, { x: width - marginX - w, y: footerY - 26, size: 8, font, color: gray });
     }
   });
 
