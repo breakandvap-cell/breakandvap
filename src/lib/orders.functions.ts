@@ -344,6 +344,86 @@ export const createOrder = createServerFn({ method: "POST" })
       country: data.shipping.country || "France",
     };
 
+    // ---------------------------------------------------------------------
+    // Décrément ATOMIQUE des stocks (anti-survente).
+    // On applique chaque décrément via des RPC SQL qui n'écrivent que si le
+    // stock disponible est suffisant. Si l'un des décréments échoue, on
+    // rembobine les précédents avant de renvoyer une erreur claire au client.
+    // ---------------------------------------------------------------------
+    type StockRollback =
+      | { kind: "product"; id: string; qty: number }
+      | { kind: "variant"; id: string; qty: number }
+      | { kind: "flavor"; productId: string; flavor: string; qty: number };
+    const rollbacks: StockRollback[] = [];
+    const rollbackAll = async () => {
+      for (const r of rollbacks.reverse()) {
+        try {
+          if (r.kind === "product") {
+            await supabaseAdmin.rpc("increment_product_stock", { _id: r.id, _qty: r.qty });
+          } else if (r.kind === "variant") {
+            await supabaseAdmin.rpc("increment_variant_stock", { _id: r.id, _qty: r.qty });
+          } else {
+            await supabaseAdmin.rpc("increment_flavor_stock", {
+              _product_id: r.productId,
+              _flavor: r.flavor,
+              _qty: r.qty,
+            });
+          }
+        } catch (e) {
+          console.error("[checkout] rollback failed", r, e);
+        }
+      }
+    };
+
+    for (const line of data.items) {
+      const p = productMap.get(line.productId)!;
+      // Décrément goût si applicable (indépendant du variant)
+      if (flavorMap.has(p.id) && line.flavor) {
+        const { data: newStock, error } = await supabaseAdmin.rpc(
+          "decrement_flavor_stock",
+          { _product_id: p.id, _flavor: line.flavor, _qty: line.quantity },
+        );
+        if (error || newStock == null) {
+          await rollbackAll();
+          throw new Error(
+            `Stock épuisé pour « ${p.name} » (goût ${line.flavor}). Merci d'ajuster votre panier.`,
+          );
+        }
+        rollbacks.push({
+          kind: "flavor",
+          productId: p.id,
+          flavor: line.flavor,
+          qty: line.quantity,
+        });
+      }
+      if (line.variantId) {
+        const { data: newStock, error } = await supabaseAdmin.rpc(
+          "decrement_variant_stock",
+          { _id: line.variantId, _qty: line.quantity },
+        );
+        if (error || newStock == null) {
+          await rollbackAll();
+          const v = variantMap.get(line.variantId);
+          throw new Error(
+            `Stock épuisé pour « ${p.name} »${v ? ` (${v.volume_ml} ml)` : ""}. Merci d'ajuster votre panier.`,
+          );
+        }
+        rollbacks.push({ kind: "variant", id: line.variantId, qty: line.quantity });
+      } else {
+        const { data: newStock, error } = await supabaseAdmin.rpc(
+          "decrement_product_stock",
+          { _id: p.id, _qty: line.quantity },
+        );
+        if (error || newStock == null) {
+          await rollbackAll();
+          throw new Error(
+            `Stock épuisé pour « ${p.name} ». Merci d'ajuster votre panier.`,
+          );
+        }
+        rollbacks.push({ kind: "product", id: p.id, qty: line.quantity });
+      }
+    }
+
     const { data: order, error: orderErr } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -358,6 +438,7 @@ export const createOrder = createServerFn({ method: "POST" })
       .single();
     if (orderErr || !order) {
       console.error("[checkout] order insert failed:", orderErr);
+      await rollbackAll();
       throw new Error("Impossible de créer la commande, réessayez.");
     }
 
@@ -367,37 +448,9 @@ export const createOrder = createServerFn({ method: "POST" })
     if (itemsErr) {
       // Best-effort rollback: delete the order we just created.
       await supabaseAdmin.from("orders").delete().eq("id", order.id);
+      await rollbackAll();
       console.error("[checkout] order_items insert failed:", itemsErr);
       throw new Error("Impossible de créer la commande, réessayez.");
-    }
-
-    // Decrement stocks (best-effort; not transactional but adequate at this scale).
-    for (const line of data.items) {
-      if (line.variantId) continue; // handled below
-      const p = productMap.get(line.productId)!;
-      const nextStock = Math.max(0, p.stock - line.quantity);
-      await supabaseAdmin
-        .from("products")
-        .update({
-          stock: nextStock,
-          stock_status:
-            nextStock === 0 ? "out_of_stock" : nextStock < 10 ? "low_stock" : "in_stock",
-        })
-        .eq("id", p.id);
-    }
-    for (const op of variantStockOps) {
-      await supabaseAdmin
-        .from("product_variants")
-        .update({ stock: op.nextStock })
-        .eq("id", op.id);
-    }
-
-    // Persist flavor stock decrements (best-effort).
-    for (const [productId, list] of flavorOps.entries()) {
-      await supabaseAdmin
-        .from("products")
-        .update({ flavors: list as never })
-        .eq("id", productId);
     }
 
     // Génération automatique de la facture (numéro séquentiel + PDF + stockage).
