@@ -136,6 +136,14 @@ function EditProduct() {
                 typeof (f as { photo?: unknown })?.photo === "string"
                   ? ((f as { photo: string }).photo)
                   : null,
+              sku:
+                typeof (f as { sku?: unknown })?.sku === "string"
+                  ? (f as { sku: string }).sku
+                  : "",
+              is_active:
+                typeof (f as { is_active?: unknown })?.is_active === "boolean"
+                  ? (f as { is_active: boolean }).is_active
+                  : true,
             }))
             .filter((f) => f.name.trim().length > 0)
         : [];
@@ -190,6 +198,16 @@ function EditProduct() {
         nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
         max_boosters: (v as { max_boosters?: number | null }).max_boosters ?? null,
         photo_url: (v as { photo_url?: string | null }).photo_url ?? null,
+        sku: ((v as { sku?: string | null }).sku ?? "") as string,
+        is_active:
+          typeof (v as { is_active?: boolean }).is_active === "boolean"
+            ? (v as { is_active: boolean }).is_active
+            : true,
+        quantity_tiers: (((v as { quantity_tiers?: unknown }).quantity_tiers as Array<{
+          min_qty: number;
+          max_qty?: number | null;
+          price_cents: number;
+        }> | null) ?? []),
       }));
       setForm((f) => ({
         ...f,
@@ -403,6 +421,11 @@ function EditProduct() {
             stock: Math.max(0, Math.trunc(f.stock)),
             photo:
               (f as FormFlavor & { photo?: string | null }).photo || null,
+            sku: ((f as FormFlavor & { sku?: string }).sku ?? "").toString().trim(),
+            is_active:
+              typeof (f as FormFlavor & { is_active?: boolean }).is_active === "boolean"
+                ? (f as FormFlavor & { is_active: boolean }).is_active
+                : true,
           }))
         : [],
     };
@@ -1016,6 +1039,9 @@ function VariantsEditor({
         nicotine_type: "normale",
         max_boosters: 0,
         photo_url: null,
+        sku: "",
+        is_active: true,
+        quantity_tiers: [],
       },
     ]);
   };
@@ -1195,6 +1221,36 @@ function ContenanceRow({
 
   return (
     <div className="rounded-md border border-border bg-card/40 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={variant.is_active !== false}
+            onChange={(e) =>
+              onUpdate({ is_active: e.target.checked } as Partial<FormVariant>)
+            }
+          />
+          <span className={variant.is_active === false ? "text-muted-foreground line-through" : "text-foreground"}>
+            {variant.is_active === false ? "Variante désactivée" : "Variante active"}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            (désactivée = masquée du catalogue, historique préservé)
+          </span>
+        </label>
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>SKU</span>
+          <input
+            className="input h-8 w-40 px-2 py-1 font-mono text-[11px] uppercase"
+            type="text"
+            maxLength={40}
+            placeholder="Auto"
+            value={(variant as FormVariant & { sku?: string }).sku ?? ""}
+            onChange={(e) =>
+              onUpdate({ sku: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, "") } as Partial<FormVariant>)
+            }
+          />
+        </label>
+      </div>
       <div className="grid gap-3 sm:grid-cols-[110px_1fr_1fr_1fr_auto] sm:items-end">
         <label className="text-xs">
           <span className="mb-1 block text-muted-foreground">Volume (ml)</span>
@@ -1357,6 +1413,128 @@ function ContenanceRow({
           </p>
         </div>
       )}
+
+      <QuantityTiersEditor
+        tiers={(variant.quantity_tiers ?? []) as Array<{ min_qty: number; max_qty?: number | null; price_cents: number }>}
+        basePriceCents={variant.price_cents}
+        onChange={(next) => onUpdate({ quantity_tiers: next } as Partial<FormVariant>)}
+      />
+    </div>
+  );
+}
+
+function QuantityTiersEditor({
+  tiers,
+  basePriceCents,
+  onChange,
+}: {
+  tiers: Array<{ min_qty: number; max_qty?: number | null; price_cents: number }>;
+  basePriceCents: number;
+  onChange: (
+    next: Array<{ min_qty: number; max_qty?: number | null; price_cents: number }>,
+  ) => void;
+}) {
+  const enabled = tiers.length > 0;
+  return (
+    <div className="mt-3 rounded-md border border-border/60 bg-background/40 p-3 text-xs">
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(e) => {
+            if (e.target.checked) {
+              onChange([{ min_qty: 2, max_qty: null, price_cents: basePriceCents }]);
+            } else {
+              onChange([]);
+            }
+          }}
+        />
+        <span className="font-medium text-foreground">Prix dégressif selon quantité</span>
+      </label>
+      {enabled && (
+        <div className="mt-3 space-y-2">
+          {tiers.map((t, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
+              <label>
+                <span className="mb-1 block text-muted-foreground">À partir de (qté)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  value={t.min_qty}
+                  onChange={(e) =>
+                    onChange(
+                      tiers.map((x, j) =>
+                        j === i ? { ...x, min_qty: Math.max(1, Math.trunc(Number(e.target.value) || 1)) } : x,
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-muted-foreground">Jusqu'à (optionnel)</span>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  placeholder="∞"
+                  value={t.max_qty ?? ""}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const v = raw === "" ? null : Math.max(1, Math.trunc(Number(raw) || 1));
+                    onChange(tiers.map((x, j) => (j === i ? { ...x, max_qty: v } : x)));
+                  }}
+                />
+              </label>
+              <label>
+                <span className="mb-1 block text-muted-foreground">Prix unitaire (€)</span>
+                <input
+                  className="input"
+                  type="text"
+                  inputMode="decimal"
+                  value={(t.price_cents / 100).toFixed(2)}
+                  onChange={(e) => {
+                    const n = Number(e.target.value.replace(",", "."));
+                    const cents = Number.isFinite(n) ? Math.round(n * 100) : 0;
+                    onChange(tiers.map((x, j) => (j === i ? { ...x, price_cents: cents } : x)));
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => onChange(tiers.filter((_, j) => j !== i))}
+                className="inline-flex items-center justify-center rounded-md border border-border p-2 text-destructive hover:bg-destructive/10"
+                aria-label="Supprimer ce palier"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange([
+                ...tiers,
+                {
+                  min_qty:
+                    (tiers[tiers.length - 1]?.max_qty ??
+                      tiers[tiers.length - 1]?.min_qty ??
+                      1) + 1,
+                  max_qty: null,
+                  price_cents: basePriceCents,
+                },
+              ])
+            }
+            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-secondary"
+          >
+            <Plus className="h-3.5 w-3.5" /> Ajouter un palier
+          </button>
+          <p className="text-[11px] text-muted-foreground">
+            Les tranches ne doivent pas se chevaucher. Laisse « Jusqu'à » vide
+            pour définir la tranche haute.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1473,7 +1651,7 @@ function FlavorsEditor({
       toast.error("Ce goût est déjà dans la liste.");
       return;
     }
-    onChange([...flavors, { name, stock: 0 }]);
+    onChange([...flavors, { name, stock: 0, sku: "", is_active: true }]);
     setDraft("");
   };
 
@@ -1533,6 +1711,40 @@ function FlavorsEditor({
                 onChange={(e) => update(idx, { name: e.target.value })}
                 maxLength={80}
               />
+              <label className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span>SKU :</span>
+                <input
+                  className="input h-8 w-32 px-2 py-1 font-mono text-[11px] uppercase"
+                  type="text"
+                  placeholder="Auto"
+                  value={(f as FormFlavor & { sku?: string }).sku ?? ""}
+                  onChange={(e) =>
+                    update(idx, {
+                      sku: e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ""),
+                    } as Partial<FormFlavor>)
+                  }
+                />
+              </label>
+              <label className="flex items-center gap-1 text-xs">
+                <input
+                  type="checkbox"
+                  checked={(f as FormFlavor & { is_active?: boolean }).is_active !== false}
+                  onChange={(e) =>
+                    update(idx, {
+                      is_active: e.target.checked,
+                    } as Partial<FormFlavor>)
+                  }
+                />
+                <span
+                  className={
+                    (f as FormFlavor & { is_active?: boolean }).is_active === false
+                      ? "text-muted-foreground line-through"
+                      : "text-foreground"
+                  }
+                >
+                  Actif
+                </span>
+              </label>
               <label className="flex items-center gap-1 text-xs text-muted-foreground">
                 <span>Stock :</span>
                 <input

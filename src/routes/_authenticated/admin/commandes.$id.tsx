@@ -418,7 +418,8 @@ function OrderDetail() {
                 return (
                   <tr key={it.id} className="align-top">
                     <td className="px-3 py-2 font-mono text-xs">
-                      {productRef(it.product_name, it.volume_ml)}
+                      {((it as { variant_sku?: string | null }).variant_sku ?? "") ||
+                        productRef(it.product_name, it.volume_ml)}
                     </td>
                     <td className="px-3 py-2">
                       {it.product_id ? (

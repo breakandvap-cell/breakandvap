@@ -107,7 +107,7 @@ function ProductDetail() {
   const cart = useCart();
   const [qty, setQty] = useState(1);
   const flavors = useMemo(
-    () => parseFlavors(product?.flavors),
+    () => parseFlavors(product?.flavors).filter((f) => f.is_active !== false),
     [product?.flavors],
   );
   const [flavor, setFlavor] = useState<string | null>(() => {
@@ -361,7 +361,10 @@ function EliquideDetail({
   const { data: emptyBottle } = useQuery(
     productByIdQueryOptions(emptyBottleId),
   );
-  const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
+  const flavors = useMemo(
+    () => parseFlavors(product.flavors).filter((f) => f.is_active !== false),
+    [product.flavors],
+  );
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
     const first = flavors.find((f) => f.stock > 0);
@@ -434,10 +437,21 @@ function EliquideDetail({
 
   const displayPrice = useMemo(() => {
     if (!variant) return null;
-    if (isReadyToUse) return variant.price_cents;
-    if (boostersCount === 0 || !boosterPrice) return variant.price_cents;
-    return variant.price_cents + boostersCount * boosterPrice;
-  }, [variant, isReadyToUse, boostersCount, boosterPrice]);
+    const tiers = ((variant as { quantity_tiers?: unknown }).quantity_tiers ?? []) as Array<{
+      min_qty: number;
+      max_qty?: number | null;
+      price_cents: number;
+    }>;
+    let base = variant.price_cents;
+    for (const t of tiers) {
+      if (qty >= t.min_qty && (t.max_qty == null || qty <= t.max_qty)) {
+        base = t.price_cents;
+      }
+    }
+    if (isReadyToUse) return base;
+    if (boostersCount === 0 || !boosterPrice) return base;
+    return base + boostersCount * boosterPrice;
+  }, [variant, isReadyToUse, boostersCount, boosterPrice, qty]);
 
   const effectiveStock = variant
     ? hasFlavors
@@ -721,7 +735,38 @@ function EliquideDetail({
             )}
 
             {variant && effectiveStock > 0 ? (
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              <>
+                {(() => {
+                  const tiers = (((variant as { quantity_tiers?: unknown }).quantity_tiers ?? []) as Array<{
+                    min_qty: number;
+                    max_qty?: number | null;
+                    price_cents: number;
+                  }>).slice().sort((a, b) => a.min_qty - b.min_qty);
+                  if (tiers.length === 0) return null;
+                  return (
+                    <div className="mt-4 rounded-md border border-border bg-secondary/40 p-3 text-xs">
+                      <p className="mb-2 font-medium text-foreground">Prix dégressif</p>
+                      <ul className="space-y-1">
+                        {tiers.map((t) => {
+                          const active =
+                            qty >= t.min_qty && (t.max_qty == null || qty <= t.max_qty);
+                          return (
+                            <li
+                              key={`${t.min_qty}-${t.max_qty ?? "inf"}`}
+                              className={active ? "font-semibold text-foreground" : "text-muted-foreground"}
+                            >
+                              À partir de {t.min_qty}
+                              {t.max_qty ? ` (jusqu'à ${t.max_qty})` : ""} :{" "}
+                              {formatPrice(t.price_cents, product.currency)} / unité
+                              {active ? " ← tarif appliqué" : ""}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  );
+                })()}
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                 <div className="inline-flex items-center rounded-md border border-border bg-card">
                   <button
                     type="button"
@@ -761,10 +806,21 @@ function EliquideDetail({
                         ? ` ${boosterTypeLabel(nicotineType)}`
                         : "";
                     const displayName = `${product.name} — ${variant.volume_ml} ml${nicLabel}${typeLabel}${flavorSuffix}`;
+                    const tiers = ((variant as { quantity_tiers?: unknown }).quantity_tiers ?? []) as Array<{
+                      min_qty: number;
+                      max_qty?: number | null;
+                      price_cents: number;
+                    }>;
+                    let baseUnit = variant.price_cents;
+                    for (const t of tiers) {
+                      if (qty >= t.min_qty && (t.max_qty == null || qty <= t.max_qty)) {
+                        baseUnit = t.price_cents;
+                      }
+                    }
                     const unitPrice =
                       isReadyToUse || boostersCount === 0 || !boosterPrice
-                        ? variant.price_cents
-                        : variant.price_cents + boostersCount * boosterPrice;
+                        ? baseUnit
+                        : baseUnit + boostersCount * boosterPrice;
                     cart.add(
                       {
                         key: `${product.id}:${variant.id}:${boostersCount}:${nicotineType}:${effectiveNicotineMg ?? ""}:${flavor ?? ""}`,
@@ -776,7 +832,7 @@ function EliquideDetail({
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
-                        baseUnitPriceCents: variant.price_cents,
+                        baseUnitPriceCents: baseUnit,
                         boostersCount: isReadyToUse ? 0 : boostersCount,
                         boosterUnitPriceCents:
                           !isReadyToUse && boostersCount > 0 ? boosterPrice : null,
@@ -800,6 +856,7 @@ function EliquideDetail({
                     : "Ajouter au panier"}
                 </button>
               </div>
+              </>
             ) : variant ? (
               <button
                 disabled
