@@ -361,7 +361,10 @@ function EliquideDetail({
   const { data: emptyBottle } = useQuery(
     productByIdQueryOptions(emptyBottleId),
   );
-  const flavors = useMemo(() => parseFlavors(product.flavors), [product.flavors]);
+  const flavors = useMemo(
+    () => parseFlavors(product.flavors).filter((f) => f.is_active !== false),
+    [product.flavors],
+  );
   const hasFlavors = flavors.length > 0;
   const [flavor, setFlavor] = useState<string | null>(() => {
     const first = flavors.find((f) => f.stock > 0);
