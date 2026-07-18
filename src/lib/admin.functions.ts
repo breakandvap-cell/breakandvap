@@ -698,6 +698,52 @@ export const adminSetOrderRefundProcessed = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// Modification manuelle libre du statut (outil de dépannage / commandes de
+// test). Contrairement aux endpoints normaux, aucune règle de transition
+// n'est appliquée et AUCUN email n'est envoyé au client. L'action est
+// journalisée avec une mention explicite pour la traçabilité.
+export const adminForceOrderStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        status: orderStatusSchema,
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: current, error: readErr } = await supabaseAdmin
+      .from("orders")
+      .select("status")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (readErr) throw new Error(readErr.message);
+    if (!current) throw new Error("Commande introuvable.");
+    const from = current.status as OrderStatus;
+    const to = data.status as OrderStatus;
+    const now = new Date().toISOString();
+    const patch: Record<string, unknown> = { status: to };
+    // Aligner les horodatages sur le nouveau statut pour rester cohérent
+    // avec l'affichage (« Livrée le … », « Annulée le … »).
+    if (to === "expediee") patch.shipped_at = now;
+    if (to === "livree") patch.delivered_at = now;
+    if (to === "annulee") patch.cancelled_at = now;
+    const { error } = await supabaseAdmin
+      .from("orders")
+      .update(patch as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    await logAction(context.userId, "order.manual_status_change", "order", data.id, {
+      from,
+      to,
+      manual: true,
+    });
+    return { ok: true };
+  });
+
 // ---------- Journal d'audit d'une commande ----------
 
 export type OrderAuditEntry = {
@@ -725,7 +771,13 @@ export const adminGetOrderAuditLog = createServerFn({ method: "GET" })
       .select("id, created_at, action, admin_id, details")
       .eq("entity_type", "order")
       .eq("entity_id", data.id)
-      .in("action", ["order.update", "order.deliver", "order.cancel", "order.refund"])
+      .in("action", [
+        "order.update",
+        "order.deliver",
+        "order.cancel",
+        "order.refund",
+        "order.manual_status_change",
+      ])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
 
