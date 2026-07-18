@@ -19,8 +19,16 @@ export function InvoiceDownloadButton({
   const onClick = async () => {
     setBusy(true);
     try {
-      const { url } = await fetchUrl({ data: { orderId } });
-      window.open(url, "_blank", "noopener,noreferrer");
+      const { url, number } = await fetchUrl({ data: { orderId } });
+      // Utilise un <a download> plutôt que window.open : évite le blocage
+      // pop-up déclenché quand l'ouverture arrive après un await (Chrome/Safari).
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${number}.pdf`;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
     } catch (e) {
       toast.error("Facture indisponible", {
         description: e instanceof Error ? e.message : undefined,
