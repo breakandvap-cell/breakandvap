@@ -118,8 +118,6 @@ function EditProduct() {
   const [priceEuros, setPriceEuros] = useState<string>("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
-  // Variantes = option activable. Décochée par défaut : produit à prix/stock uniques.
-  const [hasVariants, setHasVariants] = useState<boolean>(false);
   // Variantes de goût = option activable, indépendante des variantes de volume.
   const [hasFlavors, setHasFlavors] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -197,7 +195,6 @@ function EditProduct() {
         ...f,
         variants: list,
       }));
-      if (list.length > 0) setHasVariants(true);
     }
   }, [existingVariants]);
 
@@ -214,7 +211,6 @@ function EditProduct() {
     if (!form.category) errs.push("catégorie");
     const variantsCoverPrice =
       form.category === "e_liquide" &&
-      hasVariants &&
       (form.variants ?? []).length > 0 &&
       (form.variants ?? []).every((v) => (v.price_cents ?? 0) > 0);
     if (!variantsCoverPrice && (!form.price_cents || form.price_cents <= 0)) {
@@ -223,7 +219,7 @@ function EditProduct() {
     if (!form.photos || form.photos.length === 0) errs.push("au moins une photo");
     if (!form.slug || !/^[a-z0-9-]+$/.test(form.slug)) errs.push("slug URL valide");
     return errs;
-  }, [form, hasVariants]);
+  }, [form]);
 
   // Validations spécifiques catégorie CBD.
   const cbdErrors = useMemo(() => {
@@ -256,28 +252,19 @@ function EditProduct() {
 
   const variantErrors = useMemo(() => {
     const errs: string[] = [];
-    // Les variantes ne sont vérifiées que si l'admin a activé l'option
-    // « plusieurs formats » sur un e-liquide. Sinon on ignore complètement.
-    if (form.category !== "e_liquide" || !hasVariants) return errs;
+    if (form.category !== "e_liquide") return errs;
     const variants = form.variants ?? [];
-    if (variants.length === 0) {
-      errs.push(
-        "Ajoute au moins une variante de volume (10, 50, 100 ou 200 ml) pour ce e-liquide.",
-      );
-    }
-    const seen = new Set<string>();
+    const seenVolumes = new Set<number>();
     for (const [i, v] of variants.entries()) {
-      const label = `Variante #${i + 1}`;
-      const typeKey = normalizeBoosterTypeKey(v.nicotine_type);
-      const dupKey = `${v.volume_ml}::${typeKey}`;
+      const label = `Contenance #${i + 1}`;
       if (!v.volume_ml || v.volume_ml <= 0) {
         errs.push(`${label} : volume manquant.`);
-      } else if (seen.has(dupKey)) {
+      } else if (seenVolumes.has(v.volume_ml)) {
         errs.push(
-          `${label} : le volume ${v.volume_ml} ml en type « ${boosterTypeLabel(typeKey)} » est déjà défini. Chaque couple (volume + type de nicotine) doit être unique.`,
+          `${label} : le volume ${v.volume_ml} ml est déjà défini. Chaque contenance doit être unique.`,
         );
       } else {
-        seen.add(dupKey);
+        seenVolumes.add(v.volume_ml);
       }
       if (!Number.isInteger(v.price_cents) || v.price_cents <= 0) {
         errs.push(`${label} (${v.volume_ml || "?"} ml) : prix requis.`);
@@ -285,26 +272,21 @@ function EditProduct() {
       if (!Number.isInteger(v.stock) || v.stock < 0) {
         errs.push(`${label} (${v.volume_ml || "?"} ml) : stock invalide.`);
       }
-      const taux = v.available_nicotine_mg ?? [];
-      if (taux.length === 0) {
-        errs.push(
-          `${label} (${v.volume_ml || "?"} ml) : coche au moins un taux de nicotine.`,
-        );
-      }
-      if (v.volume_ml !== 10) {
-        for (const mg of taux) {
-          if (mg === 0) continue;
-          const n = (v.boosters_per_nicotine ?? {})[String(mg)];
-          if (!Number.isInteger(n) || (n as number) <= 0) {
-            errs.push(
-              `${label} (${v.volume_ml} ml) : indique le nombre de boosters nécessaires pour ${mg} mg.`,
-            );
-          }
+      const cap =
+        typeof v.max_boosters === "number" && v.max_boosters >= 0
+          ? v.max_boosters
+          : 0;
+      if (cap === 0) {
+        const taux = v.available_nicotine_mg ?? [];
+        if (taux.length === 0) {
+          errs.push(
+            `${label} (${v.volume_ml || "?"} ml, prêt à l'emploi) : coche au moins un taux de nicotine.`,
+          );
         }
       }
     }
     return errs;
-  }, [form.category, form.variants, hasVariants]);
+  }, [form.category, form.variants]);
 
   const flavorErrors = useMemo(() => {
     const errs: string[] = [];
