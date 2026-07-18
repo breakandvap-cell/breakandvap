@@ -113,7 +113,56 @@ export function duplicateBoosterTypes(
   return dups;
 }
 
-export type ProductFlavor = { name: string; stock: number; photo: string | null };
+export type ProductFlavor = {
+  name: string;
+  stock: number;
+  photo: string | null;
+  sku: string | null;
+  is_active: boolean;
+};
+
+export type QuantityTier = {
+  min_qty: number;
+  max_qty: number | null;
+  price_cents: number;
+};
+
+/** Retourne le prix unitaire à appliquer pour une quantité donnée. */
+export function pickTierPriceCents(
+  basePriceCents: number,
+  tiers: QuantityTier[] | null | undefined,
+  quantity: number,
+): number {
+  if (!tiers || tiers.length === 0) return basePriceCents;
+  let best = basePriceCents;
+  for (const t of tiers) {
+    if (quantity >= t.min_qty && (t.max_qty == null || quantity <= t.max_qty)) {
+      best = t.price_cents;
+    }
+  }
+  return best;
+}
+
+export function parseQuantityTiers(raw: unknown): QuantityTier[] {
+  if (!Array.isArray(raw)) return [];
+  const out: QuantityTier[] = [];
+  for (const t of raw) {
+    if (!t || typeof t !== "object") continue;
+    const min = (t as { min_qty?: unknown }).min_qty;
+    const max = (t as { max_qty?: unknown }).max_qty;
+    const price = (t as { price_cents?: unknown }).price_cents;
+    if (typeof min !== "number" || typeof price !== "number") continue;
+    out.push({
+      min_qty: Math.max(1, Math.trunc(min)),
+      max_qty:
+        typeof max === "number" && Number.isFinite(max)
+          ? Math.max(1, Math.trunc(max))
+          : null,
+      price_cents: Math.max(0, Math.trunc(price)),
+    });
+  }
+  return out.sort((a, b) => a.min_qty - b.min_qty);
+}
 
 export function parseFlavors(raw: unknown): ProductFlavor[] {
   if (!Array.isArray(raw)) return [];
@@ -123,6 +172,8 @@ export function parseFlavors(raw: unknown): ProductFlavor[] {
     const name = (f as { name?: unknown }).name;
     const stock = (f as { stock?: unknown }).stock;
     const photo = (f as { photo?: unknown }).photo;
+    const sku = (f as { sku?: unknown }).sku;
+    const isActive = (f as { is_active?: unknown }).is_active;
     if (typeof name !== "string" || !name.trim()) continue;
     const s = typeof stock === "number" && Number.isFinite(stock)
       ? Math.max(0, Math.trunc(stock))
@@ -131,6 +182,8 @@ export function parseFlavors(raw: unknown): ProductFlavor[] {
       name: name.trim(),
       stock: s,
       photo: typeof photo === "string" && photo.length > 0 ? photo : null,
+      sku: typeof sku === "string" && sku.length > 0 ? sku : null,
+      is_active: typeof isActive === "boolean" ? isActive : true,
     });
   }
   return out;
@@ -221,6 +274,7 @@ export const productVariantsQueryOptions = (productId: string | undefined) =>
         .from("product_variants")
         .select("*")
         .eq("product_id", productId)
+        .eq("is_active", true)
         .order("volume_ml", { ascending: true });
       if (error) throw new Error(error.message);
       return (data ?? []) as ProductVariantRow[];
@@ -239,6 +293,7 @@ export const variantsForProductsQueryOptions = (productIds: string[]) =>
         .from("product_variants")
         .select("*")
         .in("product_id", productIds)
+        .eq("is_active", true)
         .order("volume_ml", { ascending: true });
       if (error) throw new Error(error.message);
       const map: Record<string, ProductVariantRow[]> = {};
