@@ -171,7 +171,6 @@ export const getInvoiceDownloadUrl = createServerFn({ method: "POST" })
       .createSignedUrl(inv.pdf_path, 60 * 10, {
         download: `${inv.number}.pdf`,
       });
-    console.log("[invoice-dl] pdf_path=", inv.pdf_path, "signed=", signed, "error=", error);
     if (error || !signed) throw new Error(error?.message ?? "URL indisponible.");
 
     return { url: signed.signedUrl, number: inv.number };
