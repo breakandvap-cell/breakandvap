@@ -674,6 +674,13 @@ function EditProduct() {
 
         {/* Bloc 3 — prix & stock */}
         <section className="space-y-4 rounded-md border border-border bg-card/40 p-5">
+          {form.category === "e_liquide" && hasVariants ? (
+            <VariantsRecap
+              variants={form.variants ?? []}
+              currency={form.currency}
+              flavorsCount={hasFlavors ? (form.flavors ?? []).length : 0}
+            />
+          ) : (
           <div className="grid gap-4 sm:grid-cols-3">
             <Field label="Prix TTC (€)" required>
               <input
@@ -720,6 +727,7 @@ function EditProduct() {
               </select>
             </Field>
           </div>
+          )}
 
           <label className="inline-flex items-center gap-2 text-sm">
             <input
