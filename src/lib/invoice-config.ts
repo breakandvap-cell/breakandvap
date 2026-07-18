@@ -7,7 +7,6 @@ export const INVOICE_SELLER = {
   siren: "841 534 670",
   vat_number: "FR57841534670",
   rcs: "RCS Chalon-sur-Saône 841 534 670",
-  president: "Samuel Houssinger",
   address_line1: "5 Boulevard de Lattre de Tassigny",
   address_line2: "",
   postal_code: "71300",
