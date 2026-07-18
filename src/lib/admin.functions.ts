@@ -771,7 +771,6 @@ export const adminGetOrderAuditLog = createServerFn({ method: "GET" })
       .select("id, created_at, action, admin_id, details")
       .eq("entity_type", "order")
       .eq("entity_id", data.id)
-      .in("action", ["order.update", "order.deliver", "order.cancel", "order.refund"])
       .in("action", [
         "order.update",
         "order.deliver",
