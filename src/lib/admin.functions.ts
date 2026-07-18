@@ -1025,8 +1025,21 @@ export const adminGetCustomer = createServerFn({ method: "GET" })
     for (const e of emptyRes.data ?? [])
       if (e.empty_bottle_product_id) excluded.add(e.empty_bottle_product_id);
 
-    const itemsByOrder: Record<string, typeof itemsRes.data> = {};
-    for (const it of itemsRes.data ?? []) {
+    type ItemRow = {
+      order_id: string;
+      product_id: string | null;
+      product_name: string;
+      quantity: number;
+      unit_price_cents: number;
+      volume_ml: number | null;
+      nicotine_mg: number | null;
+      flavor: string | null;
+      boosters_count: number;
+      variant_sku: string | null;
+    };
+    const allItems = (itemsRes.data ?? []) as ItemRow[];
+    const itemsByOrder: Record<string, ItemRow[]> = {};
+    for (const it of allItems) {
       (itemsByOrder[it.order_id] ||= []).push(it);
     }
 
@@ -1037,7 +1050,7 @@ export const adminGetCustomer = createServerFn({ method: "GET" })
 
     // Produit favori : agrégat des quantités par produit, hors exclusions.
     const tally = new Map<string, { name: string; qty: number }>();
-    for (const it of itemsRes.data ?? []) {
+    for (const it of allItems) {
       if (!it.product_id || excluded.has(it.product_id)) continue;
       const cur = tally.get(it.product_id);
       if (cur) cur.qty += it.quantity;
