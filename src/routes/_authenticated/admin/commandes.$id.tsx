@@ -99,11 +99,13 @@ function OrderDetail() {
   const deliver = useServerFn(adminMarkOrderDelivered);
   const cancel = useServerFn(adminCancelOrder);
   const setRefund = useServerFn(adminSetOrderRefundProcessed);
+  const forceStatus = useServerFn(adminForceOrderStatus);
   const [status, setStatus] = useState<Status>(order.status);
   const [tracking, setTracking] = useState(order.tracking_number ?? "");
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [trackingTouched, setTrackingTouched] = useState(false);
+  const [manualStatus, setManualStatus] = useState<Status>(order.status);
 
   const trackingError = validateTracking(tracking, status);
   const showTrackingError = trackingError !== null && (trackingTouched || tracking.length > 0);
@@ -111,6 +113,7 @@ function OrderDetail() {
   useEffect(() => {
     setStatus(order.status);
     setTracking(order.tracking_number ?? "");
+    setManualStatus(order.status);
   }, [order.id, order.status, order.tracking_number]);
 
   async function refreshAll() {
@@ -155,6 +158,15 @@ function OrderDetail() {
     mutationFn: (processed: boolean) => setRefund({ data: { id, processed } }),
     onSuccess: async () => {
       toast.success("Statut de remboursement mis à jour.");
+      await refreshAll();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const mForce = useMutation({
+    mutationFn: (next: Status) => forceStatus({ data: { id, status: next } }),
+    onSuccess: async () => {
+      toast.success("Statut modifié manuellement (aucun email envoyé).");
       await refreshAll();
     },
     onError: (e) => toast.error((e as Error).message),
