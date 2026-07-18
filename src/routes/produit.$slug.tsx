@@ -610,20 +610,45 @@ function EliquideDetail({
                   </div>
                 )}
 
-                {variant && !isReadyToUse && (
+                {variant && !isReadyToUse && (() => {
+                  // On propose la plage 0..capacité pour l'usage normal, plus
+                  // quelques crans supplémentaires (dépassement) pour laisser
+                  // au client la liberté de viser un taux plus élevé.
+                  const extraSlots = 4;
+                  const maxSelectable = variantCapacity + extraSlots;
+                  const overCapacity = boostersCount > variantCapacity;
+                  const maxAttainableMg = computeNicotineRateMgPerMl(
+                    variant.volume_ml,
+                    variantCapacity,
+                    cfg ?? DEFAULT_BOOSTER_CONFIG,
+                  );
+                  const largerVariant = availableVolumes.find((v) => {
+                    const cap = typeof (v as { max_boosters?: number | null }).max_boosters === "number"
+                      ? Math.max(0, (v as { max_boosters: number }).max_boosters)
+                      : 0;
+                    if (v.id === variant.id || cap <= 0) return false;
+                    const attain = computeNicotineRateMgPerMl(
+                      v.volume_ml,
+                      cap,
+                      cfg ?? DEFAULT_BOOSTER_CONFIG,
+                    );
+                    return v.volume_ml > variant.volume_ml && attain >= computedMg;
+                  });
+                  return (
                   <>
                     <div>
                       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         2. Nombre de boosters
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {Array.from({ length: variantCapacity + 1 }, (_, i) => i).map((n) => {
+                        {Array.from({ length: maxSelectable + 1 }, (_, i) => i).map((n) => {
                           const mg = computeNicotineRateMgPerMl(
                             variant.volume_ml,
                             n,
                             cfg ?? DEFAULT_BOOSTER_CONFIG,
                           );
                           const selected = boostersCount === n;
+                          const over = n > variantCapacity;
                           return (
                             <button
                               key={n}
@@ -632,8 +657,11 @@ function EliquideDetail({
                               className={`flex min-w-[72px] flex-col items-center rounded-md border px-3 py-2 text-sm leading-tight transition-colors ${
                                 selected
                                   ? "border-primary bg-primary/10 text-foreground"
+                                  : over
+                                  ? "border-amber-500/50 text-amber-200 hover:text-amber-100"
                                   : "border-border text-muted-foreground hover:text-foreground"
                               }`}
+                              title={over ? "Dépasse la capacité du flacon — voir avis ci-dessous" : undefined}
                             >
                               <span className="font-medium">{n} booster{n > 1 ? "s" : ""}</span>
                               <span className="mt-0.5 text-[11px] text-muted-foreground">
@@ -643,6 +671,47 @@ function EliquideDetail({
                           );
                         })}
                       </div>
+                      {overCapacity && (
+                        <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-100">
+                          <p>
+                            Le flacon {variant.volume_ml} ml ne peut physiquement pas
+                            contenir {boostersCount} boosters. Taux maximum
+                            réellement atteignable avec sa capacité déclarée
+                            ({variantCapacity} booster{variantCapacity > 1 ? "s" : ""}) :{" "}
+                            <strong>{maxAttainableMg} mg/ml</strong>.
+                          </p>
+                          {largerVariant ? (
+                            <p className="mt-2">
+                              Choisis plutôt la contenance{" "}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedVariantId(largerVariant.id)}
+                                className="underline underline-offset-2 hover:text-white"
+                              >
+                                {largerVariant.volume_ml} ml
+                              </button>{" "}
+                              qui permet d'atteindre ce taux.
+                            </p>
+                          ) : emptyBottle && emptyBottle.is_published ? (
+                            <p className="mt-2">
+                              Complétez avec un{" "}
+                              <a
+                                href={`/produit/${emptyBottle.slug}`}
+                                className="underline underline-offset-2 hover:text-white"
+                              >
+                                flacon vide
+                              </a>{" "}
+                              pour diluer davantage votre e-liquide et atteindre le
+                              taux souhaité.
+                            </p>
+                          ) : (
+                            <p className="mt-2">
+                              Ce taux n'est pas disponible pour le moment sur ce
+                              format.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div>
@@ -717,7 +786,8 @@ function EliquideDetail({
                       )}
                     </div>
                   </>
-                )}
+                  );
+                })()}
 
                 {hasFlavors && (
                   <div>

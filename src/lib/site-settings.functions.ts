@@ -37,7 +37,14 @@ export const siteSettingsQueryOptions = () =>
   });
 
 /** Calcule le taux de nicotine (mg/ml) résultant de N boosters ajoutés
- *  dans un flacon de `bottleVolumeMl`. Arrondi 1 décimale pour affichage. */
+ *  dans un flacon de `bottleVolumeMl`.
+ *
+ *  Formule : le volume total augmente réellement avec chaque booster ajouté
+ *  (le booster est un liquide, pas juste de la nicotine pure).
+ *    volume_final = bottleVolumeMl + n × boosterVolumeMl
+ *    nicotine_mg  = n × boosterVolumeMl × boosterConcentrationMgPerMl
+ *    taux_mg/ml   = nicotine_mg / volume_final
+ *  Arrondi à l'entier le plus proche pour l'affichage. */
 export function computeNicotineRateMgPerMl(
   bottleVolumeMl: number,
   boostersCount: number,
@@ -45,8 +52,9 @@ export function computeNicotineRateMgPerMl(
 ): number {
   if (!bottleVolumeMl || boostersCount <= 0) return 0;
   const mg = boostersCount * cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl;
-  const rate = mg / bottleVolumeMl;
-  return Math.round(rate * 10) / 10;
+  const finalVolume = bottleVolumeMl + boostersCount * cfg.boosterVolumeMl;
+  if (finalVolume <= 0) return 0;
+  return Math.round(mg / finalVolume);
 }
 
 // -------- Admin --------
