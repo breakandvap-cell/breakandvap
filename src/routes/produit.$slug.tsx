@@ -437,10 +437,21 @@ function EliquideDetail({
 
   const displayPrice = useMemo(() => {
     if (!variant) return null;
-    if (isReadyToUse) return variant.price_cents;
-    if (boostersCount === 0 || !boosterPrice) return variant.price_cents;
-    return variant.price_cents + boostersCount * boosterPrice;
-  }, [variant, isReadyToUse, boostersCount, boosterPrice]);
+    const tiers = ((variant as { quantity_tiers?: unknown }).quantity_tiers ?? []) as Array<{
+      min_qty: number;
+      max_qty?: number | null;
+      price_cents: number;
+    }>;
+    let base = variant.price_cents;
+    for (const t of tiers) {
+      if (qty >= t.min_qty && (t.max_qty == null || qty <= t.max_qty)) {
+        base = t.price_cents;
+      }
+    }
+    if (isReadyToUse) return base;
+    if (boostersCount === 0 || !boosterPrice) return base;
+    return base + boostersCount * boosterPrice;
+  }, [variant, isReadyToUse, boostersCount, boosterPrice, qty]);
 
   const effectiveStock = variant
     ? hasFlavors
