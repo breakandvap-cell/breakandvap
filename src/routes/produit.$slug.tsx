@@ -775,10 +775,21 @@ function EliquideDetail({
                         ? ` ${boosterTypeLabel(nicotineType)}`
                         : "";
                     const displayName = `${product.name} — ${variant.volume_ml} ml${nicLabel}${typeLabel}${flavorSuffix}`;
+                    const tiers = ((variant as { quantity_tiers?: unknown }).quantity_tiers ?? []) as Array<{
+                      min_qty: number;
+                      max_qty?: number | null;
+                      price_cents: number;
+                    }>;
+                    let baseUnit = variant.price_cents;
+                    for (const t of tiers) {
+                      if (qty >= t.min_qty && (t.max_qty == null || qty <= t.max_qty)) {
+                        baseUnit = t.price_cents;
+                      }
+                    }
                     const unitPrice =
                       isReadyToUse || boostersCount === 0 || !boosterPrice
-                        ? variant.price_cents
-                        : variant.price_cents + boostersCount * boosterPrice;
+                        ? baseUnit
+                        : baseUnit + boostersCount * boosterPrice;
                     cart.add(
                       {
                         key: `${product.id}:${variant.id}:${boostersCount}:${nicotineType}:${effectiveNicotineMg ?? ""}:${flavor ?? ""}`,
@@ -790,7 +801,7 @@ function EliquideDetail({
                         slug: product.slug,
                         name: displayName,
                         priceCents: unitPrice,
-                        baseUnitPriceCents: variant.price_cents,
+                        baseUnitPriceCents: baseUnit,
                         boostersCount: isReadyToUse ? 0 : boostersCount,
                         boosterUnitPriceCents:
                           !isReadyToUse && boostersCount > 0 ? boosterPrice : null,
