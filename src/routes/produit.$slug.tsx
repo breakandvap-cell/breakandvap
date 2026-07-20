@@ -358,11 +358,12 @@ function EliquideDetail({
   const { data: boosterList } = useSuspenseQuery(boosterProductsQueryOptions());
   const { data: cfg } = useSuspenseQuery(siteSettingsQueryOptions());
   const boosterMap = useMemo(() => boostersByType(boosterList), [boosterList]);
-  // Flacon vide associé (proposé si capacité dépassée — legacy).
-  const emptyBottleId =
+  // Flacon vide par défaut au niveau du produit (repli si aucune contenance
+  // n'a son propre flacon vide configuré).
+  const productEmptyBottleId =
     (product as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null;
-  const { data: emptyBottle } = useQuery(
-    productByIdQueryOptions(emptyBottleId),
+  const { data: productEmptyBottle } = useQuery(
+    productByIdQueryOptions(productEmptyBottleId),
   );
   const flavors = useMemo(
     () => parseFlavors(product.flavors).filter((f) => f.is_active !== false),
