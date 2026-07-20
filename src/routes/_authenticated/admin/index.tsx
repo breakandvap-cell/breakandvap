@@ -25,6 +25,60 @@ function Dashboard() {
         <Stat label="Produits au catalogue" value={data.counts.totalProducts} />
       </div>
 
+      {data.boosterIssues && data.boosterIssues.length > 0 ? (
+        <section className="rounded-md border border-destructive/50 bg-destructive/10 p-4">
+          <h2 className="text-sm font-semibold text-destructive">
+            Boosters de nicotine indisponibles
+          </h2>
+          <p className="mt-1 text-xs text-destructive/90">
+            Ces types de nicotine sont utilisés par des e-liquides publiés mais
+            leur produit booster de référence n'est plus utilisable. Toute
+            commande d'e-liquide avec ce type de boosters échouera tant que le
+            problème n'est pas corrigé.
+          </p>
+          <ul className="mt-3 space-y-2 text-sm">
+            {data.boosterIssues.map((b) => (
+              <li key={b.type + (b.product?.id ?? "none")} className="flex flex-wrap items-center gap-2">
+                <span className="rounded bg-destructive px-2 py-0.5 text-xs font-medium text-destructive-foreground">
+                  {b.type}
+                </span>
+                {b.issue === "missing" ? (
+                  <span>
+                    Aucun produit marqué comme « Booster de nicotine » pour ce type.
+                    Créez-en un (catégorie Accessoires Vape → coche « Booster de
+                    nicotine » → type « {b.type} »).
+                  </span>
+                ) : b.issue === "unpublished" ? (
+                  <>
+                    <span>Le booster</span>
+                    <Link
+                      to="/admin/produits/$id"
+                      params={{ id: b.product!.id }}
+                      className="font-medium underline"
+                    >
+                      {b.product!.name}
+                    </Link>
+                    <span>n'est pas publié.</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Le booster</span>
+                    <Link
+                      to="/admin/produits/$id"
+                      params={{ id: b.product!.id }}
+                      className="font-medium underline"
+                    >
+                      {b.product!.name}
+                    </Link>
+                    <span>est en rupture de stock — réapprovisionnez-le.</span>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Stock faible / rupture</h2>
