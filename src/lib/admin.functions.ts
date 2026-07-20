@@ -83,6 +83,8 @@ const productInputSchema = z.object({
           )
           .max(10)
           .optional(),
+        // Flacon vide suggéré spécifiquement pour cette contenance.
+        empty_bottle_product_id: z.string().uuid().nullable().optional(),
       }),
     )
     .max(20)
@@ -374,6 +376,8 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           sku,
           is_active: (v as { is_active?: boolean }).is_active ?? true,
           quantity_tiers: tiers as never,
+          empty_bottle_product_id:
+            (v as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null,
         };
         if (v.id) {
           const { error } = await supabaseAdmin
