@@ -394,6 +394,15 @@ function EliquideDetail({
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
 
+  // Flacon vide associé à la contenance sélectionnée (priorité), avec repli
+  // sur le flacon vide par défaut du produit.
+  const variantEmptyBottleId =
+    (variant as { empty_bottle_product_id?: string | null } | null)?.empty_bottle_product_id ?? null;
+  const { data: variantEmptyBottle } = useQuery(
+    productByIdQueryOptions(variantEmptyBottleId),
+  );
+  const emptyBottle = variantEmptyBottle ?? productEmptyBottle ?? null;
+
   // Capacité max de boosters (0 = flacon prêt à l'emploi).
   const variantCapacity = variant
     ? typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
