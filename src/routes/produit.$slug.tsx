@@ -452,6 +452,55 @@ function EliquideDetail({
     );
   }, [variant, isReadyToUse, boostersCount, cfg]);
 
+  const overCapacity =
+    !isReadyToUse && variant !== null && boostersCount > variantCapacity;
+
+  // Liste des flacons vides du catalogue capables d'absorber les boosters
+  // excédentaires par rapport à la capacité du flacon sélectionné. Trié pour
+  // mettre d'abord le flacon spécifiquement associé à la contenance ou au
+  // produit (s'il convient), puis les autres options par contenance croissante.
+  const matchingBottles = useMemo<EmptyBottleCandidate[]>(() => {
+    if (!overCapacity || !variant) return [];
+    const boosterVol = (cfg ?? DEFAULT_BOOSTER_CONFIG).boosterVolumeMl;
+    const overflow = (boostersCount - variantCapacity) * boosterVol;
+    const priorityIds = new Set<string>();
+    if (variantEmptyBottleId) priorityIds.add(variantEmptyBottleId);
+    if (productEmptyBottleId) priorityIds.add(productEmptyBottleId);
+    const list = (bottleCandidates ?? []).filter(
+      (b) => b.volume_ml >= overflow && b.stock > 0,
+    );
+    return list.sort((a, b) => {
+      const pa = priorityIds.has(a.id) ? 0 : 1;
+      const pb = priorityIds.has(b.id) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return a.volume_ml - b.volume_ml;
+    });
+  }, [
+    overCapacity,
+    variant,
+    boostersCount,
+    variantCapacity,
+    cfg,
+    bottleCandidates,
+    variantEmptyBottleId,
+    productEmptyBottleId,
+  ]);
+
+  const [bottleDialogOpen, setBottleDialogOpen] = useState(false);
+  // Clé courante de configuration : on rouvre la pop-up dès qu'un nouveau
+  // dépassement est provoqué (changement de contenance ou de nb boosters).
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const dialogKey = overCapacity && variant
+    ? `${variant.id}:${boostersCount}`
+    : null;
+  useEffect(() => {
+    if (dialogKey && dialogKey !== dismissedKey) {
+      setBottleDialogOpen(true);
+    } else if (!dialogKey) {
+      setBottleDialogOpen(false);
+    }
+  }, [dialogKey, dismissedKey]);
+
   // Effective nicotine (mg/ml) — sert au libellé panier / cart.
   const effectiveNicotineMg = isReadyToUse ? readyMg ?? null : computedMg;
 
