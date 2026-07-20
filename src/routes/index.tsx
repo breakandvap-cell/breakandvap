@@ -153,10 +153,29 @@ function TestimonialsSection() {
             </blockquote>
             <figcaption className="mt-4 text-xs uppercase tracking-[0.15em] text-muted-foreground">
               — {t.author_name}
+              {t.review_date ? (
+                <span className="ml-2 normal-case tracking-normal text-muted-foreground/70">
+                  · {formatRelativeReviewDate(t.review_date)}
+                </span>
+              ) : null}
             </figcaption>
           </figure>
         ))}
       </div>
     </section>
   );
+}
+
+function formatRelativeReviewDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const months =
+    (now.getFullYear() - d.getFullYear()) * 12 +
+    (now.getMonth() - d.getMonth()) -
+    (now.getDate() < d.getDate() ? 1 : 0);
+  if (months < 1) return "récemment";
+  if (months < 12) return `il y a ${months} mois`;
+  const years = Math.floor(months / 12);
+  return years === 1 ? "il y a 1 an" : `il y a ${years} ans`;
 }

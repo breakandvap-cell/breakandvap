@@ -628,6 +628,7 @@ export type Database = {
           id: string
           is_featured: boolean
           rating: number | null
+          review_date: string | null
           sort_order: number
           updated_at: string
         }
@@ -638,6 +639,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           rating?: number | null
+          review_date?: string | null
           sort_order?: number
           updated_at?: string
         }
@@ -648,6 +650,7 @@ export type Database = {
           id?: string
           is_featured?: boolean
           rating?: number | null
+          review_date?: string | null
           sort_order?: number
           updated_at?: string
         }
