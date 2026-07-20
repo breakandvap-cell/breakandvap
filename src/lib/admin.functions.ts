@@ -346,7 +346,7 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           // Cherche les e-liquides qui référencent ce type via une variante active.
           const { data: refs } = await supabaseAdmin
             .from("product_variants")
-            .select("nicotine_type, products!inner(id, name, is_published, category)")
+            .select("nicotine_type, product_id, products!product_variants_product_id_fkey!inner(id, name, category)")
             .eq("is_active", true)
             .eq("products.category", "e_liquide");
           const impacted = new Map<string, string>();
