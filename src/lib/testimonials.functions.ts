@@ -11,6 +11,7 @@ export type Testimonial = {
   rating: number | null;
   is_featured: boolean;
   sort_order: number;
+  review_date: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -49,6 +50,11 @@ const inputSchema = z.object({
   rating: z.number().int().min(1).max(5).nullable().optional(),
   is_featured: z.boolean().default(true),
   sort_order: z.number().int().min(0).max(9999).default(0),
+  review_date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 });
 
 export const adminListTestimonials = createServerFn({ method: "GET" })
@@ -77,6 +83,7 @@ export const adminUpsertTestimonial = createServerFn({ method: "POST" })
       rating: data.rating ?? null,
       is_featured: data.is_featured,
       sort_order: data.sort_order,
+      review_date: data.review_date ?? null,
     };
     if (data.id) {
       const { error } = await supabaseAdmin
