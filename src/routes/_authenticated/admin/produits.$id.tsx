@@ -572,12 +572,13 @@ function EditProduct() {
               <VariantsEditor
                 variants={form.variants ?? []}
                 onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+                vapeAccessories={vapeAccessories ?? []}
               />
               {(form.variants ?? []).length > 0 && (
                 <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4">
                   <Field
-                    label="Produit flacon vide associé (optionnel)"
-                    hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
+                    label="Flacon vide par défaut (optionnel, repli)"
+                    hint="Utilisé uniquement si aucune contenance ci-dessus n'a son propre flacon vide configuré. Reste facultatif."
                   >
                     <select
                       className="input"
