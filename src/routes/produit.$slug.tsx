@@ -413,6 +413,12 @@ function EliquideDetail({
   );
   const emptyBottle = variantEmptyBottle ?? productEmptyBottle ?? null;
 
+  // Toutes les références de flacon vide disponibles au catalogue. Sert à
+  // proposer plusieurs alternatives dans la pop-up de dépassement de capacité.
+  const { data: bottleCandidates } = useQuery(
+    emptyBottleCandidatesQueryOptions(),
+  );
+
   // Capacité max de boosters (0 = flacon prêt à l'emploi).
   const variantCapacity = variant
     ? typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
