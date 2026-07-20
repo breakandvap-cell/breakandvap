@@ -1021,9 +1021,11 @@ function BoosterRoleFields({
 function VariantsEditor({
   variants,
   onChange,
+  vapeAccessories,
 }: {
   variants: FormVariant[];
   onChange: (next: FormVariant[]) => void;
+  vapeAccessories: Array<{ id: string; name: string }>;
 }) {
   const { data: cfg } = useQuery(siteSettingsQueryOptions());
   const update = (idx: number, patch: Partial<FormVariant>) => {
@@ -1103,6 +1105,7 @@ function VariantsEditor({
               cfg={cfg ?? null}
               onUpdate={(patch) => update(idx, patch)}
               onRemove={() => remove(idx)}
+              vapeAccessories={vapeAccessories}
             />
           ))}
         </div>
