@@ -188,6 +188,79 @@ export const adminDashboard = createServerFn({ method: "GET" })
       supabaseAdmin.from("products").select("id, name, stock, stock_status").in("stock_status", ["low_stock", "out_of_stock"]).order("stock", { ascending: true }).limit(10),
       supabaseAdmin.from("orders").select("id, order_number, status, total_cents, currency, created_at, guest_email, user_id").order("created_at", { ascending: false }).limit(8),
     ]);
+    // ---- Santé des boosters de nicotine référencés par les e-liquides ----
+    // Un e-liquide dont une variante active a `nicotine_type = X` s'attend à
+    // trouver un produit booster publié avec `is_nicotine_booster=true` et
+    // `booster_type = X`. Si ce lien est cassé (produit non publié, flag
+    // retiré, ou aucun booster de ce type), la création de commande échoue
+    // avec « Aucun booster de nicotine « X » disponible ». On expose ici les
+    // écarts pour les afficher dans le tableau de bord admin.
+    const [refsRes, boostersRes] = await Promise.all([
+      supabaseAdmin
+        .from("product_variants")
+        .select("nicotine_type, is_active, max_boosters, product_id, products!inner(is_published, category)")
+        .eq("is_active", true)
+        .eq("products.is_published", true)
+        .eq("products.category", "e_liquide"),
+      supabaseAdmin
+        .from("products")
+        .select("id, name, is_published, booster_type, stock_status")
+        .eq("is_nicotine_booster", true),
+    ]);
+    const referencedTypes = new Set<string>();
+    for (const v of (refsRes.data ?? []) as Array<{
+      nicotine_type: string | null;
+      max_boosters: number | null;
+    }>) {
+      // Seules les variantes qui utilisent réellement des boosters comptent
+      // (max_boosters > 0). Les 10 ml prêts-à-l'emploi n'ont pas besoin d'une
+      // référence de prix booster.
+      if ((v.max_boosters ?? 0) <= 0) continue;
+      const t = (v.nicotine_type ?? "normale").toString().trim().toLowerCase() || "normale";
+      referencedTypes.add(t);
+    }
+    const boosterIssues: Array<{
+      type: string;
+      issue: "missing" | "unpublished" | "out_of_stock";
+      product: { id: string; name: string } | null;
+    }> = [];
+    const boostersRaw = (boostersRes.data ?? []) as Array<{
+      id: string;
+      name: string;
+      is_published: boolean;
+      booster_type: string | null;
+      stock_status: string | null;
+    }>;
+    for (const type of referencedTypes) {
+      const matches = boostersRaw.filter(
+        (b) => (b.booster_type ?? "normale").toString().trim().toLowerCase() === type,
+      );
+      if (matches.length === 0) {
+        boosterIssues.push({ type, issue: "missing", product: null });
+        continue;
+      }
+      const published = matches.filter((b) => b.is_published);
+      if (published.length === 0) {
+        const first = matches[0];
+        boosterIssues.push({
+          type,
+          issue: "unpublished",
+          product: { id: first.id, name: first.name },
+        });
+        continue;
+      }
+      // Booster épuisé : la commande passera (le prix est stocké), mais on
+      // signale quand même pour que l'admin réappro le stock booster.
+      const inStock = published.find((b) => b.stock_status !== "out_of_stock");
+      if (!inStock) {
+        const first = published[0];
+        boosterIssues.push({
+          type,
+          issue: "out_of_stock",
+          product: { id: first.id, name: first.name },
+        });
+      }
+    }
     return {
       counts: {
         toPrepare: toPrep.count ?? 0,
@@ -196,6 +269,7 @@ export const adminDashboard = createServerFn({ method: "GET" })
       },
       lowStock: low.data ?? [],
       latestOrders: latest.data ?? [],
+      boosterIssues,
     };
   });
 
