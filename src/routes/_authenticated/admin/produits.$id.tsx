@@ -64,6 +64,7 @@ const empty: FormState = {
   nicotine_mg: null,
   health_warnings: "",
   coa_url: "",
+  volume_ml: null,
   variants: [],
   is_nicotine_booster: false,
   booster_type: null,
