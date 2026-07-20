@@ -25,7 +25,7 @@ const orderInputSchema = z.object({
       z.object({
         productId: z.string().uuid(),
         variantId: z.string().uuid().optional(),
-        nicotineMg: z.number().int().min(0).max(50).optional(),
+        nicotineMg: z.number().min(0).max(50).optional(),
         flavor: z.string().trim().min(1).max(80).optional(),
         quantity: z.number().int().min(1).max(50),
       }),
