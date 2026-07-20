@@ -1204,18 +1204,13 @@ function ContenanceRow({
 
   // Aperçu des taux calculés pour un flacon avec boosters.
   const computedPreview = useMemo(() => {
-    if (isReadyToUse || !cfg || !variant.volume_ml) return [] as { n: number; mg: number }[];
-    const out: { n: number; mg: number }[] = [];
+    if (isReadyToUse || !cfg || !variant.volume_ml)
+      return [] as { n: number; mg: number; raw: number }[];
+    const out: { n: number; mg: number; raw: number }[] = [];
     for (let n = 0; n <= cap; n++) {
-      const mg =
-        n === 0
-          ? 0
-          : Math.round(
-              ((n * cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl) /
-                variant.volume_ml) *
-                10,
-            ) / 10;
-      out.push({ n, mg });
+      const raw = computeNicotineRateMgPerMlRaw(variant.volume_ml, n, cfg);
+      const mg = computeNicotineRateMgPerMl(variant.volume_ml, n, cfg);
+      out.push({ n, mg, raw });
     }
     return out;
   }, [isReadyToUse, cfg, variant.volume_ml, cap]);
@@ -1394,12 +1389,22 @@ function ContenanceRow({
           </p>
           {cfg ? (
             <div className="flex flex-wrap gap-2">
-              {computedPreview.map(({ n, mg }) => (
+              {computedPreview.map(({ n, mg, raw }) => (
                 <span
                   key={n}
                   className="rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-foreground"
+                  title={
+                    n === 0
+                      ? "Sans booster"
+                      : `Valeur exacte avant arrondi : ${raw.toFixed(2).replace(".", ",")} mg/ml`
+                  }
                 >
-                  {n} booster{n > 1 ? "s" : ""} = {mg} mg
+                  {n} booster{n > 1 ? "s" : ""} = {formatNicotineMg(mg)}
+                  {n > 0 && (
+                    <span className="ml-1 text-muted-foreground">
+                      (exact : {raw.toFixed(2).replace(".", ",")})
+                    </span>
+                  )}
                 </span>
               ))}
             </div>
