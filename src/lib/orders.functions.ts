@@ -28,6 +28,11 @@ const orderInputSchema = z.object({
         nicotineMg: z.number().min(0).max(50).optional(),
         flavor: z.string().trim().min(1).max(80).optional(),
         quantity: z.number().int().min(1).max(50),
+        // Nombre de boosters explicitement choisi par le client. Prioritaire
+        // sur la déduction depuis `nicotineMg`. Permet au client de valider
+        // même si le nombre dépasse la capacité physique déclarée du flacon
+        // (le message côté fiche produit est informatif, pas bloquant).
+        boostersCount: z.number().int().min(0).max(20).optional(),
       }),
     )
     .min(1)
