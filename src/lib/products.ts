@@ -320,3 +320,41 @@ export const productByIdQueryOptions = (id: string | null | undefined) =>
       return data ?? null;
     },
   });
+
+export type EmptyBottleCandidate = {
+  id: string;
+  name: string;
+  slug: string;
+  price_cents: number;
+  currency: string;
+  volume_ml: number;
+  stock: number;
+  stock_status: Database["public"]["Enums"]["stock_status"];
+  photos: string[] | null;
+};
+
+/** Toutes les références de flacons vides publiées du catalogue.
+ *  Un « flacon vide » est un accessoire vape avec une contenance renseignée
+ *  (`volume_ml > 0`) et en stock. Utilisé pour proposer plusieurs options
+ *  au client dans la pop-up de dépassement de capacité de boosters. */
+export const emptyBottleCandidatesQueryOptions = () =>
+  queryOptions({
+    queryKey: ["empty-bottle-candidates"] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select(
+          "id, name, slug, price_cents, currency, volume_ml, stock, stock_status, photos",
+        )
+        .eq("category", "accessoire_vape")
+        .eq("is_published", true)
+        .gt("volume_ml", 0)
+        .neq("stock_status", "out_of_stock")
+        .order("volume_ml", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((p) => ({
+        ...p,
+        photos: (p.photos ?? null) as string[] | null,
+      })) as EmptyBottleCandidate[];
+    },
+  });
