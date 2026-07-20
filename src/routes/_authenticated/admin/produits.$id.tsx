@@ -731,9 +731,22 @@ function EditProduct() {
               onChange={(patch) => setForm({ ...form, ...patch })}
             />
           )}
+        </section>
 
-          {form.category === "accessoire_vape" && (
-            <Field label="Contenance du flacon (ml) — pour les flacons vides">
+        {/* Bloc 3 bis — contenance (accessoires vape) */}
+        {form.category === "accessoire_vape" && (
+          <section className="space-y-3 rounded-md border border-primary/40 bg-primary/5 p-5">
+            <div>
+              <h2 className="text-sm font-medium">Contenance du flacon (ml)</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Obligatoire pour les <strong>flacons vides</strong> proposés en
+                complément des e-liquides (ex : 60, 120, 200 ml). Sans cette
+                valeur, le flacon ne sera jamais proposé automatiquement dans
+                la modale d'ajout de boosters. Laisser vide pour les autres
+                accessoires (résistances, drip tips, cotons…).
+              </p>
+            </div>
+            <Field label="Contenance en millilitres">
               <input
                 className="input"
                 type="number"
@@ -744,19 +757,15 @@ function EditProduct() {
                   const v = e.target.value.trim();
                   setForm({
                     ...form,
-                    volume_ml: v === "" ? null : Math.max(0, Math.trunc(Number(v) || 0)),
+                    volume_ml:
+                      v === "" ? null : Math.max(0, Math.trunc(Number(v) || 0)),
                   });
                 }}
-                placeholder="ex : 120"
+                placeholder="ex : 200"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Renseigne la contenance uniquement pour les flacons vides
-                proposés en complément des e-liquides (ex : 60, 120, 200 ml).
-                Laisser vide pour les autres accessoires.
-              </p>
             </Field>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Bloc 4 — photos */}
         <section className="space-y-4 rounded-md border border-border bg-card/40 p-5">
