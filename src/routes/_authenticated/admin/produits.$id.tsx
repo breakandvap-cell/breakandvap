@@ -1177,11 +1177,13 @@ function ContenanceRow({
   cfg,
   onUpdate,
   onRemove,
+  vapeAccessories,
 }: {
   variant: FormVariant;
   cfg: { boosterVolumeMl: number; boosterConcentrationMgPerMl: number } | null;
   onUpdate: (patch: Partial<FormVariant>) => void;
   onRemove: () => void;
+  vapeAccessories: Array<{ id: string; name: string }>;
 }) {
   const cap =
     typeof variant.max_boosters === "number" && variant.max_boosters >= 0
