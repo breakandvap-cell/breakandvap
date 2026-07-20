@@ -416,6 +416,7 @@ export type Database = {
           thc_percent: number | null
           updated_at: string
           updated_by: string | null
+          volume_ml: number | null
         }
         Insert: {
           booster_product_id?: string | null
@@ -444,6 +445,7 @@ export type Database = {
           thc_percent?: number | null
           updated_at?: string
           updated_by?: string | null
+          volume_ml?: number | null
         }
         Update: {
           booster_product_id?: string | null
@@ -472,6 +474,7 @@ export type Database = {
           thc_percent?: number | null
           updated_at?: string
           updated_by?: string | null
+          volume_ml?: number | null
         }
         Relationships: [
           {
