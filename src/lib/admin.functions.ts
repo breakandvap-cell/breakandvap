@@ -394,6 +394,10 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       nicotine_mg: data.nicotine_mg ?? null,
       health_warnings: data.health_warnings || null,
       coa_url: data.coa_url || null,
+      volume_ml:
+        data.category === "accessoire_vape" && data.volume_ml
+          ? data.volume_ml
+          : null,
       is_nicotine_booster:
         data.category === "accessoire_vape" ? Boolean(data.is_nicotine_booster) : false,
       booster_type:
