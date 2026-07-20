@@ -12,13 +12,17 @@ import {
 import { optimizeImage } from "@/lib/image-optimize";
 import {
   CATEGORY_LABELS,
-  NICOTINE_STEPS_MG_10ML,
   BOOSTER_TYPE_PRESETS,
   boosterTypeLabel,
   boosterProductsQueryOptions,
   normalizeBoosterTypeKey,
 } from "@/lib/products";
-import { siteSettingsQueryOptions, computeNicotineRateMgPerMl } from "@/lib/site-settings.functions";
+import {
+  siteSettingsQueryOptions,
+  computeNicotineRateMgPerMl,
+  computeNicotineRateMgPerMlRaw,
+  formatNicotineMg,
+} from "@/lib/site-settings.functions";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -194,10 +198,6 @@ function EditProduct() {
         stock: v.stock,
         max_nicotine_mg: v.max_nicotine_mg ?? null,
         available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
-        // Ancien mapping figé — plus utilisé, le taux est calculé côté client
-        // via computeNicotineRateMgPerMl. Conservé vide pour rester compatible
-        // avec la validation Zod côté serveur.
-        boosters_per_nicotine: {},
         nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
         max_boosters: (v as { max_boosters?: number | null }).max_boosters ?? null,
         photo_url: (v as { photo_url?: string | null }).photo_url ?? null,
@@ -1037,7 +1037,6 @@ function VariantsEditor({
         stock: 0,
         max_nicotine_mg: null,
         available_nicotine_mg: [],
-        boosters_per_nicotine: {},
         nicotine_type: "normale",
         max_boosters: 0,
         photo_url: null,
