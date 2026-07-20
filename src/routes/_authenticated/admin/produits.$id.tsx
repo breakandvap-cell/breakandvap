@@ -731,6 +731,31 @@ function EditProduct() {
               onChange={(patch) => setForm({ ...form, ...patch })}
             />
           )}
+
+          {form.category === "accessoire_vape" && (
+            <Field label="Contenance du flacon (ml) — pour les flacons vides">
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step={1}
+                value={form.volume_ml ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  setForm({
+                    ...form,
+                    volume_ml: v === "" ? null : Math.max(0, Math.trunc(Number(v) || 0)),
+                  });
+                }}
+                placeholder="ex : 120"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Renseigne la contenance uniquement pour les flacons vides
+                proposés en complément des e-liquides (ex : 60, 120, 200 ml).
+                Laisser vide pour les autres accessoires.
+              </p>
+            </Field>
+          )}
         </section>
 
         {/* Bloc 4 — photos */}
