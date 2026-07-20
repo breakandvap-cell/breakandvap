@@ -1433,6 +1433,35 @@ function ContenanceRow({
         basePriceCents={variant.price_cents}
         onChange={(next) => onUpdate({ quantity_tiers: next } as Partial<FormVariant>)}
       />
+
+      <div className="mt-3">
+        <label className="block text-xs">
+          <span className="mb-1 block text-muted-foreground">
+            Flacon vide suggéré pour cette contenance (optionnel)
+          </span>
+          <select
+            className="input"
+            value={(variant as FormVariant & { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? ""}
+            onChange={(e) =>
+              onUpdate({
+                empty_bottle_product_id: e.target.value || null,
+              } as Partial<FormVariant>)
+            }
+          >
+            <option value="">— Aucun (pas de suggestion) —</option>
+            {vapeAccessories.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            Proposé quand le taux demandé dépasse la capacité de ce flacon.
+            Purement informatif — le client peut toujours valider sa commande
+            sans l'ajouter.
+          </span>
+        </label>
+      </div>
     </div>
   );
 }
