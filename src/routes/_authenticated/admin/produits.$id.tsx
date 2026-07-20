@@ -174,6 +174,8 @@ function EditProduct() {
         nicotine_mg: existing.nicotine_mg,
         health_warnings: existing.health_warnings ?? "",
         coa_url: existing.coa_url ?? "",
+        volume_ml:
+          (existing as { volume_ml?: number | null }).volume_ml ?? null,
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
         booster_type:
