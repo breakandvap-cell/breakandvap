@@ -211,6 +211,8 @@ function EditProduct() {
           max_qty?: number | null;
           price_cents: number;
         }> | null) ?? []),
+        empty_bottle_product_id:
+          (v as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null,
       }));
       setForm((f) => ({
         ...f,
