@@ -11,6 +11,16 @@ import {
   type Testimonial,
 } from "@/lib/testimonials.functions";
 
+function formatReviewDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
 export const Route = createFileRoute("/_authenticated/admin/temoignages")({
   ssr: false,
   component: TestimonialsAdmin,
