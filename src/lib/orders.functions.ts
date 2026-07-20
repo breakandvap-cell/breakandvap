@@ -28,6 +28,11 @@ const orderInputSchema = z.object({
         nicotineMg: z.number().min(0).max(50).optional(),
         flavor: z.string().trim().min(1).max(80).optional(),
         quantity: z.number().int().min(1).max(50),
+        // Nombre de boosters explicitement choisi par le client. Prioritaire
+        // sur la déduction depuis `nicotineMg`. Permet au client de valider
+        // même si le nombre dépasse la capacité physique déclarée du flacon
+        // (le message côté fiche produit est informatif, pas bloquant).
+        boostersCount: z.number().int().min(0).max(20).optional(),
       }),
     )
     .min(1)
@@ -292,7 +297,19 @@ export const createOrder = createServerFn({ method: "POST" })
           );
         }
         const nic = line.nicotineMg ?? 0;
-        if (v.available_nicotine_mg.length > 0 && !v.available_nicotine_mg.includes(nic)) {
+        // Pour les flacons prêts à l'emploi (max_boosters=0), on valide le
+        // taux contre la liste cochée. Pour les flacons avec boosters, on
+        // fait confiance au boostersCount du client (le message côté fiche
+        // reste informatif, l'admin ne veut pas bloquer la commande).
+        const capForCheck =
+          typeof v.max_boosters === "number" && v.max_boosters > 0
+            ? v.max_boosters
+            : 0;
+        if (
+          capForCheck === 0 &&
+          v.available_nicotine_mg.length > 0 &&
+          !v.available_nicotine_mg.includes(nic)
+        ) {
           throw new Error(
             `Taux de nicotine ${nic} mg indisponible en ${v.volume_ml} ml pour "${p.name}".`,
           );
@@ -307,27 +324,20 @@ export const createOrder = createServerFn({ method: "POST" })
         let unitPrice = basePrice;
         let boostersUsed = 0;
         let boosterUnitPrice: number | null = null;
-        if (v.volume_ml !== 10 && nic > 0) {
-          // Formule de dilution inverse : cherche le plus petit nombre de
-          // boosters (dans la limite de max_boosters) dont le taux calculé
-          // correspond au taux choisi par le client.
-          const cap =
-            typeof v.max_boosters === "number" && v.max_boosters > 0
-              ? v.max_boosters
-              : 0;
+        if (capForCheck > 0 && (nic > 0 || (line.boostersCount ?? 0) > 0)) {
+          // Priorité au boostersCount envoyé par le client (autorise le
+          // dépassement de capacité — voir schema). Repli : déduction depuis
+          // le taux mg/ml choisi, dans la limite de la capacité.
           let boostersN = 0;
-          if (cap > 0) {
-            for (let n = 1; n <= cap; n++) {
+          if (typeof line.boostersCount === "number" && line.boostersCount > 0) {
+            boostersN = line.boostersCount;
+          } else if (nic > 0) {
+            for (let n = 1; n <= capForCheck; n++) {
               if (computeNicotineRateMgPerMl(v.volume_ml, n, boosterCfg) === nic) {
                 boostersN = n;
                 break;
               }
             }
-          }
-          if (boostersN === 0) {
-            throw new Error(
-              `Taux de nicotine ${nic} mg indisponible en ${v.volume_ml} ml pour "${p.name}".`,
-            );
           }
           if (boostersN > 0) {
             const booster = boosterByType.get(v.nicotine_type);

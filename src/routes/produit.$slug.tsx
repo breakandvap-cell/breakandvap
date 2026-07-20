@@ -358,11 +358,12 @@ function EliquideDetail({
   const { data: boosterList } = useSuspenseQuery(boosterProductsQueryOptions());
   const { data: cfg } = useSuspenseQuery(siteSettingsQueryOptions());
   const boosterMap = useMemo(() => boostersByType(boosterList), [boosterList]);
-  // Flacon vide associé (proposé si capacité dépassée — legacy).
-  const emptyBottleId =
+  // Flacon vide par défaut au niveau du produit (repli si aucune contenance
+  // n'a son propre flacon vide configuré).
+  const productEmptyBottleId =
     (product as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null;
-  const { data: emptyBottle } = useQuery(
-    productByIdQueryOptions(emptyBottleId),
+  const { data: productEmptyBottle } = useQuery(
+    productByIdQueryOptions(productEmptyBottleId),
   );
   const flavors = useMemo(
     () => parseFlavors(product.flavors).filter((f) => f.is_active !== false),
@@ -392,6 +393,15 @@ function EliquideDetail({
   );
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
+
+  // Flacon vide associé à la contenance sélectionnée (priorité), avec repli
+  // sur le flacon vide par défaut du produit.
+  const variantEmptyBottleId =
+    (variant as { empty_bottle_product_id?: string | null } | null)?.empty_bottle_product_id ?? null;
+  const { data: variantEmptyBottle } = useQuery(
+    productByIdQueryOptions(variantEmptyBottleId),
+  );
+  const emptyBottle = variantEmptyBottle ?? productEmptyBottle ?? null;
 
   // Capacité max de boosters (0 = flacon prêt à l'emploi).
   const variantCapacity = variant

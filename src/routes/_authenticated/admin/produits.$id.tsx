@@ -211,6 +211,8 @@ function EditProduct() {
           max_qty?: number | null;
           price_cents: number;
         }> | null) ?? []),
+        empty_bottle_product_id:
+          (v as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null,
       }));
       setForm((f) => ({
         ...f,
@@ -570,12 +572,13 @@ function EditProduct() {
               <VariantsEditor
                 variants={form.variants ?? []}
                 onChange={(vs) => setForm((f) => ({ ...f, variants: vs }))}
+                vapeAccessories={vapeAccessories ?? []}
               />
               {(form.variants ?? []).length > 0 && (
                 <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4">
                   <Field
-                    label="Produit flacon vide associé (optionnel)"
-                    hint="Flacon vide proposé en complément si le taux demandé dépasse la capacité du flacon choisi."
+                    label="Flacon vide par défaut (optionnel, repli)"
+                    hint="Utilisé uniquement si aucune contenance ci-dessus n'a son propre flacon vide configuré. Reste facultatif."
                   >
                     <select
                       className="input"
@@ -1018,9 +1021,11 @@ function BoosterRoleFields({
 function VariantsEditor({
   variants,
   onChange,
+  vapeAccessories,
 }: {
   variants: FormVariant[];
   onChange: (next: FormVariant[]) => void;
+  vapeAccessories: Array<{ id: string; name: string }>;
 }) {
   const { data: cfg } = useQuery(siteSettingsQueryOptions());
   const update = (idx: number, patch: Partial<FormVariant>) => {
@@ -1100,6 +1105,7 @@ function VariantsEditor({
               cfg={cfg ?? null}
               onUpdate={(patch) => update(idx, patch)}
               onRemove={() => remove(idx)}
+              vapeAccessories={vapeAccessories}
             />
           ))}
         </div>
@@ -1171,11 +1177,13 @@ function ContenanceRow({
   cfg,
   onUpdate,
   onRemove,
+  vapeAccessories,
 }: {
   variant: FormVariant;
   cfg: { boosterVolumeMl: number; boosterConcentrationMgPerMl: number } | null;
   onUpdate: (patch: Partial<FormVariant>) => void;
   onRemove: () => void;
+  vapeAccessories: Array<{ id: string; name: string }>;
 }) {
   const cap =
     typeof variant.max_boosters === "number" && variant.max_boosters >= 0
@@ -1425,6 +1433,35 @@ function ContenanceRow({
         basePriceCents={variant.price_cents}
         onChange={(next) => onUpdate({ quantity_tiers: next } as Partial<FormVariant>)}
       />
+
+      <div className="mt-3">
+        <label className="block text-xs">
+          <span className="mb-1 block text-muted-foreground">
+            Flacon vide suggéré pour cette contenance (optionnel)
+          </span>
+          <select
+            className="input"
+            value={(variant as FormVariant & { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? ""}
+            onChange={(e) =>
+              onUpdate({
+                empty_bottle_product_id: e.target.value || null,
+              } as Partial<FormVariant>)
+            }
+          >
+            <option value="">— Aucun (pas de suggestion) —</option>
+            {vapeAccessories.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-muted-foreground">
+            Proposé quand le taux demandé dépasse la capacité de ce flacon.
+            Purement informatif — le client peut toujours valider sa commande
+            sans l'ajouter.
+          </span>
+        </label>
+      </div>
     </div>
   );
 }

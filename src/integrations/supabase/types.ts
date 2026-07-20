@@ -318,6 +318,7 @@ export type Database = {
           available_nicotine_mg: number[]
           boosters_per_nicotine: Json
           created_at: string
+          empty_bottle_product_id: string | null
           id: string
           is_active: boolean
           max_boosters: number | null
@@ -336,6 +337,7 @@ export type Database = {
           available_nicotine_mg?: number[]
           boosters_per_nicotine?: Json
           created_at?: string
+          empty_bottle_product_id?: string | null
           id?: string
           is_active?: boolean
           max_boosters?: number | null
@@ -354,6 +356,7 @@ export type Database = {
           available_nicotine_mg?: number[]
           boosters_per_nicotine?: Json
           created_at?: string
+          empty_bottle_product_id?: string | null
           id?: string
           is_active?: boolean
           max_boosters?: number | null
@@ -369,6 +372,13 @@ export type Database = {
           volume_ml?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "product_variants_empty_bottle_product_id_fkey"
+            columns: ["empty_bottle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
