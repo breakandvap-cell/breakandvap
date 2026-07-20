@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import {
@@ -21,6 +21,9 @@ function TestimonialsAdmin() {
   const list = useServerFn(adminListTestimonials);
   const upsert = useServerFn(adminUpsertTestimonial);
   const del = useServerFn(adminDeleteTestimonial);
+  const [sortMode, setSortMode] = useState<
+    "curated" | "date_desc" | "date_asc"
+  >("curated");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin", "testimonials"],
@@ -65,6 +68,17 @@ function TestimonialsAdmin() {
   }
 
   const items = data ?? [];
+  const sortedItems = useMemo(() => {
+    const arr = [...items];
+    const dateKey = (t: Testimonial) =>
+      t.review_date ?? t.created_at?.slice(0, 10) ?? "";
+    if (sortMode === "date_desc") {
+      arr.sort((a, b) => dateKey(b).localeCompare(dateKey(a)));
+    } else if (sortMode === "date_asc") {
+      arr.sort((a, b) => dateKey(a).localeCompare(dateKey(b)));
+    }
+    return arr;
+  }, [items, sortMode]);
 
   return (
     <div className="space-y-8">
@@ -83,14 +97,28 @@ function TestimonialsAdmin() {
       />
 
       <div className="space-y-3">
-        <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
-          Avis existants ({items.length})
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-sm font-medium uppercase tracking-wider text-muted-foreground">
+            Avis existants ({items.length})
+          </h2>
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            Trier par
+            <select
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs"
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+            >
+              <option value="curated">Ordre de mise en avant</option>
+              <option value="date_desc">Date (plus récent)</option>
+              <option value="date_asc">Date (plus ancien)</option>
+            </select>
+          </label>
+        </div>
         {items.length === 0 ? (
           <p className="text-sm text-muted-foreground">Aucun avis pour le moment.</p>
         ) : (
           <ul className="divide-y divide-border rounded-md border border-border bg-card">
-            {items.map((t) => (
+            {sortedItems.map((t) => (
               <TestimonialRow
                 key={t.id}
                 item={t}
@@ -117,6 +145,7 @@ type FormValues = {
   rating: number | null;
   is_featured: boolean;
   sort_order: number;
+  review_date: string | null;
 };
 
 function TestimonialForm({
@@ -139,6 +168,9 @@ function TestimonialForm({
     rating: initial?.rating ?? 5,
     is_featured: initial?.is_featured ?? true,
     sort_order: initial?.sort_order ?? 0,
+    review_date:
+      initial?.review_date ??
+      (initial ? null : new Date().toISOString().slice(0, 10)),
   });
 
   return (
@@ -157,6 +189,7 @@ function TestimonialForm({
             rating: 5,
             is_featured: true,
             sort_order: 0,
+            review_date: new Date().toISOString().slice(0, 10),
           });
         }
       }}
@@ -220,6 +253,18 @@ function TestimonialForm({
             onChange={(e) => setV({ ...v, is_featured: e.target.checked })}
           />
           Mis en avant sur la page d'accueil
+        </label>
+        <label className="inline-flex items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Date de l'avis</span>
+          <input
+            type="date"
+            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+            value={v.review_date ?? ""}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(e) =>
+              setV({ ...v, review_date: e.target.value || null })
+            }
+          />
         </label>
         <label className="inline-flex items-center gap-2 text-sm">
           <span className="text-muted-foreground">Ordre</span>
@@ -292,6 +337,11 @@ function TestimonialRow({
           <span className="font-medium">{item.author_name}</span>
           {item.rating != null && (
             <span className="text-xs text-muted-foreground">{item.rating}/5</span>
+          )}
+          {item.review_date && (
+            <span className="text-xs text-muted-foreground">
+              · {formatReviewDate(item.review_date)}
+            </span>
           )}
           {!item.is_featured && (
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
