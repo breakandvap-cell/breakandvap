@@ -51,10 +51,6 @@ const productInputSchema = z.object({
           .array(z.number().int().min(0).max(50))
           .max(20)
           .default([]),
-        // Mapping taux mg → nombre de boosters (uniquement volumes 50/100/200).
-        boosters_per_nicotine: z
-          .record(z.string(), z.number().int().min(0).max(20))
-          .default({}),
         // Type de nicotine (libre) : normale, sel, ice, ou tout nouveau type
         // défini par l'admin. Sert à faire le lien avec le produit booster
         // correspondant coché comme « booster de nicotine ».
