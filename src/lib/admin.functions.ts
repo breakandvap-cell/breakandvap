@@ -198,7 +198,7 @@ export const adminDashboard = createServerFn({ method: "GET" })
     const [refsRes, boostersRes] = await Promise.all([
       supabaseAdmin
         .from("product_variants")
-        .select("nicotine_type, is_active, max_boosters, product_id, products!inner(is_published, category)")
+        .select("nicotine_type, is_active, max_boosters, product_id, products!product_variants_product_id_fkey!inner(is_published, category)")
         .eq("is_active", true)
         .eq("products.is_published", true)
         .eq("products.category", "e_liquide"),
@@ -231,6 +231,11 @@ export const adminDashboard = createServerFn({ method: "GET" })
       booster_type: string | null;
       stock_status: string | null;
     }>;
+    // On vérifie systématiquement les 3 types standards (normale/sel/ice),
+    // même si aucun e-liquide ne les référence encore, pour alerter l'admin
+    // avant qu'un nouveau produit e-liquide ne tombe sur un booster manquant.
+    const KNOWN_BOOSTER_TYPES = ["normale", "sel", "ice"] as const;
+    for (const t of KNOWN_BOOSTER_TYPES) referencedTypes.add(t);
     for (const type of referencedTypes) {
       const matches = boostersRaw.filter(
         (b) => (b.booster_type ?? "normale").toString().trim().toLowerCase() === type,
@@ -318,6 +323,57 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // ---- Garde-fou : empêche de casser silencieusement un booster référencé ----
+    // Si le produit est actuellement marqué comme booster de nicotine et qu'un
+    // ou plusieurs e-liquides référencent son type via `nicotine_type`, on
+    // refuse tout changement qui retirerait ce statut (catégorie hors
+    // accessoire_vape, décochage du flag booster, ou changement de
+    // booster_type). L'admin doit d'abord reconfigurer les e-liquides.
+    if (data.id) {
+      const { data: existing } = await supabaseAdmin
+        .from("products")
+        .select("is_nicotine_booster, booster_type, category")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (existing?.is_nicotine_booster) {
+        const currentType = (existing.booster_type ?? "normale")
+          .toString()
+          .trim()
+          .toLowerCase();
+        const nextIsBooster =
+          data.category === "accessoire_vape" && Boolean(data.is_nicotine_booster);
+        const nextType = nextIsBooster
+          ? ((data.booster_type ?? "normale").toString().trim().toLowerCase() || "normale")
+          : null;
+        const wouldBreak =
+          !nextIsBooster || nextType !== currentType;
+        if (wouldBreak) {
+          // Cherche les e-liquides qui référencent ce type via une variante active.
+          const { data: refs } = await supabaseAdmin
+            .from("product_variants")
+            .select("nicotine_type, product_id, products!product_variants_product_id_fkey!inner(id, name, category)")
+            .eq("is_active", true)
+            .eq("products.category", "e_liquide");
+          const impacted = new Map<string, string>();
+          for (const r of (refs ?? []) as Array<{
+            nicotine_type: string | null;
+            products: { id: string; name: string } | null;
+          }>) {
+            const t = (r.nicotine_type ?? "normale").toString().trim().toLowerCase();
+            if (t === currentType && r.products) {
+              impacted.set(r.products.id, r.products.name);
+            }
+          }
+          if (impacted.size > 0) {
+            const names = Array.from(impacted.values()).slice(0, 8).join(", ");
+            const more = impacted.size > 8 ? ` (+${impacted.size - 8} autres)` : "";
+            throw new Error(
+              `Changement refusé : ce produit est le booster « ${currentType} » utilisé par ${impacted.size} e-liquide(s) : ${names}${more}. Reconfigure ces e-liquides d'abord, ou crée un autre booster de type « ${currentType} » avant de modifier celui-ci.`,
+            );
+          }
+        }
+      }
+    }
     const payload = {
       name: data.name,
       slug: data.slug,
