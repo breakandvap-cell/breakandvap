@@ -64,6 +64,7 @@ const empty: FormState = {
   nicotine_mg: null,
   health_warnings: "",
   coa_url: "",
+  volume_ml: null,
   variants: [],
   is_nicotine_booster: false,
   booster_type: null,
@@ -173,6 +174,8 @@ function EditProduct() {
         nicotine_mg: existing.nicotine_mg,
         health_warnings: existing.health_warnings ?? "",
         coa_url: existing.coa_url ?? "",
+        volume_ml:
+          (existing as { volume_ml?: number | null }).volume_ml ?? null,
         variants: [],
         is_nicotine_booster: Boolean(existing.is_nicotine_booster),
         booster_type:
@@ -727,6 +730,31 @@ function EditProduct() {
               type={form.booster_type}
               onChange={(patch) => setForm({ ...form, ...patch })}
             />
+          )}
+
+          {form.category === "accessoire_vape" && (
+            <Field label="Contenance du flacon (ml) — pour les flacons vides">
+              <input
+                className="input"
+                type="number"
+                min={0}
+                step={1}
+                value={form.volume_ml ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value.trim();
+                  setForm({
+                    ...form,
+                    volume_ml: v === "" ? null : Math.max(0, Math.trunc(Number(v) || 0)),
+                  });
+                }}
+                placeholder="ex : 120"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Renseigne la contenance uniquement pour les flacons vides
+                proposés en complément des e-liquides (ex : 60, 120, 200 ml).
+                Laisser vide pour les autres accessoires.
+              </p>
+            </Field>
           )}
         </section>
 

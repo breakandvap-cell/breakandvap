@@ -21,6 +21,8 @@ import {
   boostersByType,
   boosterTypeLabel,
   normalizeBoosterTypeKey,
+  emptyBottleCandidatesQueryOptions,
+  type EmptyBottleCandidate,
   type BoosterProduct,
   type ProductFlavor,
   type ProductRow,
@@ -33,6 +35,14 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/produit/$slug")({
   loader: async ({ context, params }) => {
@@ -403,6 +413,12 @@ function EliquideDetail({
   );
   const emptyBottle = variantEmptyBottle ?? productEmptyBottle ?? null;
 
+  // Toutes les références de flacon vide disponibles au catalogue. Sert à
+  // proposer plusieurs alternatives dans la pop-up de dépassement de capacité.
+  const { data: bottleCandidates } = useQuery(
+    emptyBottleCandidatesQueryOptions(),
+  );
+
   // Capacité max de boosters (0 = flacon prêt à l'emploi).
   const variantCapacity = variant
     ? typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
@@ -435,6 +451,55 @@ function EliquideDetail({
       cfg ?? DEFAULT_BOOSTER_CONFIG,
     );
   }, [variant, isReadyToUse, boostersCount, cfg]);
+
+  const overCapacity =
+    !isReadyToUse && variant !== null && boostersCount > variantCapacity;
+
+  // Liste des flacons vides du catalogue capables d'absorber les boosters
+  // excédentaires par rapport à la capacité du flacon sélectionné. Trié pour
+  // mettre d'abord le flacon spécifiquement associé à la contenance ou au
+  // produit (s'il convient), puis les autres options par contenance croissante.
+  const matchingBottles = useMemo<EmptyBottleCandidate[]>(() => {
+    if (!overCapacity || !variant) return [];
+    const boosterVol = (cfg ?? DEFAULT_BOOSTER_CONFIG).boosterVolumeMl;
+    const overflow = (boostersCount - variantCapacity) * boosterVol;
+    const priorityIds = new Set<string>();
+    if (variantEmptyBottleId) priorityIds.add(variantEmptyBottleId);
+    if (productEmptyBottleId) priorityIds.add(productEmptyBottleId);
+    const list = (bottleCandidates ?? []).filter(
+      (b) => b.volume_ml >= overflow && b.stock > 0,
+    );
+    return list.sort((a, b) => {
+      const pa = priorityIds.has(a.id) ? 0 : 1;
+      const pb = priorityIds.has(b.id) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return a.volume_ml - b.volume_ml;
+    });
+  }, [
+    overCapacity,
+    variant,
+    boostersCount,
+    variantCapacity,
+    cfg,
+    bottleCandidates,
+    variantEmptyBottleId,
+    productEmptyBottleId,
+  ]);
+
+  const [bottleDialogOpen, setBottleDialogOpen] = useState(false);
+  // Clé courante de configuration : on rouvre la pop-up dès qu'un nouveau
+  // dépassement est provoqué (changement de contenance ou de nb boosters).
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const dialogKey = overCapacity && variant
+    ? `${variant.id}:${boostersCount}`
+    : null;
+  useEffect(() => {
+    if (dialogKey && dialogKey !== dismissedKey) {
+      setBottleDialogOpen(true);
+    } else if (!dialogKey) {
+      setBottleDialogOpen(false);
+    }
+  }, [dialogKey, dismissedKey]);
 
   // Effective nicotine (mg/ml) — sert au libellé panier / cart.
   const effectiveNicotineMg = isReadyToUse ? readyMg ?? null : computedMg;
@@ -631,24 +696,6 @@ function EliquideDetail({
                   // au client la liberté de viser un taux plus élevé.
                   const extraSlots = 4;
                   const maxSelectable = variantCapacity + extraSlots;
-                  const overCapacity = boostersCount > variantCapacity;
-                  const maxAttainableMg = computeNicotineRateMgPerMl(
-                    variant.volume_ml,
-                    variantCapacity,
-                    cfg ?? DEFAULT_BOOSTER_CONFIG,
-                  );
-                  const largerVariant = availableVolumes.find((v) => {
-                    const cap = typeof (v as { max_boosters?: number | null }).max_boosters === "number"
-                      ? Math.max(0, (v as { max_boosters: number }).max_boosters)
-                      : 0;
-                    if (v.id === variant.id || cap <= 0) return false;
-                    const attain = computeNicotineRateMgPerMl(
-                      v.volume_ml,
-                      cap,
-                      cfg ?? DEFAULT_BOOSTER_CONFIG,
-                    );
-                    return v.volume_ml > variant.volume_ml && attain >= computedMg;
-                  });
                   return (
                   <>
                     <div>
@@ -690,41 +737,19 @@ function EliquideDetail({
                         <div className="mt-3 rounded-md border border-amber-500/50 bg-amber-500/10 p-3 text-xs text-amber-100">
                           <p>
                             Le flacon {variant.volume_ml} ml ne peut physiquement pas
-                            contenir {boostersCount} boosters. Taux maximum
-                            réellement atteignable avec sa capacité déclarée
-                            ({variantCapacity} booster{variantCapacity > 1 ? "s" : ""}) :{" "}
-                            <strong>{formatNicotineMg(maxAttainableMg)}/ml</strong>.
+                            contenir {boostersCount} boosters.{" "}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDismissedKey(null);
+                                setBottleDialogOpen(true);
+                              }}
+                              className="underline underline-offset-2 hover:text-white"
+                            >
+                              Voir les flacons vides adaptés
+                            </button>
+                            .
                           </p>
-                          {largerVariant ? (
-                            <p className="mt-2">
-                              Choisis plutôt la contenance{" "}
-                              <button
-                                type="button"
-                                onClick={() => setSelectedVariantId(largerVariant.id)}
-                                className="underline underline-offset-2 hover:text-white"
-                              >
-                                {largerVariant.volume_ml} ml
-                              </button>{" "}
-                              qui permet d'atteindre ce taux.
-                            </p>
-                          ) : emptyBottle && emptyBottle.is_published ? (
-                            <p className="mt-2">
-                              Complétez avec un{" "}
-                              <a
-                                href={`/produit/${emptyBottle.slug}`}
-                                className="underline underline-offset-2 hover:text-white"
-                              >
-                                flacon vide
-                              </a>{" "}
-                              pour diluer davantage votre e-liquide et atteindre le
-                              taux souhaité.
-                            </p>
-                          ) : (
-                            <p className="mt-2">
-                              Ce taux n'est pas disponible pour le moment sur ce
-                              format.
-                            </p>
-                          )}
                         </div>
                       )}
                     </div>
@@ -979,6 +1004,102 @@ function EliquideDetail({
         </div>
       </main>
       <SiteFooter />
+      <Dialog
+        open={bottleDialogOpen}
+        onOpenChange={(open) => {
+          setBottleDialogOpen(open);
+          if (!open && dialogKey) setDismissedKey(dialogKey);
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Capacité du flacon dépassée</DialogTitle>
+            <DialogDescription>
+              {variant
+                ? `Le flacon ${variant.volume_ml} ml ne peut physiquement pas contenir ${boostersCount} boosters (capacité déclarée : ${variantCapacity}). Complète avec un flacon vide pour disposer du volume nécessaire, ou continue sans — c'est facultatif.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {matchingBottles.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Flacons vides compatibles
+              </p>
+              <ul className="space-y-2">
+                {matchingBottles.map((b) => {
+                  const isDefault =
+                    b.id === variantEmptyBottleId ||
+                    (!variantEmptyBottleId && b.id === productEmptyBottleId);
+                  return (
+                    <li
+                      key={b.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-secondary/40 p-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">
+                          {b.name}
+                          {isDefault && (
+                            <span className="ml-2 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">
+                              Suggéré
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {b.volume_ml} ml ·{" "}
+                          {formatPrice(b.price_cents, b.currency)}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          cart.add(
+                            {
+                              key: `empty-bottle:${b.id}`,
+                              productId: b.id,
+                              slug: b.slug,
+                              name: `${b.name} (${b.volume_ml} ml)`,
+                              priceCents: b.price_cents,
+                              photo: b.photos?.[0] ?? null,
+                              maxStock: Math.max(1, b.stock),
+                            },
+                            1,
+                          );
+                          toast.success("Flacon vide ajouté au panier", {
+                            description: b.name,
+                          });
+                          setBottleDialogOpen(false);
+                          if (dialogKey) setDismissedKey(dialogKey);
+                        }}
+                        className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                      >
+                        Ajouter au panier
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : (
+            <p className="rounded-md border border-border bg-secondary/40 p-3 text-xs text-muted-foreground">
+              Aucun flacon vide n'est actuellement disponible au catalogue pour
+              absorber ce nombre de boosters. Tu peux tout de même valider ta
+              commande — la capacité indiquée est un repère informatif.
+            </p>
+          )}
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => {
+                setBottleDialogOpen(false);
+                if (dialogKey) setDismissedKey(dialogKey);
+              }}
+              className="inline-flex items-center rounded-md border border-border px-3 py-2 text-sm hover:bg-secondary"
+            >
+              Non merci, continuer sans flacon vide
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -37,6 +37,9 @@ const productInputSchema = z.object({
   nicotine_mg: z.number().min(0).max(50).nullable().optional(),
   health_warnings: z.string().trim().max(2000).optional().or(z.literal("")),
   coa_url: z.string().url().optional().or(z.literal("")),
+  // Contenance en ml du produit (utilisé principalement pour les flacons
+  // vides du catalogue « Accessoires Vape »). Facultatif.
+  volume_ml: z.number().int().positive().max(10_000).nullable().optional(),
   variants: z
     .array(
       z.object({
@@ -391,6 +394,10 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
       nicotine_mg: data.nicotine_mg ?? null,
       health_warnings: data.health_warnings || null,
       coa_url: data.coa_url || null,
+      volume_ml:
+        data.category === "accessoire_vape" && data.volume_ml
+          ? data.volume_ml
+          : null,
       is_nicotine_booster:
         data.category === "accessoire_vape" ? Boolean(data.is_nicotine_booster) : false,
       booster_type:
