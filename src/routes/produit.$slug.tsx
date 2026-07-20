@@ -21,6 +21,8 @@ import {
   boostersByType,
   boosterTypeLabel,
   normalizeBoosterTypeKey,
+  emptyBottleCandidatesQueryOptions,
+  type EmptyBottleCandidate,
   type BoosterProduct,
   type ProductFlavor,
   type ProductRow,
@@ -33,6 +35,14 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/produit/$slug")({
   loader: async ({ context, params }) => {
