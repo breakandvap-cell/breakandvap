@@ -44,7 +44,8 @@ export const siteSettingsQueryOptions = () =>
  *    volume_final = bottleVolumeMl + n × boosterVolumeMl
  *    nicotine_mg  = n × boosterVolumeMl × boosterConcentrationMgPerMl
  *    taux_mg/ml   = nicotine_mg / volume_final
- *  Arrondi à l'entier le plus proche pour l'affichage. */
+ *  Arrondi au 0,5 mg/ml le plus proche pour l'affichage (au plus près de la
+ *  valeur réelle sans afficher un taux plus fort que celui obtenu). */
 export function computeNicotineRateMgPerMl(
   bottleVolumeMl: number,
   boostersCount: number,
@@ -54,7 +55,31 @@ export function computeNicotineRateMgPerMl(
   const mg = boostersCount * cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl;
   const finalVolume = bottleVolumeMl + boostersCount * cfg.boosterVolumeMl;
   if (finalVolume <= 0) return 0;
-  return Math.round(mg / finalVolume);
+  return Math.round((mg / finalVolume) * 2) / 2;
+}
+
+/** Taux exact (non arrondi) — utilisé pour l'aperçu admin qui montre la
+ *  valeur décimale avant arrondi au 0,5 mg près. */
+export function computeNicotineRateMgPerMlRaw(
+  bottleVolumeMl: number,
+  boostersCount: number,
+  cfg: BoosterConfig,
+): number {
+  if (!bottleVolumeMl || boostersCount <= 0) return 0;
+  const mg = boostersCount * cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl;
+  const finalVolume = bottleVolumeMl + boostersCount * cfg.boosterVolumeMl;
+  if (finalVolume <= 0) return 0;
+  return mg / finalVolume;
+}
+
+/** Formatage FR : "3 mg", "1,5 mg", "0 mg". Arrondi au 0,5 le plus proche. */
+export function formatNicotineMg(mg: number | null | undefined): string {
+  if (mg == null || !Number.isFinite(mg)) return "";
+  const rounded = Math.round(mg * 2) / 2;
+  const s = Number.isInteger(rounded)
+    ? String(rounded)
+    : rounded.toFixed(1).replace(".", ",");
+  return `${s} mg`;
 }
 
 // -------- Admin --------
