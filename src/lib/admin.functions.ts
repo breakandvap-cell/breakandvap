@@ -51,10 +51,6 @@ const productInputSchema = z.object({
           .array(z.number().int().min(0).max(50))
           .max(20)
           .default([]),
-        // Mapping taux mg → nombre de boosters (uniquement volumes 50/100/200).
-        boosters_per_nicotine: z
-          .record(z.string(), z.number().int().min(0).max(20))
-          .default({}),
         // Type de nicotine (libre) : normale, sel, ice, ou tout nouveau type
         // défini par l'admin. Sert à faire le lien avec le produit booster
         // correspondant coché comme « booster de nicotine ».
@@ -367,9 +363,8 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
               ? Math.max(...v.available_nicotine_mg)
               : (v.max_nicotine_mg ?? 0),
           available_nicotine_mg: v.available_nicotine_mg ?? [],
-          // Champ obsolète : on force à `{}` à chaque écriture. Le taux de
-          // nicotine est désormais calculé par la formule de dilution.
-          boosters_per_nicotine: {} as never,
+          // Colonne obsolète `boosters_per_nicotine` : plus jamais écrite ni
+          // lue. Le taux est calculé exclusivement par la formule de dilution.
           nicotine_type: v.nicotine_type ?? "normale",
           max_boosters:
             typeof v.max_boosters === "number" && Number.isFinite(v.max_boosters)

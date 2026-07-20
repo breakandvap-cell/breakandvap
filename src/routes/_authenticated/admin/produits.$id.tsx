@@ -12,13 +12,17 @@ import {
 import { optimizeImage } from "@/lib/image-optimize";
 import {
   CATEGORY_LABELS,
-  NICOTINE_STEPS_MG_10ML,
   BOOSTER_TYPE_PRESETS,
   boosterTypeLabel,
   boosterProductsQueryOptions,
   normalizeBoosterTypeKey,
 } from "@/lib/products";
-import { siteSettingsQueryOptions, computeNicotineRateMgPerMl } from "@/lib/site-settings.functions";
+import {
+  siteSettingsQueryOptions,
+  computeNicotineRateMgPerMl,
+  computeNicotineRateMgPerMlRaw,
+  formatNicotineMg,
+} from "@/lib/site-settings.functions";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
 import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
@@ -194,10 +198,6 @@ function EditProduct() {
         stock: v.stock,
         max_nicotine_mg: v.max_nicotine_mg ?? null,
         available_nicotine_mg: (v.available_nicotine_mg ?? []) as number[],
-        // Ancien mapping figé — plus utilisé, le taux est calculé côté client
-        // via computeNicotineRateMgPerMl. Conservé vide pour rester compatible
-        // avec la validation Zod côté serveur.
-        boosters_per_nicotine: {},
         nicotine_type: (v.nicotine_type as "normale" | "sel" | null) ?? "normale",
         max_boosters: (v as { max_boosters?: number | null }).max_boosters ?? null,
         photo_url: (v as { photo_url?: string | null }).photo_url ?? null,
@@ -1037,7 +1037,6 @@ function VariantsEditor({
         stock: 0,
         max_nicotine_mg: null,
         available_nicotine_mg: [],
-        boosters_per_nicotine: {},
         nicotine_type: "normale",
         max_boosters: 0,
         photo_url: null,
@@ -1205,18 +1204,13 @@ function ContenanceRow({
 
   // Aperçu des taux calculés pour un flacon avec boosters.
   const computedPreview = useMemo(() => {
-    if (isReadyToUse || !cfg || !variant.volume_ml) return [] as { n: number; mg: number }[];
-    const out: { n: number; mg: number }[] = [];
+    if (isReadyToUse || !cfg || !variant.volume_ml)
+      return [] as { n: number; mg: number; raw: number }[];
+    const out: { n: number; mg: number; raw: number }[] = [];
     for (let n = 0; n <= cap; n++) {
-      const mg =
-        n === 0
-          ? 0
-          : Math.round(
-              ((n * cfg.boosterVolumeMl * cfg.boosterConcentrationMgPerMl) /
-                variant.volume_ml) *
-                10,
-            ) / 10;
-      out.push({ n, mg });
+      const raw = computeNicotineRateMgPerMlRaw(variant.volume_ml, n, cfg);
+      const mg = computeNicotineRateMgPerMl(variant.volume_ml, n, cfg);
+      out.push({ n, mg, raw });
     }
     return out;
   }, [isReadyToUse, cfg, variant.volume_ml, cap]);
@@ -1395,12 +1389,22 @@ function ContenanceRow({
           </p>
           {cfg ? (
             <div className="flex flex-wrap gap-2">
-              {computedPreview.map(({ n, mg }) => (
+              {computedPreview.map(({ n, mg, raw }) => (
                 <span
                   key={n}
                   className="rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-foreground"
+                  title={
+                    n === 0
+                      ? "Sans booster"
+                      : `Valeur exacte avant arrondi : ${raw.toFixed(2).replace(".", ",")} mg/ml`
+                  }
                 >
-                  {n} booster{n > 1 ? "s" : ""} = {mg} mg
+                  {n} booster{n > 1 ? "s" : ""} = {formatNicotineMg(mg)}
+                  {n > 0 && (
+                    <span className="ml-1 text-muted-foreground">
+                      (exact : {raw.toFixed(2).replace(".", ",")})
+                    </span>
+                  )}
                 </span>
               ))}
             </div>

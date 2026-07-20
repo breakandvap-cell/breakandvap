@@ -1,6 +1,8 @@
 // Helpers partagés pour l'affichage détaillé des lignes de commande /
 // factures (page admin + PDF).
 
+import { formatNicotineMg } from "@/lib/site-settings.functions";
+
 export type OrderLineLike = {
   product_name: string;
   quantity: number;
@@ -34,7 +36,7 @@ export function itemDescription(item: OrderLineLike): string {
     parts.push(`${item.volume_ml} ml`);
   }
   if (item.nicotine_mg != null) {
-    parts.push(`${item.nicotine_mg} mg`);
+    parts.push(formatNicotineMg(item.nicotine_mg));
   }
   if (item.flavor) {
     parts.push(item.flavor);

@@ -28,6 +28,7 @@ import {
 import {
   siteSettingsQueryOptions,
   computeNicotineRateMgPerMl,
+  formatNicotineMg,
   DEFAULT_BOOSTER_CONFIG,
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
@@ -669,7 +670,7 @@ function EliquideDetail({
                             >
                               <span className="font-medium">{n} booster{n > 1 ? "s" : ""}</span>
                               <span className="mt-0.5 text-[11px] text-muted-foreground">
-                                {mg} mg/ml
+                                {formatNicotineMg(mg)}/ml
                               </span>
                             </button>
                           );
@@ -682,7 +683,7 @@ function EliquideDetail({
                             contenir {boostersCount} boosters. Taux maximum
                             réellement atteignable avec sa capacité déclarée
                             ({variantCapacity} booster{variantCapacity > 1 ? "s" : ""}) :{" "}
-                            <strong>{maxAttainableMg} mg/ml</strong>.
+                            <strong>{formatNicotineMg(maxAttainableMg)}/ml</strong>.
                           </p>
                           {largerVariant ? (
                             <p className="mt-2">
@@ -783,7 +784,7 @@ function EliquideDetail({
                               )}
                             </strong>{" "}
                             <span className="text-muted-foreground">
-                              ({computedMg} mg/ml sur {variant.volume_ml} ml)
+                              ({formatNicotineMg(computedMg)}/ml sur {variant.volume_ml} ml)
                             </span>
                           </p>
                         </div>

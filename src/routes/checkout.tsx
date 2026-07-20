@@ -7,6 +7,7 @@ import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useCart } from "@/lib/cart";
 import { createOrder, type CreateOrderInput } from "@/lib/orders.functions";
 import { formatPrice } from "@/lib/products";
+import { formatNicotineMg } from "@/lib/site-settings.functions";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -362,7 +363,7 @@ function CheckoutPage() {
                     <span className="text-xs text-muted-foreground">
                       {it.volumeMl ? `${it.volumeMl} ml` : ""}
                       {it.volumeMl && it.nicotineMg != null ? " · " : ""}
-                      {it.nicotineMg != null ? `${it.nicotineMg} mg · ` : it.volumeMl ? " · " : ""}
+                      {it.nicotineMg != null ? `${formatNicotineMg(it.nicotineMg)} · ` : it.volumeMl ? " · " : ""}
                       {it.flavor ? `${it.flavor} · ` : ""}
                       × {it.quantity}
                     </span>

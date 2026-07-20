@@ -3,6 +3,7 @@ import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/products";
+import { formatNicotineMg } from "@/lib/site-settings.functions";
 
 export const Route = createFileRoute("/panier")({
   head: () => ({
@@ -59,7 +60,7 @@ function CartPage() {
                       <span className="text-[11px] text-muted-foreground">
                         {item.volumeMl ? `${item.volumeMl} ml` : ""}
                         {item.volumeMl && item.nicotineMg != null ? " · " : ""}
-                        {item.nicotineMg != null ? `${item.nicotineMg} mg` : ""}
+                        {item.nicotineMg != null ? formatNicotineMg(item.nicotineMg) : ""}
                         {item.flavor
                           ? `${item.volumeMl || item.nicotineMg != null ? " · " : ""}${item.flavor}`
                           : ""}
