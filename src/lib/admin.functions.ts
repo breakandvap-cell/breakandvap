@@ -198,7 +198,7 @@ export const adminDashboard = createServerFn({ method: "GET" })
     const [refsRes, boostersRes] = await Promise.all([
       supabaseAdmin
         .from("product_variants")
-        .select("nicotine_type, is_active, max_boosters, product_id, products!inner(is_published, category)")
+        .select("nicotine_type, is_active, max_boosters, product_id, products!product_variants_product_id_fkey!inner(is_published, category)")
         .eq("is_active", true)
         .eq("products.is_published", true)
         .eq("products.category", "e_liquide"),
@@ -231,6 +231,11 @@ export const adminDashboard = createServerFn({ method: "GET" })
       booster_type: string | null;
       stock_status: string | null;
     }>;
+    // On vérifie systématiquement les 3 types standards (normale/sel/ice),
+    // même si aucun e-liquide ne les référence encore, pour alerter l'admin
+    // avant qu'un nouveau produit e-liquide ne tombe sur un booster manquant.
+    const KNOWN_BOOSTER_TYPES = ["normale", "sel", "ice"] as const;
+    for (const t of KNOWN_BOOSTER_TYPES) referencedTypes.add(t);
     for (const type of referencedTypes) {
       const matches = boostersRaw.filter(
         (b) => (b.booster_type ?? "normale").toString().trim().toLowerCase() === type,
