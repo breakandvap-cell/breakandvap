@@ -44,6 +44,7 @@ import { Route as AuthenticatedAdminProduitsNouveauRouteImport } from './routes/
 import { Route as AuthenticatedAdminProduitsIdRouteImport } from './routes/_authenticated/admin/produits.$id'
 import { Route as AuthenticatedAdminCommandesIdRouteImport } from './routes/_authenticated/admin/commandes.$id'
 import { Route as AuthenticatedAdminClientsIdRouteImport } from './routes/_authenticated/admin/clients.$id'
+import { Route as AuthenticatedAdminProduitsNouveauCategorieRouteImport } from './routes/_authenticated/admin/produits.nouveau.$categorie'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -234,6 +235,12 @@ const AuthenticatedAdminClientsIdRoute =
     path: '/$id',
     getParentRoute: () => AuthenticatedAdminClientsRoute,
   } as any)
+const AuthenticatedAdminProduitsNouveauCategorieRoute =
+  AuthenticatedAdminProduitsNouveauCategorieRouteImport.update({
+    id: '/$categorie',
+    path: '/$categorie',
+    getParentRoute: () => AuthenticatedAdminProduitsNouveauRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -266,10 +273,11 @@ export interface FileRoutesByFullPath {
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
   '/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
-  '/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauRoute
+  '/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauRouteWithChildren
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
+  '/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -301,10 +309,11 @@ export interface FileRoutesByTo {
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
   '/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
-  '/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauRoute
+  '/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauRouteWithChildren
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits': typeof AuthenticatedAdminProduitsIndexRoute
+  '/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -339,10 +348,11 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/_authenticated/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
   '/_authenticated/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
-  '/_authenticated/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauRoute
+  '/_authenticated/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauRouteWithChildren
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/_authenticated/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/_authenticated/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
+  '/_authenticated/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes/'
     | '/admin/produits/'
+    | '/admin/produits/nouveau/$categorie'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -416,6 +427,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes'
     | '/admin/produits'
+    | '/admin/produits/nouveau/$categorie'
   id:
     | '__root__'
     | '/'
@@ -453,6 +465,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/_authenticated/admin/commandes/'
     | '/_authenticated/admin/produits/'
+    | '/_authenticated/admin/produits/nouveau/$categorie'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -723,6 +736,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminClientsIdRouteImport
       parentRoute: typeof AuthenticatedAdminClientsRoute
     }
+    '/_authenticated/admin/produits/nouveau/$categorie': {
+      id: '/_authenticated/admin/produits/nouveau/$categorie'
+      path: '/$categorie'
+      fullPath: '/admin/produits/nouveau/$categorie'
+      preLoaderRoute: typeof AuthenticatedAdminProduitsNouveauCategorieRouteImport
+      parentRoute: typeof AuthenticatedAdminProduitsNouveauRoute
+    }
   }
 }
 
@@ -740,6 +760,21 @@ const AuthenticatedAdminClientsRouteWithChildren =
     AuthenticatedAdminClientsRouteChildren,
   )
 
+interface AuthenticatedAdminProduitsNouveauRouteChildren {
+  AuthenticatedAdminProduitsNouveauCategorieRoute: typeof AuthenticatedAdminProduitsNouveauCategorieRoute
+}
+
+const AuthenticatedAdminProduitsNouveauRouteChildren: AuthenticatedAdminProduitsNouveauRouteChildren =
+  {
+    AuthenticatedAdminProduitsNouveauCategorieRoute:
+      AuthenticatedAdminProduitsNouveauCategorieRoute,
+  }
+
+const AuthenticatedAdminProduitsNouveauRouteWithChildren =
+  AuthenticatedAdminProduitsNouveauRoute._addFileChildren(
+    AuthenticatedAdminProduitsNouveauRouteChildren,
+  )
+
 interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminCategoriesRoute: typeof AuthenticatedAdminCategoriesRoute
   AuthenticatedAdminClientsRoute: typeof AuthenticatedAdminClientsRouteWithChildren
@@ -750,7 +785,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCommandesIdRoute: typeof AuthenticatedAdminCommandesIdRoute
   AuthenticatedAdminProduitsIdRoute: typeof AuthenticatedAdminProduitsIdRoute
-  AuthenticatedAdminProduitsNouveauRoute: typeof AuthenticatedAdminProduitsNouveauRoute
+  AuthenticatedAdminProduitsNouveauRoute: typeof AuthenticatedAdminProduitsNouveauRouteWithChildren
   AuthenticatedAdminCommandesIndexRoute: typeof AuthenticatedAdminCommandesIndexRoute
   AuthenticatedAdminProduitsIndexRoute: typeof AuthenticatedAdminProduitsIndexRoute
 }
@@ -768,7 +803,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminCommandesIdRoute: AuthenticatedAdminCommandesIdRoute,
     AuthenticatedAdminProduitsIdRoute: AuthenticatedAdminProduitsIdRoute,
     AuthenticatedAdminProduitsNouveauRoute:
-      AuthenticatedAdminProduitsNouveauRoute,
+      AuthenticatedAdminProduitsNouveauRouteWithChildren,
     AuthenticatedAdminCommandesIndexRoute:
       AuthenticatedAdminCommandesIndexRoute,
     AuthenticatedAdminProduitsIndexRoute: AuthenticatedAdminProduitsIndexRoute,
