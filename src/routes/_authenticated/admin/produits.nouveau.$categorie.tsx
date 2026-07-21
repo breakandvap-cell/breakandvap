@@ -69,7 +69,12 @@ function WizardEntry() {
   const { categorie } = Route.useParams();
   const slug = categorie as WizardSlug;
   if (slug === "e-liquide") {
-    return <Navigate to="/admin/produits/$id" params={{ id: "nouveau-eliquide" }} />;
+    return (
+      <Navigate
+        to="/admin/produits/eliquide/$id"
+        params={{ id: "nouveau" }}
+      />
+    );
   }
   const category = SLUG_TO_CATEGORY[slug as Exclude<WizardSlug, "e-liquide">];
   if (!category) {
