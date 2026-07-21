@@ -1048,6 +1048,236 @@ function StepMode({
   );
 }
 
+// ---------- Étape « Type de produit » (Accessoire Vape) ----------
+function StepType({
+  state,
+  setState,
+}: {
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+}) {
+  const options: Array<{ key: ProductKind; title: string; desc: string; icon: ReactNode }> = [
+    {
+      key: "simple",
+      title: "Produit simple",
+      desc: "Un seul prix, un seul stock. Ex : verre de remplacement, drip tip unique, outil, adaptateur, câble…",
+      icon: <Package className="h-6 w-6" />,
+    },
+    {
+      key: "variants",
+      title: "Produit à plusieurs choix",
+      desc: "Plusieurs valeurs d'une même caractéristique (résistance en Ω, couleur, contenance…), chacune avec son propre stock.",
+      icon: <Scale className="h-6 w-6" />,
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <SectionTitle>Comment ce produit se décline-t-il&nbsp;?</SectionTitle>
+      <p className="text-sm text-muted-foreground">
+        Ce choix change l'étape suivante. Tu peux revenir en arrière sans
+        perdre tes saisies.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {options.map((o) => {
+          const active = state.product_kind === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => setState((s) => ({ ...s, product_kind: o.key }))}
+              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
+                active
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/40"
+                  : "border-input hover:border-primary/50"
+              }`}
+            >
+              <div className={`rounded-md p-2 ${active ? "bg-primary/15 text-primary" : "bg-muted"}`}>
+                {o.icon}
+              </div>
+              <div className="font-medium">{o.title}</div>
+              <p className="text-xs text-muted-foreground">{o.desc}</p>
+              {active && (
+                <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                  <Check className="h-3 w-3" /> Sélectionné
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Étape « Vente » (Accessoire Vape — plusieurs choix) ----------
+function StepSaleVariants({
+  state,
+  setState,
+  showErrors,
+  errors,
+  parsedChoices,
+}: {
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+  showErrors: boolean;
+  errors: string[];
+  parsedChoices: ParsedChoice[];
+}) {
+  function updateChoice(idx: number, patch: Partial<VariantChoice>) {
+    setState((s) => ({
+      ...s,
+      variant_choices: s.variant_choices.map((c, i) => (i === idx ? { ...c, ...patch } : c)),
+    }));
+  }
+  function addChoice() {
+    setState((s) => ({ ...s, variant_choices: [...s.variant_choices, newVariantChoice()] }));
+  }
+  function removeChoice(idx: number) {
+    setState((s) => ({ ...s, variant_choices: s.variant_choices.filter((_, i) => i !== idx) }));
+  }
+  const totalStock = parsedChoices.reduce((sum, c) => sum + c.stock, 0);
+  return (
+    <div className="space-y-5">
+      <SectionTitle>Produit à plusieurs choix</SectionTitle>
+
+      <div>
+        <label className="text-sm font-medium">
+          Nom de la caractéristique variable *
+        </label>
+        <input
+          type="text"
+          value={state.variant_attribute_name}
+          onChange={(e) =>
+            setState((s) => ({ ...s, variant_attribute_name: e.target.value }))
+          }
+          placeholder="Ex : Ohm, Couleur, Contenance"
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Ce nom apparaîtra dans la description du produit pour aider le
+          client à choisir.
+        </p>
+        <FieldError show={showErrors} errors={errors} match={/caractéristique/i} />
+      </div>
+
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">
+                Valeur {state.variant_attribute_name ? `(${state.variant_attribute_name})` : "(ex : 0,15 Ω)"}
+              </th>
+              <th className="px-3 py-2 text-left">Prix (€)</th>
+              <th className="px-3 py-2 text-left">Stock</th>
+              <th className="px-3 py-2 text-left">SKU</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {state.variant_choices.map((c, i) => (
+              <tr key={i} className="border-t align-top">
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={c.value}
+                    onChange={(e) => updateChoice(i, { value: e.target.value })}
+                    placeholder="ex. 0,15 Ω"
+                    className="w-32 rounded-md border border-input bg-background px-2 py-1"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={c.priceEuros}
+                    onChange={(e) => updateChoice(i, { priceEuros: e.target.value })}
+                    placeholder="3,90"
+                    className="w-24 rounded-md border border-input bg-background px-2 py-1"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={c.stock}
+                    onChange={(e) => updateChoice(i, { stock: e.target.value })}
+                    className="w-20 rounded-md border border-input bg-background px-2 py-1"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={c.sku}
+                    onChange={(e) => updateChoice(i, { sku: e.target.value })}
+                    placeholder="auto"
+                    className="w-40 rounded-md border border-input bg-background px-2 py-1 font-mono text-xs"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  {state.variant_choices.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeChoice(i)}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Retirer
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button
+        type="button"
+        onClick={addChoice}
+        className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+      >
+        <Plus className="h-4 w-4" /> Ajouter une valeur
+      </button>
+
+      <FieldError show={showErrors} errors={errors} match={/Valeur|Doublon|caractéristique/i} />
+
+      {parsedChoices.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-3 text-xs">
+          <p className="mb-2 font-medium text-foreground">
+            Aperçu — {parsedChoices.length} déclinaison{parsedChoices.length > 1 ? "s" : ""}, stock total : {totalStock}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {parsedChoices.map((c, i) => (
+              <div key={i} className="rounded border bg-background px-3 py-2">
+                <div className="font-medium">{c.value || "—"}</div>
+                <div className="text-muted-foreground">
+                  {Number.isFinite(c.price_cents) ? formatPrice(c.price_cents) : "—"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  Stock : {c.stock}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="text-sm font-medium">Description courte *</label>
+        <textarea
+          value={state.descriptionShort}
+          onChange={(e) => setState((s) => ({ ...s, descriptionShort: e.target.value }))}
+          rows={3}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <FieldError show={showErrors} errors={errors} match={/description/i} />
+      </div>
+    </div>
+  );
+}
+
 // ---------- Étape « Vente » CBD (au poids ou sachets) ----------
 function StepSaleCbd({
   state,
