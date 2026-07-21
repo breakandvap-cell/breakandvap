@@ -123,6 +123,10 @@ type WizardState = {
   booster_type: string;
   is_empty_bottle: boolean;
   volume_ml: string;
+  // Accessoire Vape uniquement — parcours « produit simple » vs « plusieurs choix ».
+  product_kind: ProductKind;
+  variant_attribute_name: string;
+  variant_choices: VariantChoice[];
 };
 
 const STEP_LABELS_DEFAULT = ["Base produit", "Vente", "Données métier", "Relecture"] as const;
