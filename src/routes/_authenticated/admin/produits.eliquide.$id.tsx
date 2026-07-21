@@ -13,10 +13,15 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Copy,
   Droplets,
   FlaskConical,
   Layers,
   Loader2,
+  Plus,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
@@ -40,6 +45,13 @@ export const Route = createFileRoute(
 
 type SalesMode = "small_only" | "large_only" | "both";
 
+type Flavor = {
+  id: string;
+  name: string;
+  image: string | null;
+  active: boolean;
+};
+
 type WizardData = {
   // Étape 1 — informations produit
   name: string;
@@ -52,6 +64,8 @@ type WizardData = {
   country: string;
   // Étape 2 — comment est-il vendu
   salesMode: SalesMode | null;
+  // Étape 3 — goûts (communs à tous les formats)
+  flavors: Flavor[];
 };
 
 const EMPTY: WizardData = {
@@ -64,6 +78,7 @@ const EMPTY: WizardData = {
   pgVg: "",
   country: "",
   salesMode: null,
+  flavors: [],
 };
 
 // -------------------------------------------------------------------
@@ -87,7 +102,7 @@ function buildSteps(mode: SalesMode | null): StepDef[] {
   const steps: StepDef[] = [
     { id: "info", label: "Informations du produit", implemented: true },
     { id: "mode", label: "Mode de vente", implemented: true },
-    { id: "flavors", label: "Goûts", implemented: false },
+    { id: "flavors", label: "Goûts", implemented: true },
   ];
   if (mode === "small_only" || mode === "both") {
     steps.push({ id: "small_format", label: "Format 10 ml", implemented: false });
@@ -211,6 +226,10 @@ function Wizard({
     if (currentStep.id === "mode") {
       return data.salesMode !== null;
     }
+    if (currentStep.id === "flavors") {
+      // On autorise le passage même sans goût (produit à saveur unique).
+      return true;
+    }
     return false;
   })();
 
@@ -258,6 +277,8 @@ function Wizard({
           <StepInfo data={data} onPatch={patch} productId={productId} />
         ) : currentStep.id === "mode" ? (
           <StepMode data={data} onPatch={patch} />
+        ) : currentStep.id === "flavors" ? (
+          <StepFlavors data={data} onPatch={patch} />
         ) : (
           <StepPlaceholder label={currentStep.label} />
         )}
