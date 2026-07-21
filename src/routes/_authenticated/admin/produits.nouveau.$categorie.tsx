@@ -834,6 +834,7 @@ type RenderStepArgs = {
   volumeNum: number | null;
   parsedWeight: ParsedTier[];
   parsedSachets: ParsedSachet[];
+  parsedChoices: ParsedChoice[];
   photos: string[];
   onFiles: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemovePhoto: (idx: number) => void;
