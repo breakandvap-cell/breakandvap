@@ -846,6 +846,7 @@ type RenderStepArgs = {
 
 function renderStep(a: RenderStepArgs) {
   const isCbd = a.category === "cbd";
+  const isAccVape = a.category === "accessoire_vape";
   // Séquence : CBD → [Base, Mode, Vente, Meta, Review], autres → [Base, Vente, Meta, Review].
   if (isCbd) {
     switch (a.step) {
@@ -892,6 +893,57 @@ function renderStep(a: RenderStepArgs) {
         );
     }
   }
+  if (isAccVape) {
+    // [Base, Type, Vente, Meta, Review]
+    switch (a.step) {
+      case 0:
+        return (
+          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 1:
+        return <StepType state={a.state} setState={a.setState} />;
+      case 2:
+        if (a.state.product_kind === "variants") {
+          return (
+            <StepSaleVariants
+              state={a.state}
+              setState={a.setState}
+              showErrors={a.submitAttempted}
+              errors={a.currentErrors}
+              parsedChoices={a.parsedChoices}
+            />
+          );
+        }
+        return (
+          <StepSale state={a.state} setState={a.setState} onSkuChange={a.onSkuChange} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 3:
+        return (
+          <StepMeta state={a.state} setState={a.setState} category={a.category} showErrors={a.submitAttempted} errors={a.currentErrors} thcOverLimit={a.thcOverLimit} cbdConforme={a.cbdConforme} />
+        );
+      case 4:
+        return (
+          <StepReview
+            slug={a.slug}
+            category={a.category}
+            state={a.state}
+            priceCents={a.priceCents}
+            stockNum={a.stockNum}
+            cbdNum={a.cbdNum}
+            thcNum={a.thcNum}
+            volumeNum={a.volumeNum}
+            errorsByStep={a.errorsByStep}
+            canPublish={a.canPublish && !a.thcOverLimit}
+            thcOverLimit={a.thcOverLimit}
+            parsedWeight={a.parsedWeight}
+            parsedSachets={a.parsedSachets}
+            parsedChoices={a.parsedChoices}
+            onEditStep={a.onEditStep}
+          />
+        );
+    }
+    return null;
+  }
   switch (a.step) {
     case 0:
       return (
@@ -921,6 +973,7 @@ function renderStep(a: RenderStepArgs) {
           thcOverLimit={a.thcOverLimit}
           parsedWeight={a.parsedWeight}
           parsedSachets={a.parsedSachets}
+          parsedChoices={a.parsedChoices}
           onEditStep={a.onEditStep}
         />
       );
