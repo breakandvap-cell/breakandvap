@@ -257,6 +257,9 @@ function Wizard({
       // On autorise le passage même sans goût (produit à saveur unique).
       return true;
     }
+    if (currentStep.id === "formats") {
+      return isFormatsStepValid(data);
+    }
     return false;
   })();
 
@@ -306,6 +309,8 @@ function Wizard({
           <StepMode data={data} onPatch={patch} />
         ) : currentStep.id === "flavors" ? (
           <StepFlavors data={data} onPatch={patch} />
+        ) : currentStep.id === "formats" ? (
+          <StepFormats data={data} onPatch={patch} />
         ) : (
           <StepPlaceholder label={currentStep.label} />
         )}
