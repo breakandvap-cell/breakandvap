@@ -350,9 +350,16 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           ? "\n\n_Mode de vente : au poids (paliers dégressifs)._"
           : "\n\n_Mode de vente : sachets préparés._"
         : "";
+    const variantsNote =
+      category === "accessoire_vape" && state.product_kind === "variants"
+        ? `\n\n**${state.variant_attribute_name.trim() || "Choix"} disponibles :** ${parsedChoices
+            .filter((c) => c.value)
+            .map((c) => c.value)
+            .join(", ")}`
+        : "";
     const composedDescription = (brand
       ? `**Marque :** ${brand}${description ? `\n\n${description}` : ""}`
-      : description) + modeNote;
+      : description) + modeNote + variantsNote;
 
     // Résout stock / prix / variantes selon le mode CBD choisi.
     let effectivePriceCents = priceCents;
@@ -399,6 +406,22 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
         const cheapest = [...parsedSachets].sort((a, b) => a.price_euros - b.price_euros)[0];
         effectivePriceCents = cheapest ? Math.round(cheapest.price_euros * 100) : 0;
       }
+    } else if (category === "accessoire_vape" && state.product_kind === "variants") {
+      // Une variante par valeur ; volume_ml sert d'index ordinal (obligatoire côté DB).
+      variants = parsedChoices.map((c, i) => ({
+        volume_ml: i + 1,
+        price_cents: Number.isFinite(c.price_cents) ? c.price_cents : 0,
+        stock: c.stock,
+        available_nicotine_mg: [],
+        nicotine_type: "normale",
+        is_active: true,
+        sku: c.sku,
+      }));
+      effectiveStock = parsedChoices.reduce((sum, c) => sum + c.stock, 0);
+      const cheapest = parsedChoices
+        .filter((c) => Number.isFinite(c.price_cents) && c.price_cents > 0)
+        .sort((a, b) => a.price_cents - b.price_cents)[0];
+      effectivePriceCents = cheapest ? cheapest.price_cents : 0;
     }
 
     const payload: ProductInput = {
