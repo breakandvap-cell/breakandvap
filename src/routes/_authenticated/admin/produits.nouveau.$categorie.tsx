@@ -32,11 +32,19 @@ import {
   AlertTriangle,
   ShieldCheck,
   FileText,
+  Scale,
+  Package,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 type WizardSlug = "cbd" | "e-liquide" | "accessoire-vape" | "accessoire-cbd";
 type SimpleCategory = "cbd" | "accessoire_vape" | "accessoire_cbd";
 type Intensity = "leger" | "modere" | "fort";
+type CbdSaleMode = "weight" | "packs";
+
+type WeightTier = { from_g: string; price_per_g: string };
+type SachetPack = { weight_g: string; price_euros: string; stock: string };
 
 const SLUG_TO_CATEGORY: Record<Exclude<WizardSlug, "e-liquide">, SimpleCategory> = {
   cbd: "cbd",
@@ -88,24 +96,47 @@ type WizardState = {
   name: string;
   brand: string;
   photos: string[];
-  // Étape 2
+  // Étape 2 (mode CBD) / Étape 2 classique
+  sale_mode: CbdSaleMode; // uniquement utilisé pour CBD
+  weight_tiers: WeightTier[];
+  weight_stock_g: string;
+  sachets: SachetPack[];
+  // Étape Vente classique
   priceEuros: string;
   stock: string;
   sku: string;
   descriptionShort: string;
-  // Étape 3 — CBD
+  // Étape Métier — CBD
   cbd_percent: string;
   thc_percent: string;
   intensity: Intensity | "";
   coa_url: string;
-  // Étape 3 — Accessoires (booster / flacon)
+  // Étape Métier — Accessoires (booster / flacon)
   is_nicotine_booster: boolean;
   booster_type: string;
   is_empty_bottle: boolean;
   volume_ml: string;
 };
 
-const STEP_LABELS = ["Base produit", "Vente", "Données métier", "Relecture"] as const;
+const STEP_LABELS_DEFAULT = ["Base produit", "Vente", "Données métier", "Relecture"] as const;
+const STEP_LABELS_CBD = [
+  "Base produit",
+  "Mode de vente",
+  "Vente",
+  "Données métier",
+  "Relecture",
+] as const;
+
+function getStepLabels(category: SimpleCategory): readonly string[] {
+  return category === "cbd" ? STEP_LABELS_CBD : STEP_LABELS_DEFAULT;
+}
+
+function newTier(from_g = "1", price_per_g = ""): WeightTier {
+  return { from_g, price_per_g };
+}
+function newSachet(weight_g = "", price_euros = "", stock = "0"): SachetPack {
+  return { weight_g, price_euros, stock };
+}
 
 function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory }) {
   const navigate = useNavigate();
@@ -113,7 +144,9 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
   const save = useServerFn(adminUpsertProduct);
   const upload = useServerFn(adminUploadProductPhoto);
 
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const stepLabels = getStepLabels(category);
+  const lastStep = stepLabels.length - 1;
+  const [step, setStep] = useState<number>(0);
   const [uploading, setUploading] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [skuTouched, setSkuTouched] = useState(false);
@@ -123,6 +156,10 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     name: "",
     brand: "",
     photos: [],
+    sale_mode: "weight",
+    weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
+    weight_stock_g: "0",
+    sachets: [newSachet("1", "", "0")],
     priceEuros: "",
     stock: "0",
     sku: "",
@@ -162,13 +199,18 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [state.volume_ml]);
 
-  const errorsByStep = useMemo(() => validateAll({ state, category, priceCents, cbdNum, thcNum, volumeNum }), [
+  const parsedWeight = useMemo(() => parseWeightTiers(state.weight_tiers), [state.weight_tiers]);
+  const parsedSachets = useMemo(() => parseSachets(state.sachets), [state.sachets]);
+
+  const errorsByStep = useMemo(() => validateAll({ state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets }), [
     state,
     category,
     priceCents,
     cbdNum,
     thcNum,
     volumeNum,
+    parsedWeight,
+    parsedSachets,
   ]);
 
   const currentErrors = errorsByStep[step];
@@ -176,6 +218,8 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
   const canPublish = totalErrors.length === 0;
 
   const thcOverLimit = category === "cbd" && thcNum !== null && thcNum > 0.3;
+  const cbdConforme =
+    category === "cbd" && thcNum !== null && cbdNum !== null && !thcOverLimit;
 
   const m = useMutation({
     mutationFn: (payload: ProductInput) => save({ data: payload }),
@@ -235,34 +279,88 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     setSubmitAttempted(true);
     if (currentErrors.length === 0) {
       setSubmitAttempted(false);
-      setStep((s) => (s < 3 ? ((s + 1) as 0 | 1 | 2 | 3) : s));
+      setStep((s) => (s < lastStep ? s + 1 : s));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }
 
   function goBack() {
     setSubmitAttempted(false);
-    setStep((s) => (s > 0 ? ((s - 1) as 0 | 1 | 2 | 3) : s));
+    setStep((s) => (s > 0 ? s - 1 : s));
   }
 
   function buildPayload(publish: boolean): ProductInput {
     const finalSlug = slugify(state.name);
     const description = state.descriptionShort.trim();
     const brand = state.brand.trim();
-    const composedDescription = brand
+    const modeNote =
+      category === "cbd"
+        ? state.sale_mode === "weight"
+          ? "\n\n_Mode de vente : au poids (paliers dégressifs)._"
+          : "\n\n_Mode de vente : sachets préparés._"
+        : "";
+    const composedDescription = (brand
       ? `**Marque :** ${brand}${description ? `\n\n${description}` : ""}`
-      : description;
-    const stock = stockNum;
+      : description) + modeNote;
+
+    // Résout stock / prix / variantes selon le mode CBD choisi.
+    let effectivePriceCents = priceCents;
+    let effectiveStock = stockNum;
+    let variants: ProductInput["variants"] = [];
+
+    if (category === "cbd") {
+      if (state.sale_mode === "weight") {
+        const stockG = parseInt(state.weight_stock_g, 10) || 0;
+        effectiveStock = stockG;
+        // Prix de référence = prix du palier le plus bas (petite quantité).
+        const first = parsedWeight[0];
+        effectivePriceCents = first ? Math.round(first.price_per_g * 100) : 0;
+        // Un unique "variant" en 1g qui porte les paliers dégressifs.
+        variants = [
+          {
+            volume_ml: 1,
+            price_cents: effectivePriceCents,
+            stock: stockG,
+            available_nicotine_mg: [],
+            nicotine_type: "normale",
+            is_active: true,
+            sku: `${slugify(state.name).replace(/-/g, "").toUpperCase().slice(0, 8) || "CBDG"}-1G`,
+            quantity_tiers: parsedWeight.map((t) => ({
+              min_qty: t.from_g,
+              max_qty: null,
+              price_cents: Math.round(t.price_per_g * 100),
+            })),
+          },
+        ];
+      } else {
+        // Sachets préparés : une variante par format (volume_ml sert de poids g).
+        variants = parsedSachets.map((p) => ({
+          volume_ml: p.weight_g,
+          price_cents: Math.round(p.price_euros * 100),
+          stock: p.stock,
+          available_nicotine_mg: [],
+          nicotine_type: "normale",
+          is_active: true,
+          sku: `${slugify(state.name).replace(/-/g, "").toUpperCase().slice(0, 8) || "CBDG"}-${p.weight_g}G`,
+        }));
+        effectiveStock = parsedSachets.reduce((sum, p) => sum + p.stock, 0);
+        // Prix affiché = plus petit sachet.
+        const cheapest = [...parsedSachets].sort((a, b) => a.price_euros - b.price_euros)[0];
+        effectivePriceCents = cheapest ? Math.round(cheapest.price_euros * 100) : 0;
+      }
+    }
+
     const payload: ProductInput = {
       name: state.name.trim(),
       slug: finalSlug || slugify(`produit-${Date.now()}`),
       category,
       subcategory: "",
       description: composedDescription,
-      price_cents: priceCents,
+      price_cents: effectivePriceCents,
       currency: "EUR",
-      stock,
-      stock_status: stock === 0 ? "out_of_stock" : stock < 10 ? "low_stock" : "in_stock",
+      stock: effectiveStock,
+      stock_status:
+        effectiveStock === 0 ? "out_of_stock" : effectiveStock < 10 ? "low_stock" : "in_stock",
       is_published: publish,
       photos: state.photos,
       cbd_percent: category === "cbd" ? cbdNum : null,
@@ -272,7 +370,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
       coa_url: category === "cbd" ? state.coa_url.trim() : "",
       volume_ml:
         category === "accessoire_vape" && state.is_empty_bottle ? volumeNum : null,
-      variants: [],
+      variants,
       is_nicotine_booster:
         category === "accessoire_vape" && state.is_nicotine_booster,
       booster_type:
@@ -320,70 +418,48 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           Nouveau produit — {CATEGORY_LABELS[category]}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Parcours guidé en 4 étapes. Aucune donnée n'est perdue entre les
-          étapes ; tu peux revenir en arrière à tout moment.
+          Parcours guidé en {stepLabels.length} étapes. Aucune donnée n'est
+          perdue entre les étapes ; tu peux revenir en arrière à tout moment.
         </p>
       </header>
 
-      <ProgressBar step={step} />
+      <ProgressBar step={step} labels={stepLabels} />
 
       {submitAttempted && currentErrors.length > 0 && (
         <ErrorSummary errors={currentErrors} />
       )}
 
       <div className="rounded-lg border bg-card p-5">
-        {step === 0 && (
-          <StepBase
-            state={state}
-            setState={setState}
-            category={category}
-            photos={state.photos}
-            onFiles={handleFiles}
-            onRemovePhoto={removePhoto}
-            uploading={uploading}
-            fileInputRef={fileInputRef}
-            showErrors={submitAttempted}
-            errors={currentErrors}
-          />
-        )}
-        {step === 1 && (
-          <StepSale
-            state={state}
-            setState={setState}
-            onSkuChange={() => setSkuTouched(true)}
-            showErrors={submitAttempted}
-            errors={currentErrors}
-          />
-        )}
-        {step === 2 && (
-          <StepMeta
-            state={state}
-            setState={setState}
-            category={category}
-            showErrors={submitAttempted}
-            errors={currentErrors}
-            thcOverLimit={thcOverLimit}
-          />
-        )}
-        {step === 3 && (
-          <StepReview
-            slug={slug}
-            category={category}
-            state={state}
-            priceCents={priceCents}
-            stockNum={stockNum}
-            cbdNum={cbdNum}
-            thcNum={thcNum}
-            volumeNum={volumeNum}
-            errorsByStep={errorsByStep}
-            canPublish={canPublish && !thcOverLimit}
-            thcOverLimit={thcOverLimit}
-            onEditStep={(s) => {
-              setSubmitAttempted(false);
-              setStep(s);
-            }}
-          />
-        )}
+        {renderStep({
+          category,
+          step,
+          state,
+          setState,
+          slug,
+          onSkuChange: () => setSkuTouched(true),
+          submitAttempted,
+          currentErrors,
+          errorsByStep,
+          thcOverLimit,
+          cbdConforme,
+          canPublish,
+          priceCents,
+          stockNum,
+          cbdNum,
+          thcNum,
+          volumeNum,
+          parsedWeight,
+          parsedSachets,
+          photos: state.photos,
+          onFiles: handleFiles,
+          onRemovePhoto: removePhoto,
+          uploading,
+          fileInputRef,
+          onEditStep: (s: number) => {
+            setSubmitAttempted(false);
+            setStep(s);
+          },
+        })}
       </div>
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -418,7 +494,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
             ) : null}
             Enregistrer en brouillon
           </button>
-          {step < 3 ? (
+          {step < lastStep ? (
             <button
               type="button"
               onClick={tryAdvance}
