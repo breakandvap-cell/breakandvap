@@ -358,7 +358,8 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           : "\n\n_Mode de vente : sachets préparés._"
         : "";
     const variantsNote =
-      category === "accessoire_vape" && state.product_kind === "variants"
+      (category === "accessoire_vape" || category === "accessoire_cbd") &&
+      state.product_kind === "variants"
         ? `\n\n**${state.variant_attribute_name.trim() || "Choix"} disponibles :** ${parsedChoices
             .filter((c) => c.value)
             .map((c) => c.value)
@@ -413,7 +414,10 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
         const cheapest = [...parsedSachets].sort((a, b) => a.price_euros - b.price_euros)[0];
         effectivePriceCents = cheapest ? Math.round(cheapest.price_euros * 100) : 0;
       }
-    } else if (category === "accessoire_vape" && state.product_kind === "variants") {
+    } else if (
+      (category === "accessoire_vape" || category === "accessoire_cbd") &&
+      state.product_kind === "variants"
+    ) {
       // Une variante par valeur ; volume_ml sert d'index ordinal (obligatoire côté DB).
       variants = parsedChoices.map((c, i) => ({
         volume_ml: i + 1,
