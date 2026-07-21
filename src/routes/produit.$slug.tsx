@@ -390,10 +390,22 @@ function EliquideDetail({
   const flavorOK = !hasFlavors || (selectedFlavor !== null && selectedFlavor.stock > 0);
 
   // Contenances = variantes de volume, une par ligne.
-  const availableVolumes = useMemo(
-    () => [...variants].sort((a, b) => a.volume_ml - b.volume_ml),
-    [variants],
-  );
+  // Une même contenance peut désormais exister en 3 exemplaires (normale/sel/
+  // ice) : on regroupe par volume et on choisit une variante représentante
+  // pour l'affichage (préférence : « normale »). La variante réellement
+  // ajoutée au panier est recalculée plus bas selon le type sélectionné.
+  const availableVolumes = useMemo(() => {
+    const byVol = new Map<number, (typeof variants)[number]>();
+    for (const v of variants) {
+      const t = ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
+        .toString()
+        .trim()
+        .toLowerCase();
+      const cur = byVol.get(v.volume_ml);
+      if (!cur || t === "normale") byVol.set(v.volume_ml, v);
+    }
+    return [...byVol.values()].sort((a, b) => a.volume_ml - b.volume_ml);
+  }, [variants]);
 
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     () => {
@@ -403,6 +415,27 @@ function EliquideDetail({
   );
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
+
+  // Variante réellement facturée (résout le type de nicotine choisi vers
+  // la ligne product_variants correspondante).
+  const chargedVariant = useMemo(() => {
+    if (!variant) return null;
+    const cap =
+      typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
+        ? Math.max(0, (variant as { max_boosters: number }).max_boosters)
+        : 0;
+    if (cap <= 0) return variant;
+    const match = variants.find(
+      (v) =>
+        v.volume_ml === variant.volume_ml &&
+        ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
+          .toString()
+          .trim()
+          .toLowerCase() === nicotineType &&
+        (v as { is_active?: boolean }).is_active !== false,
+    );
+    return match ?? variant;
+  }, [variant, variants, nicotineType]);
 
   // Flacon vide associé à la contenance sélectionnée (priorité), avec repli
   // sur le flacon vide par défaut du produit.
