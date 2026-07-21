@@ -144,10 +144,17 @@ const STEP_LABELS_ACCESSOIRE_VAPE = [
   "Données métier",
   "Relecture",
 ] as const;
+const STEP_LABELS_ACCESSOIRE_CBD = [
+  "Base produit",
+  "Type de produit",
+  "Vente",
+  "Relecture",
+] as const;
 
 function getStepLabels(category: SimpleCategory): readonly string[] {
   if (category === "cbd") return STEP_LABELS_CBD;
   if (category === "accessoire_vape") return STEP_LABELS_ACCESSOIRE_VAPE;
+  if (category === "accessoire_cbd") return STEP_LABELS_ACCESSOIRE_CBD;
   return STEP_LABELS_DEFAULT;
 }
 
