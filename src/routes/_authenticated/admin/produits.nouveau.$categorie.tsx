@@ -702,6 +702,469 @@ function ErrorSummary({ errors }: { errors: string[] }) {
   );
 }
 
+// ---------- Router d'étapes ----------
+type RenderStepArgs = {
+  category: SimpleCategory;
+  step: number;
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+  slug: WizardSlug;
+  onSkuChange: () => void;
+  submitAttempted: boolean;
+  currentErrors: string[];
+  errorsByStep: string[][];
+  thcOverLimit: boolean;
+  cbdConforme: boolean;
+  canPublish: boolean;
+  priceCents: number;
+  stockNum: number;
+  cbdNum: number | null;
+  thcNum: number | null;
+  volumeNum: number | null;
+  parsedWeight: ParsedTier[];
+  parsedSachets: ParsedSachet[];
+  photos: string[];
+  onFiles: (e: ChangeEvent<HTMLInputElement>) => void;
+  onRemovePhoto: (idx: number) => void;
+  uploading: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onEditStep: (s: number) => void;
+};
+
+function renderStep(a: RenderStepArgs) {
+  const isCbd = a.category === "cbd";
+  // Séquence : CBD → [Base, Mode, Vente, Meta, Review], autres → [Base, Vente, Meta, Review].
+  if (isCbd) {
+    switch (a.step) {
+      case 0:
+        return (
+          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 1:
+        return <StepMode state={a.state} setState={a.setState} />;
+      case 2:
+        return (
+          <StepSaleCbd
+            state={a.state}
+            setState={a.setState}
+            onSkuChange={a.onSkuChange}
+            showErrors={a.submitAttempted}
+            errors={a.currentErrors}
+            parsedWeight={a.parsedWeight}
+            parsedSachets={a.parsedSachets}
+          />
+        );
+      case 3:
+        return (
+          <StepMeta state={a.state} setState={a.setState} category={a.category} showErrors={a.submitAttempted} errors={a.currentErrors} thcOverLimit={a.thcOverLimit} cbdConforme={a.cbdConforme} />
+        );
+      case 4:
+        return (
+          <StepReview
+            slug={a.slug}
+            category={a.category}
+            state={a.state}
+            priceCents={a.priceCents}
+            stockNum={a.stockNum}
+            cbdNum={a.cbdNum}
+            thcNum={a.thcNum}
+            volumeNum={a.volumeNum}
+            errorsByStep={a.errorsByStep}
+            canPublish={a.canPublish && !a.thcOverLimit}
+            thcOverLimit={a.thcOverLimit}
+            parsedWeight={a.parsedWeight}
+            parsedSachets={a.parsedSachets}
+            onEditStep={a.onEditStep}
+          />
+        );
+    }
+  }
+  switch (a.step) {
+    case 0:
+      return (
+        <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+      );
+    case 1:
+      return (
+        <StepSale state={a.state} setState={a.setState} onSkuChange={a.onSkuChange} showErrors={a.submitAttempted} errors={a.currentErrors} />
+      );
+    case 2:
+      return (
+        <StepMeta state={a.state} setState={a.setState} category={a.category} showErrors={a.submitAttempted} errors={a.currentErrors} thcOverLimit={a.thcOverLimit} cbdConforme={a.cbdConforme} />
+      );
+    case 3:
+      return (
+        <StepReview
+          slug={a.slug}
+          category={a.category}
+          state={a.state}
+          priceCents={a.priceCents}
+          stockNum={a.stockNum}
+          cbdNum={a.cbdNum}
+          thcNum={a.thcNum}
+          volumeNum={a.volumeNum}
+          errorsByStep={a.errorsByStep}
+          canPublish={a.canPublish && !a.thcOverLimit}
+          thcOverLimit={a.thcOverLimit}
+          parsedWeight={a.parsedWeight}
+          parsedSachets={a.parsedSachets}
+          onEditStep={a.onEditStep}
+        />
+      );
+  }
+  return null;
+}
+
+// ---------- Étape « Mode de vente » (CBD) ----------
+function StepMode({
+  state,
+  setState,
+}: {
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+}) {
+  const options: Array<{
+    key: CbdSaleMode;
+    title: string;
+    desc: string;
+    icon: ReactNode;
+  }> = [
+    {
+      key: "weight",
+      title: "Vente au poids",
+      desc: "Le stock est géré en grammes, avec des paliers de prix dégressifs (ex. 1 g = 8 €, 5 g = 7 €/g, 10 g = 6 €/g).",
+      icon: <Scale className="h-6 w-6" />,
+    },
+    {
+      key: "packs",
+      title: "Sachets préparés",
+      desc: "Chaque format (1 g, 3 g, 5 g…) est une variante avec son propre prix et son propre stock.",
+      icon: <Package className="h-6 w-6" />,
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <SectionTitle>Comment vendez-vous ce produit CBD&nbsp;?</SectionTitle>
+      <p className="text-sm text-muted-foreground">
+        Ce choix conditionne la façon dont l'étape suivante s'affiche. Tu peux
+        revenir en arrière plus tard sans perdre tes saisies.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {options.map((o) => {
+          const active = state.sale_mode === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => setState((s) => ({ ...s, sale_mode: o.key }))}
+              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
+                active
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/40"
+                  : "border-input hover:border-primary/50"
+              }`}
+            >
+              <div className={`rounded-md p-2 ${active ? "bg-primary/15 text-primary" : "bg-muted"}`}>
+                {o.icon}
+              </div>
+              <div className="font-medium">{o.title}</div>
+              <p className="text-xs text-muted-foreground">{o.desc}</p>
+              {active && (
+                <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                  <Check className="h-3 w-3" /> Sélectionné
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Étape « Vente » CBD (au poids ou sachets) ----------
+function StepSaleCbd({
+  state,
+  setState,
+  onSkuChange,
+  showErrors,
+  errors,
+  parsedWeight,
+  parsedSachets,
+}: {
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+  onSkuChange: () => void;
+  showErrors: boolean;
+  errors: string[];
+  parsedWeight: ParsedTier[];
+  parsedSachets: ParsedSachet[];
+}) {
+  const isWeight = state.sale_mode === "weight";
+
+  function updateTier(idx: number, patch: Partial<WeightTier>) {
+    setState((s) => ({
+      ...s,
+      weight_tiers: s.weight_tiers.map((t, i) => (i === idx ? { ...t, ...patch } : t)),
+    }));
+  }
+  function addTier() {
+    const last = state.weight_tiers[state.weight_tiers.length - 1];
+    const nextFrom = last ? String((parseInt(last.from_g, 10) || 0) + 5) : "1";
+    setState((s) => ({ ...s, weight_tiers: [...s.weight_tiers, newTier(nextFrom, "")] }));
+  }
+  function removeTier(idx: number) {
+    setState((s) => ({ ...s, weight_tiers: s.weight_tiers.filter((_, i) => i !== idx) }));
+  }
+  function updateSachet(idx: number, patch: Partial<SachetPack>) {
+    setState((s) => ({
+      ...s,
+      sachets: s.sachets.map((p, i) => (i === idx ? { ...p, ...patch } : p)),
+    }));
+  }
+  function addSachet() {
+    setState((s) => ({ ...s, sachets: [...s.sachets, newSachet("", "", "0")] }));
+  }
+  function removeSachet(idx: number) {
+    setState((s) => ({ ...s, sachets: s.sachets.filter((_, i) => i !== idx) }));
+  }
+
+  // Aperçu temps réel : palier gagnant sur qques quantités indicatives.
+  const previewQuantities = [1, 3, 5, 10, 20];
+  const bestPricePerG = (q: number): number | null => {
+    if (parsedWeight.length === 0) return null;
+    const eligible = parsedWeight.filter((t) => q >= t.from_g);
+    if (eligible.length === 0) return null;
+    return eligible.sort((a, b) => a.price_per_g - b.price_per_g)[0].price_per_g;
+  };
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle>
+        {isWeight ? "Vente au poids — paliers tarifaires" : "Sachets préparés — formats"}
+      </SectionTitle>
+
+      {isWeight ? (
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left">À partir de (g)</th>
+                  <th className="px-3 py-2 text-left">Prix par gramme (€)</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {state.weight_tiers.map((t, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="1"
+                        inputMode="numeric"
+                        value={t.from_g}
+                        onChange={(e) => updateTier(i, { from_g: e.target.value })}
+                        className="w-24 rounded-md border border-input bg-background px-2 py-1"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        inputMode="decimal"
+                        value={t.price_per_g}
+                        onChange={(e) => updateTier(i, { price_per_g: e.target.value })}
+                        placeholder="ex. 8,00"
+                        className="w-32 rounded-md border border-input bg-background px-2 py-1"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeTier(i)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Retirer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            onClick={addTier}
+            className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" /> Ajouter un palier
+          </button>
+
+          <FieldError show={showErrors} errors={errors} match={/palier|décroîtr|Doublon|départ/i} />
+
+          <div>
+            <label className="text-sm font-medium">Stock total disponible (g) *</label>
+            <input
+              type="number"
+              min="0"
+              inputMode="numeric"
+              value={state.weight_stock_g}
+              onChange={(e) => setState((s) => ({ ...s, weight_stock_g: e.target.value }))}
+              className="mt-1 w-40 rounded-md border border-input bg-background px-3 py-2 text-base"
+            />
+            <FieldError show={showErrors} errors={errors} match={/stock total/i} />
+          </div>
+
+          {parsedWeight.length > 0 && (
+            <div className="rounded-md border bg-muted/30 p-3 text-xs">
+              <p className="mb-2 font-medium text-foreground">
+                Aperçu — prix appliqué au client
+              </p>
+              <table className="w-full">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="text-left font-normal">Quantité</th>
+                    <th className="text-left font-normal">Prix / g</th>
+                    <th className="text-left font-normal">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewQuantities.map((q) => {
+                    const p = bestPricePerG(q);
+                    return (
+                      <tr key={q} className="border-t border-border/50">
+                        <td className="py-1">{q} g</td>
+                        <td className="py-1">{p !== null ? `${p.toFixed(2)} €` : "—"}</td>
+                        <td className="py-1 font-medium">
+                          {p !== null ? `${(p * q).toFixed(2)} €` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-3 py-2 text-left">Poids (g)</th>
+                  <th className="px-3 py-2 text-left">Prix (€)</th>
+                  <th className="px-3 py-2 text-left">Stock</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {state.sachets.map((p, i) => (
+                  <tr key={i} className="border-t">
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        inputMode="decimal"
+                        value={p.weight_g}
+                        onChange={(e) => updateSachet(i, { weight_g: e.target.value })}
+                        placeholder="ex. 3"
+                        className="w-24 rounded-md border border-input bg-background px-2 py-1"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        inputMode="decimal"
+                        value={p.price_euros}
+                        onChange={(e) => updateSachet(i, { price_euros: e.target.value })}
+                        placeholder="ex. 24,00"
+                        className="w-28 rounded-md border border-input bg-background px-2 py-1"
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min="0"
+                        inputMode="numeric"
+                        value={p.stock}
+                        onChange={(e) => updateSachet(i, { stock: e.target.value })}
+                        className="w-24 rounded-md border border-input bg-background px-2 py-1"
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => removeSachet(i)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" /> Retirer
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <button
+            type="button"
+            onClick={addSachet}
+            className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+          >
+            <Plus className="h-4 w-4" /> Ajouter un sachet
+          </button>
+          <FieldError show={showErrors} errors={errors} match={/Sachet|Doublon|format/i} />
+
+          {parsedSachets.length > 0 && (
+            <div className="rounded-md border bg-muted/30 p-3 text-xs">
+              <p className="mb-2 font-medium text-foreground">Aperçu — grille client</p>
+              <div className="flex flex-wrap gap-2">
+                {parsedSachets.map((p, i) => (
+                  <div key={i} className="rounded border bg-background px-3 py-2">
+                    <div className="font-medium">{p.weight_g} g</div>
+                    <div className="text-muted-foreground">{p.price_euros.toFixed(2)} €</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      Stock : {p.stock}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div>
+        <label className="text-sm font-medium">Référence interne (SKU)</label>
+        <input
+          type="text"
+          value={state.sku}
+          onChange={(e) => {
+            onSkuChange();
+            setState((s) => ({ ...s, sku: e.target.value }));
+          }}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base font-mono"
+        />
+      </div>
+
+      <div>
+        <label className="text-sm font-medium">Description courte *</label>
+        <textarea
+          value={state.descriptionShort}
+          onChange={(e) => setState((s) => ({ ...s, descriptionShort: e.target.value }))}
+          rows={3}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <FieldError show={showErrors} errors={errors} match={/description/i} />
+      </div>
+    </div>
+  );
+}
+
 function FieldError({
   show,
   errors,
