@@ -31,6 +31,11 @@ import {
   adminUploadProductPhoto,
 } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
+import {
+  siteSettingsQueryOptions,
+  DEFAULT_BOOSTER_CONFIG,
+  type BoosterConfig,
+} from "@/lib/site-settings.functions";
 
 export const Route = createFileRoute(
   "/_authenticated/admin/produits/eliquide/$id",
@@ -52,6 +57,24 @@ type Flavor = {
   active: boolean;
 };
 
+type SmallFormatConfig = {
+  nicotineMg: number[]; // taux cochés parmi NICOTINE_10ML_OPTIONS
+  priceCents: number;
+};
+
+type LargeFormatRow = {
+  id: string;
+  volumeMl: number; // volume de base
+  bottleCapacityMl: number; // capacité réelle du flacon
+  priceCents: number;
+};
+
+type MatrixCell = {
+  stock: number;
+  sku: string;
+  active: boolean;
+};
+
 type WizardData = {
   // Étape 1 — informations produit
   name: string;
@@ -66,6 +89,11 @@ type WizardData = {
   salesMode: SalesMode | null;
   // Étape 3 — goûts (communs à tous les formats)
   flavors: Flavor[];
+  // Étape 4 — formats & stocks
+  smallFormat: SmallFormatConfig;
+  largeFormats: LargeFormatRow[];
+  // Matrice combinatoire : clé stable dérivée du goût + format.
+  matrix: Record<string, MatrixCell>;
 };
 
 const EMPTY: WizardData = {
@@ -79,7 +107,12 @@ const EMPTY: WizardData = {
   country: "",
   salesMode: null,
   flavors: [],
+  smallFormat: { nicotineMg: [], priceCents: 0 },
+  largeFormats: [],
+  matrix: {},
 };
+
+const NICOTINE_10ML_OPTIONS = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
 
 // -------------------------------------------------------------------
 // Structure du parcours — active/inactive selon salesMode. Seules les
@@ -104,12 +137,8 @@ function buildSteps(mode: SalesMode | null): StepDef[] {
     { id: "mode", label: "Mode de vente", implemented: true },
     { id: "flavors", label: "Goûts", implemented: true },
   ];
-  if (mode === "small_only" || mode === "both") {
-    steps.push({ id: "small_format", label: "Format 10 ml", implemented: false });
-  }
-  if (mode === "large_only" || mode === "both") {
-    steps.push({ id: "large_format", label: "Grand format", implemented: false });
-    steps.push({ id: "nicotine", label: "Nicotine & boosters", implemented: false });
+  if (mode) {
+    steps.push({ id: "formats", label: "Formats et stocks", implemented: true });
   }
   steps.push({ id: "review", label: "Relecture & publication", implemented: false });
   return steps;
