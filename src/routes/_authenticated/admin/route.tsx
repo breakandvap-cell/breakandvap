@@ -40,6 +40,7 @@ function AdminNav() {
       | "/admin/clients"
       | "/admin/factures"
       | "/admin/categories"
+      | "/admin/references-techniques"
       | "/admin/temoignages"
       | "/admin/parametres";
     label: string;
@@ -48,6 +49,7 @@ function AdminNav() {
     { to: "/admin", label: "Tableau de bord", exact: true },
     { to: "/admin/produits", label: "Produits" },
     { to: "/admin/categories", label: "Catégories" },
+    { to: "/admin/references-techniques", label: "Références techniques" },
     { to: "/admin/commandes", label: "Commandes" },
     { to: "/admin/clients", label: "Clients" },
     { to: "/admin/factures", label: "Factures" },

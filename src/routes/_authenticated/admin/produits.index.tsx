@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery, queryOptions, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { adminListProducts, adminDeleteProduct } from "@/lib/admin.functions";
+import { adminListProducts, adminDeleteProduct, adminTechnicalReferences } from "@/lib/admin.functions";
 import {
   formatPrice,
   CATEGORY_LABELS,
@@ -12,6 +12,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { computeProductStatus, StatusBadge } from "@/lib/product-status";
 
 type ProductFilters = {
   category?: "" | "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd";
@@ -56,6 +57,15 @@ function ProductsList() {
   const navigate = Route.useNavigate();
   const { data } = useSuspenseQuery(listOptions(search));
   const { data: boosterList } = useQuery(boosterProductsQueryOptions());
+  const techRefsFn = useServerFn(adminTechnicalReferences);
+  const { data: techRefs } = useQuery({
+    queryKey: ["admin", "technical-references"],
+    queryFn: () => techRefsFn(),
+    retry: false,
+  });
+  const protectedIds = new Set<string>();
+  for (const b of techRefs?.boosters ?? []) if (b.is_protected) protectedIds.add(b.id);
+  for (const b of techRefs?.bottles ?? []) if (b.is_protected) protectedIds.add(b.id);
   const duplicates = duplicateBoosterTypes(boosterList);
   const duplicateEntries = Object.entries(duplicates);
   const qc = useQueryClient();
@@ -174,7 +184,22 @@ function ProductsList() {
           <tbody className="divide-y">
             {data.map((p) => (
               <tr key={p.id}>
-                <td className="px-3 py-2 font-medium">{p.name}</td>
+                <td className="px-3 py-2 font-medium">
+                  <div className="flex items-center gap-2">
+                    <span>{p.name}</span>
+                    <StatusBadge
+                      status={computeProductStatus({
+                        is_published: p.is_published,
+                        name: p.name,
+                        slug: p.slug,
+                        price_cents: p.price_cents,
+                        photos: [],
+                        isProtected: protectedIds.has(p.id),
+                        hasVariantsCoveringPrice: true,
+                      })}
+                    />
+                  </div>
+                </td>
                 <td className="px-3 py-2 text-muted-foreground">{CATEGORY_LABELS[p.category]}</td>
                 <td className="px-3 py-2">{formatPrice(p.price_cents, p.currency)}</td>
                 <td className="px-3 py-2">
