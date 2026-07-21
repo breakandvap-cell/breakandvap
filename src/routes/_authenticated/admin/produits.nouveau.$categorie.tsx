@@ -1628,6 +1628,8 @@ function StepReview({
   errorsByStep,
   canPublish,
   thcOverLimit,
+  parsedWeight,
+  parsedSachets,
   onEditStep,
 }: {
   slug: WizardSlug;
@@ -1641,9 +1643,16 @@ function StepReview({
   errorsByStep: string[][];
   canPublish: boolean;
   thcOverLimit: boolean;
-  onEditStep: (s: 0 | 1 | 2 | 3) => void;
+  parsedWeight: ParsedTier[];
+  parsedSachets: ParsedSachet[];
+  onEditStep: (s: number) => void;
 }) {
   const missing = errorsByStep.flat();
+  const isCbd = category === "cbd";
+  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. Autres → [0,1,2].
+  const idxBase = 0;
+  const idxSale = isCbd ? 2 : 1;
+  const idxMeta = isCbd ? 3 : 2;
   return (
     <div className="space-y-5">
       <SectionTitle>Relecture avant publication</SectionTitle>
@@ -1666,7 +1675,7 @@ function StepReview({
         </div>
       )}
 
-      <ReviewSection title="Base produit" onEdit={() => onEditStep(0)}>
+      <ReviewSection title="Base produit" onEdit={() => onEditStep(idxBase)}>
         <ReviewRow label="Nom" value={state.name || "—"} />
         <ReviewRow label="Marque" value={state.brand || "—"} />
         <ReviewRow label="Catégorie" value={CATEGORY_LABELS[category]} />
@@ -1691,20 +1700,73 @@ function StepReview({
         />
       </ReviewSection>
 
-      <ReviewSection title="Vente" onEdit={() => onEditStep(1)}>
-        <ReviewRow
-          label="Prix TTC"
-          value={priceCents > 0 ? formatPrice(priceCents) : "—"}
-        />
-        <ReviewRow label="Stock" value={String(stockNum)} />
-        <ReviewRow label="Référence (SKU)" value={state.sku || "—"} />
-        <ReviewRow
-          label="Description"
-          value={state.descriptionShort || "—"}
-        />
+      <ReviewSection title="Vente" onEdit={() => onEditStep(idxSale)}>
+        {isCbd ? (
+          state.sale_mode === "weight" ? (
+            <>
+              <ReviewRow label="Mode de vente" value="Au poids (paliers dégressifs)" />
+              <ReviewRow
+                label="Paliers"
+                value={
+                  parsedWeight.length > 0 ? (
+                    <ul className="space-y-0.5 text-xs">
+                      {[...parsedWeight]
+                        .sort((a, b) => a.from_g - b.from_g)
+                        .map((t) => (
+                          <li key={t.from_g}>
+                            À partir de <strong>{t.from_g} g</strong> —{" "}
+                            {t.price_per_g.toFixed(2)} €/g
+                          </li>
+                        ))}
+                    </ul>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <ReviewRow
+                label="Stock total"
+                value={`${parseInt(state.weight_stock_g, 10) || 0} g`}
+              />
+              <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+            </>
+          ) : (
+            <>
+              <ReviewRow label="Mode de vente" value="Sachets préparés" />
+              <ReviewRow
+                label="Formats"
+                value={
+                  parsedSachets.length > 0 ? (
+                    <ul className="space-y-0.5 text-xs">
+                      {parsedSachets.map((p) => (
+                        <li key={p.weight_g}>
+                          <strong>{p.weight_g} g</strong> — {p.price_euros.toFixed(2)} € · stock{" "}
+                          {p.stock}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+            </>
+          )
+        ) : (
+          <>
+            <ReviewRow
+              label="Prix TTC"
+              value={priceCents > 0 ? formatPrice(priceCents) : "—"}
+            />
+            <ReviewRow label="Stock" value={String(stockNum)} />
+            <ReviewRow label="Référence (SKU)" value={state.sku || "—"} />
+            <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+          </>
+        )}
       </ReviewSection>
 
-      <ReviewSection title="Données métier" onEdit={() => onEditStep(2)}>
+      <ReviewSection title="Données métier" onEdit={() => onEditStep(idxMeta)}>
         {category === "cbd" ? (
           <>
             <ReviewRow
