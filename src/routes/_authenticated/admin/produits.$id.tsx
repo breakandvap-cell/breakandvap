@@ -262,7 +262,18 @@ function EditProduct() {
 
   useEffect(() => {
     if (existingVariants) {
-      const list = existingVariants.map((v) => ({
+      // Collapse : côté formulaire admin, une seule ligne par contenance.
+      // Quand max_boosters > 0, les 3 types (normale/sel/ice) partagent
+      // exactement la même config et sont matérialisés au save par
+      // adminUpsertProduct. On prend la variante « normale » comme
+      // représentante (repli : première trouvée pour ce volume).
+      const byVolume = new Map<number, (typeof existingVariants)[number]>();
+      for (const v of existingVariants) {
+        const t = (v.nicotine_type ?? "normale").toString().trim().toLowerCase();
+        const cur = byVolume.get(v.volume_ml);
+        if (!cur || t === "normale") byVolume.set(v.volume_ml, v);
+      }
+      const list = Array.from(byVolume.values()).map((v) => ({
         id: v.id,
         volume_ml: v.volume_ml,
         price_cents: v.price_cents,
