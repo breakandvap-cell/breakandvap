@@ -34,8 +34,11 @@ import { optimizeImage } from "@/lib/image-optimize";
 import {
   siteSettingsQueryOptions,
   DEFAULT_BOOSTER_CONFIG,
+  computeNicotineRateMgPerMl,
+  formatNicotineMg,
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
+import { emptyBottleCandidatesQueryOptions } from "@/lib/products";
 
 export const Route = createFileRoute(
   "/_authenticated/admin/produits/eliquide/$id",
@@ -75,6 +78,12 @@ type MatrixCell = {
   active: boolean;
 };
 
+type NicotineTypes = {
+  normale: boolean;
+  sel: boolean;
+  ice: boolean;
+};
+
 type WizardData = {
   // Étape 1 — informations produit
   name: string;
@@ -94,6 +103,8 @@ type WizardData = {
   largeFormats: LargeFormatRow[];
   // Matrice combinatoire : clé stable dérivée du goût + format.
   matrix: Record<string, MatrixCell>;
+  // Étape 5 — nicotine (grand format uniquement)
+  nicotineTypes: NicotineTypes;
 };
 
 const EMPTY: WizardData = {
@@ -110,6 +121,7 @@ const EMPTY: WizardData = {
   smallFormat: { nicotineMg: [], priceCents: 0 },
   largeFormats: [],
   matrix: {},
+  nicotineTypes: { normale: true, sel: true, ice: true },
 };
 
 const NICOTINE_10ML_OPTIONS = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
@@ -125,6 +137,7 @@ type StepId =
   | "mode"
   | "flavors"
   | "formats"
+  | "nicotine"
   | "review";
 
 type StepDef = { id: StepId; label: string; implemented: boolean };
@@ -137,6 +150,9 @@ function buildSteps(mode: SalesMode | null): StepDef[] {
   ];
   if (mode) {
     steps.push({ id: "formats", label: "Formats et stocks", implemented: true });
+  }
+  if (mode === "large_only" || mode === "both") {
+    steps.push({ id: "nicotine", label: "Nicotine", implemented: true });
   }
   steps.push({ id: "review", label: "Relecture & publication", implemented: false });
   return steps;
@@ -260,6 +276,14 @@ function Wizard({
     if (currentStep.id === "formats") {
       return isFormatsStepValid(data);
     }
+    if (currentStep.id === "nicotine") {
+      // Au moins un type doit rester coché.
+      return (
+        data.nicotineTypes.normale ||
+        data.nicotineTypes.sel ||
+        data.nicotineTypes.ice
+      );
+    }
     return false;
   })();
 
@@ -311,6 +335,8 @@ function Wizard({
           <StepFlavors data={data} onPatch={patch} />
         ) : currentStep.id === "formats" ? (
           <StepFormats data={data} onPatch={patch} />
+        ) : currentStep.id === "nicotine" ? (
+          <StepNicotine data={data} onPatch={patch} />
         ) : (
           <StepPlaceholder label={currentStep.label} />
         )}
@@ -1502,5 +1528,271 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+// -------------------------------------------------------------------
+// Étape 5 — Nicotine (grand format uniquement)
+// -------------------------------------------------------------------
+
+const NICOTINE_TYPE_LABELS: Record<keyof NicotineTypes, string> = {
+  normale: "Nicotine classique",
+  sel: "Sel de nicotine",
+  ice: "Ice",
+};
+
+function formatEuros(cents: number, currency = "EUR"): string {
+  return new Intl.NumberFormat("fr-FR", {
+    style: "currency",
+    currency,
+  }).format((cents || 0) / 100);
+}
+
+function StepNicotine({
+  data,
+  onPatch,
+}: {
+  data: WizardData;
+  onPatch: (p: Partial<WizardData>) => void;
+}) {
+  const { data: settings } = useQuery(siteSettingsQueryOptions());
+  const cfg: BoosterConfig = settings
+    ? {
+        boosterVolumeMl: settings.boosterVolumeMl,
+        boosterConcentrationMgPerMl: settings.boosterConcentrationMgPerMl,
+      }
+    : DEFAULT_BOOSTER_CONFIG;
+
+  const { data: emptyBottles = [] } = useQuery(emptyBottleCandidatesQueryOptions());
+
+  const largeRows = data.largeFormats.filter(
+    (r) => r.volumeMl > 0 && r.bottleCapacityMl >= r.volumeMl,
+  );
+
+  const activeTypes = (Object.keys(data.nicotineTypes) as Array<keyof NicotineTypes>)
+    .filter((k) => data.nicotineTypes[k]);
+
+  const toggleType = (k: keyof NicotineTypes) => {
+    onPatch({
+      nicotineTypes: { ...data.nicotineTypes, [k]: !data.nicotineTypes[k] },
+    });
+  };
+
+  // Exemple aperçu client : premier goût actif, première contenance, milieu de
+  // la plage de boosters, premier type coché.
+  const firstFlavor =
+    data.flavors.find((f) => f.active) ?? data.flavors[0] ?? null;
+  const firstRow = largeRows[0] ?? null;
+  const firstType = activeTypes[0] ?? null;
+  const exampleMax = firstRow ? maxBoostersFor(firstRow, cfg) : 0;
+  const exampleBoosters = exampleMax > 0 ? Math.min(2, exampleMax) : 0;
+  const exampleRate = firstRow
+    ? computeNicotineRateMgPerMl(firstRow.volumeMl, exampleBoosters, cfg)
+    : 0;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">Nicotine</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Cette étape ne concerne que les contenances en grand format. Les
+          boosters utilisés seront ceux des références globales définies dans{" "}
+          <em>Références techniques</em>.
+        </p>
+      </div>
+
+      {/* Choix des types */}
+      <section className="rounded-lg border border-border bg-background/40 p-4 space-y-3">
+        <h3 className="text-base font-semibold">
+          Types de nicotine disponibles
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Par défaut, les trois types sont proposés au client. Décoche pour
+          exclure exceptionnellement un type.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {(Object.keys(NICOTINE_TYPE_LABELS) as Array<keyof NicotineTypes>).map(
+            (k) => {
+              const checked = data.nicotineTypes[k];
+              return (
+                <label
+                  key={k}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 px-3 py-2 text-sm ${
+                    checked
+                      ? "border-primary bg-primary/5"
+                      : "border-border bg-background hover:border-primary/40"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleType(k)}
+                    className="h-4 w-4"
+                  />
+                  <span className="font-medium">{NICOTINE_TYPE_LABELS[k]}</span>
+                </label>
+              );
+            },
+          )}
+        </div>
+        {activeTypes.length === 0 && (
+          <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+            Au moins un type de nicotine doit rester coché.
+          </div>
+        )}
+      </section>
+
+      {/* Simulateurs par contenance */}
+      {largeRows.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+          Aucune contenance grand format n'est encore définie. Revenir à
+          l'étape précédente pour en ajouter.
+        </div>
+      ) : (
+        largeRows.map((row) => {
+          const max = maxBoostersFor(row, cfg);
+          // Table 0..max, plus une ligne « max+1 » pour illustrer le cas
+          // « flacon vide nécessaire » (si un flacon existe pour absorber).
+          const rows: Array<{
+            n: number;
+            finalVolume: number;
+            rate: number;
+            needsExtra: boolean;
+          }> = [];
+          const upper = max + 1;
+          for (let n = 0; n <= upper; n++) {
+            const finalVolume = row.volumeMl + n * cfg.boosterVolumeMl;
+            rows.push({
+              n,
+              finalVolume,
+              rate: computeNicotineRateMgPerMl(row.volumeMl, n, cfg),
+              needsExtra: n > max,
+            });
+          }
+          // Flacons vides adaptés pour aller au-delà de `max` boosters :
+          // capacité ≥ volume base + (max+1) × boosterVolume.
+          const requiredCapacity =
+            row.volumeMl + (max + 1) * cfg.boosterVolumeMl;
+          const suitable = emptyBottles.filter(
+            (b) => b.volume_ml >= requiredCapacity,
+          );
+
+          return (
+            <section
+              key={row.id}
+              className="rounded-lg border border-border bg-background/40 p-4 space-y-3"
+            >
+              <h3 className="text-base font-semibold">
+                Format {row.volumeMl} ml dans un flacon de{" "}
+                {row.bottleCapacityMl} ml
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                    <tr>
+                      <th className="px-2 py-2 text-left">Boosters</th>
+                      <th className="px-2 py-2 text-left">Volume final</th>
+                      <th className="px-2 py-2 text-left">Taux obtenu</th>
+                      <th className="px-2 py-2 text-left">Préparation</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((r) => (
+                      <tr
+                        key={r.n}
+                        className={`border-t border-border ${
+                          r.needsExtra ? "bg-amber-500/5" : ""
+                        }`}
+                      >
+                        <td className="px-2 py-2 font-medium">{r.n}</td>
+                        <td className="px-2 py-2">{r.finalVolume} ml</td>
+                        <td className="px-2 py-2">
+                          {formatNicotineMg(r.rate).replace(" mg", " mg/ml")}
+                        </td>
+                        <td className="px-2 py-2 text-xs">
+                          {r.needsExtra ? (
+                            <span className="text-amber-700 dark:text-amber-400">
+                              Flacon vide nécessaire
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              Flacon d'origine
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Au-delà de {max} booster{max > 1 ? "s" : ""}, le client aura
+                besoin d'un flacon plus grand pour cette contenance.
+              </p>
+              {suitable.length > 0 ? (
+                <div className="rounded-md border border-border bg-muted/20 p-3">
+                  <div className="text-xs font-semibold uppercase text-muted-foreground">
+                    Flacons vides compatibles au catalogue
+                  </div>
+                  <ul className="mt-2 space-y-1 text-sm">
+                    {suitable.map((b) => (
+                      <li key={b.id} className="flex justify-between gap-3">
+                        <span>
+                          {b.name}{" "}
+                          <span className="text-xs text-muted-foreground">
+                            ({b.volume_ml} ml)
+                          </span>
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {formatEuros(b.price_cents, b.currency)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                  Aucun flacon vide du catalogue ne peut absorber davantage de
+                  boosters pour cette contenance.
+                </div>
+              )}
+            </section>
+          );
+        })
+      )}
+
+      {/* Aperçu client */}
+      <section className="rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 p-4 space-y-3">
+        <h3 className="text-base font-semibold">
+          Aperçu — ce que verra le client
+        </h3>
+        <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
+          <li>Choisissez votre goût</li>
+          <li>Choisissez votre format</li>
+          <li>Choisissez votre taux de nicotine souhaité</li>
+          <li>Choisissez le type de booster</li>
+        </ol>
+        {firstFlavor && firstRow && firstType ? (
+          <div className="rounded-md border border-border bg-background/60 p-3 text-sm">
+            <div className="font-medium">Exemple :</div>
+            <div className="text-muted-foreground">
+              {firstFlavor.name}, {firstRow.volumeMl} ml,{" "}
+              {formatNicotineMg(exampleRate).replace(" mg", " mg/ml")},{" "}
+              {NICOTINE_TYPE_LABELS[firstType]}
+              {" → "}
+              {exampleBoosters} booster{exampleBoosters > 1 ? "s" : ""}{" "}
+              {NICOTINE_TYPE_LABELS[firstType].toLowerCase()} ajouté
+              {exampleBoosters > 1 ? "s" : ""}, prix flacon{" "}
+              {formatEuros(firstRow.priceCents)}.
+            </div>
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">
+            Ajoute un goût, une contenance et coche au moins un type de
+            nicotine pour voir un exemple concret.
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
