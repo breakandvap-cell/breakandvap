@@ -239,7 +239,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
   // Auto-génère un SKU pour chaque variante (attaché à la valeur) tant que
   // l'admin n'a pas saisi le sien. Évite les doublons via un suffixe court.
   useEffect(() => {
-    if (category !== "accessoire_vape") return;
+    if (category !== "accessoire_vape" && category !== "accessoire_cbd") return;
     if (state.product_kind !== "variants") return;
     setState((s) => {
       const baseName = s.name.trim();
