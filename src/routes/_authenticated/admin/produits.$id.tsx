@@ -1209,12 +1209,14 @@ function VariantsEditor({
         <div>
           <h3 className="text-sm font-medium">Contenances</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Une ligne par taille de flacon. Laisse « Capacité max de boosters »
-            à <strong>0</strong> pour un flacon prêt à l'emploi (10 ml) : tu
-            coches alors les taux de nicotine déjà présents. Pour un flacon
-            avec boosters (50 / 100 / 200 ml), indique la capacité maximale :
-            le site calcule automatiquement les taux résultants selon le
-            dosage global défini dans <em>Paramètres</em>.
+            Une ligne par taille de flacon. Pour un flacon prêt à l'emploi
+            (10 ml), laisse « Capacité réelle du flacon » vide ou égale au
+            volume de base : tu coches alors les taux de nicotine déjà
+            présents. Pour un flacon avec boosters (50 / 100 / 200 ml),
+            renseigne la <strong>capacité réelle</strong> du flacon vide
+            utilisé (ex. 60 ml pour une base 50 ml) : le site déduit
+            automatiquement le nombre de boosters possibles et les taux
+            résultants selon le dosage défini dans <em>Paramètres</em>.
           </p>
           {cfg && (
             <p className="mt-1 text-[11px] text-muted-foreground">
