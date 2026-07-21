@@ -997,6 +997,485 @@ function StepFlavors({
 // Composants utilitaires
 // -------------------------------------------------------------------
 
+// -------------------------------------------------------------------
+// Étape 4 — formats et stocks
+// -------------------------------------------------------------------
+
+function newRowId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `r_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function slugify(input: string): string {
+  return (input || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .toUpperCase()
+    .slice(0, 20);
+}
+
+function maxBoostersFor(row: LargeFormatRow, cfg: BoosterConfig): number {
+  if (!row.volumeMl || !row.bottleCapacityMl) return 0;
+  const spare = row.bottleCapacityMl - row.volumeMl;
+  if (spare <= 0 || !cfg.boosterVolumeMl) return 0;
+  return Math.max(0, Math.floor(spare / cfg.boosterVolumeMl));
+}
+
+type MatrixEntry = {
+  key: string;
+  flavor: Flavor;
+  kind: "small" | "large";
+  label: string;
+  suffix: string; // pour le SKU auto
+};
+
+function buildMatrixEntries(data: WizardData): MatrixEntry[] {
+  const entries: MatrixEntry[] = [];
+  const activeFlavorsOrPlaceholder =
+    data.flavors.length === 0
+      ? [{ id: "__default__", name: "Sans variante", image: null, active: true } as Flavor]
+      : data.flavors.filter((f) => f.active);
+  const showSmall = data.salesMode === "small_only" || data.salesMode === "both";
+  const showLarge = data.salesMode === "large_only" || data.salesMode === "both";
+  for (const f of activeFlavorsOrPlaceholder) {
+    if (showSmall) {
+      for (const mg of [...data.smallFormat.nicotineMg].sort((a, b) => a - b)) {
+        entries.push({
+          key: `small:${f.id}:${mg}`,
+          flavor: f,
+          kind: "small",
+          label: `10 ml · ${mg} mg`,
+          suffix: `10-${mg}MG`,
+        });
+      }
+    }
+    if (showLarge) {
+      for (const row of data.largeFormats) {
+        if (!row.volumeMl) continue;
+        entries.push({
+          key: `large:${f.id}:${row.id}`,
+          flavor: f,
+          kind: "large",
+          label: `${row.volumeMl} ml`,
+          suffix: `${row.volumeMl}ML`,
+        });
+      }
+    }
+  }
+  return entries;
+}
+
+function defaultSkuFor(productName: string, entry: MatrixEntry): string {
+  const base = slugify(productName) || "PRD";
+  const flavor = entry.flavor.id === "__default__" ? "" : `-${slugify(entry.flavor.name) || "GOUT"}`;
+  return `${base}${flavor}-${entry.suffix}`;
+}
+
+function isFormatsStepValid(data: WizardData): boolean {
+  const showSmall = data.salesMode === "small_only" || data.salesMode === "both";
+  const showLarge = data.salesMode === "large_only" || data.salesMode === "both";
+  if (showSmall) {
+    if (data.smallFormat.nicotineMg.length === 0) return false;
+    if (data.smallFormat.priceCents <= 0) return false;
+  }
+  if (showLarge) {
+    if (data.largeFormats.length === 0) return false;
+    for (const r of data.largeFormats) {
+      if (!r.volumeMl || !r.bottleCapacityMl || r.bottleCapacityMl < r.volumeMl) return false;
+      if (r.priceCents <= 0) return false;
+    }
+  }
+  return true;
+}
+
+function StepFormats({
+  data,
+  onPatch,
+}: {
+  data: WizardData;
+  onPatch: (p: Partial<WizardData>) => void;
+}) {
+  const { data: settings } = useQuery(siteSettingsQueryOptions());
+  const cfg: BoosterConfig = settings
+    ? {
+        boosterVolumeMl: settings.boosterVolumeMl,
+        boosterConcentrationMgPerMl: settings.boosterConcentrationMgPerMl,
+      }
+    : DEFAULT_BOOSTER_CONFIG;
+
+  const showSmall = data.salesMode === "small_only" || data.salesMode === "both";
+  const showLarge = data.salesMode === "large_only" || data.salesMode === "both";
+
+  const entries = useMemo(() => buildMatrixEntries(data), [data]);
+  const [bulkStock, setBulkStock] = useState<string>("");
+
+  // Nettoie les entrées de matrice orphelines (goût supprimé / format retiré).
+  useEffect(() => {
+    const validKeys = new Set(entries.map((e) => e.key));
+    let changed = false;
+    const next: Record<string, MatrixCell> = {};
+    for (const [k, v] of Object.entries(data.matrix)) {
+      if (validKeys.has(k)) next[k] = v;
+      else changed = true;
+    }
+    if (changed) onPatch({ matrix: next });
+  }, [entries]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getCell = (entry: MatrixEntry): MatrixCell =>
+    data.matrix[entry.key] ?? {
+      stock: 0,
+      sku: defaultSkuFor(data.name, entry),
+      active: true,
+    };
+
+  const setCell = (key: string, patch: Partial<MatrixCell>) => {
+    const current = data.matrix[key] ?? { stock: 0, sku: "", active: true };
+    onPatch({ matrix: { ...data.matrix, [key]: { ...current, ...patch } } });
+  };
+
+  const applyBulkStock = () => {
+    const v = Number(bulkStock);
+    if (!Number.isFinite(v) || v < 0) {
+      toast.error("Saisis un nombre valide (0 ou plus).");
+      return;
+    }
+    const next = { ...data.matrix };
+    for (const e of entries) {
+      const current = next[e.key] ?? { stock: 0, sku: defaultSkuFor(data.name, e), active: true };
+      next[e.key] = { ...current, stock: Math.trunc(v) };
+    }
+    onPatch({ matrix: next });
+    toast.success(`Stock défini à ${Math.trunc(v)} pour ${entries.length} lignes.`);
+  };
+
+  const deactivateOutOfStock = () => {
+    const next = { ...data.matrix };
+    let count = 0;
+    for (const e of entries) {
+      const cell = next[e.key] ?? { stock: 0, sku: defaultSkuFor(data.name, e), active: true };
+      if (cell.stock <= 0 && cell.active) {
+        next[e.key] = { ...cell, active: false };
+        count++;
+      }
+    }
+    onPatch({ matrix: next });
+    toast.success(`${count} ligne(s) désactivée(s).`);
+  };
+
+  // --------- Rendu ---------
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-xl font-semibold">Formats et stocks</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Configure chaque format vendable. La matrice ci-dessous se génère
+          automatiquement à partir des goûts actifs et des formats définis.
+        </p>
+      </div>
+
+      {showSmall && (
+        <section className="rounded-lg border border-border bg-background/40 p-4 space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">Format 10 ml</h3>
+            <p className="text-xs text-muted-foreground">
+              Sélectionne les taux de nicotine proposés. Le prix est commun à
+              tous les taux du 10 ml.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {NICOTINE_10ML_OPTIONS.map((mg) => {
+              const active = data.smallFormat.nicotineMg.includes(mg);
+              return (
+                <button
+                  key={mg}
+                  type="button"
+                  onClick={() => {
+                    const next = active
+                      ? data.smallFormat.nicotineMg.filter((x) => x !== mg)
+                      : [...data.smallFormat.nicotineMg, mg];
+                    onPatch({
+                      smallFormat: { ...data.smallFormat, nicotineMg: next },
+                    });
+                  }}
+                  className={`rounded-lg border-2 px-4 py-2 text-sm font-medium ${
+                    active
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:border-primary/50"
+                  }`}
+                >
+                  {mg} mg
+                </button>
+              );
+            })}
+          </div>
+          <Field label="Prix TTC (€) commun aux taux du 10 ml" required>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              className="input h-11 text-base w-40"
+              value={data.smallFormat.priceCents ? (data.smallFormat.priceCents / 100).toString() : ""}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                onPatch({
+                  smallFormat: {
+                    ...data.smallFormat,
+                    priceCents: Number.isFinite(v) ? Math.round(v * 100) : 0,
+                  },
+                });
+              }}
+              placeholder="Ex. 6.90"
+            />
+          </Field>
+        </section>
+      )}
+
+      {showLarge && (
+        <section className="rounded-lg border border-border bg-background/40 p-4 space-y-4">
+          <div>
+            <h3 className="text-base font-semibold">Grand format</h3>
+            <p className="text-xs text-muted-foreground">
+              Ajoute une ligne par contenance. « Capacité réelle » = volume
+              total du flacon (base + boosters possibles).
+            </p>
+          </div>
+
+          {data.largeFormats.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-2 text-left">Base (ml)</th>
+                    <th className="px-2 py-2 text-left">Capacité flacon (ml)</th>
+                    <th className="px-2 py-2 text-left">Prix TTC (€)</th>
+                    <th className="px-2 py-2 text-left">Aperçu boosters</th>
+                    <th className="w-10" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.largeFormats.map((row) => {
+                    const max = maxBoostersFor(row, cfg);
+                    const capaError =
+                      row.bottleCapacityMl > 0 && row.bottleCapacityMl < row.volumeMl;
+                    return (
+                      <tr key={row.id} className="border-t border-border">
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min={1}
+                            className="input h-9 w-24 text-base"
+                            value={row.volumeMl || ""}
+                            onChange={(e) =>
+                              onPatch({
+                                largeFormats: data.largeFormats.map((r) =>
+                                  r.id === row.id
+                                    ? { ...r, volumeMl: Math.max(0, Number(e.target.value) || 0) }
+                                    : r,
+                                ),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min={1}
+                            className="input h-9 w-24 text-base"
+                            value={row.bottleCapacityMl || ""}
+                            onChange={(e) =>
+                              onPatch({
+                                largeFormats: data.largeFormats.map((r) =>
+                                  r.id === row.id
+                                    ? { ...r, bottleCapacityMl: Math.max(0, Number(e.target.value) || 0) }
+                                    : r,
+                                ),
+                              })
+                            }
+                          />
+                          {capaError && (
+                            <div className="mt-1 text-[11px] text-destructive">
+                              Doit ≥ base
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="input h-9 w-24 text-base"
+                            value={row.priceCents ? (row.priceCents / 100).toString() : ""}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              onPatch({
+                                largeFormats: data.largeFormats.map((r) =>
+                                  r.id === row.id
+                                    ? { ...r, priceCents: Number.isFinite(v) ? Math.round(v * 100) : 0 }
+                                    : r,
+                                ),
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="px-2 py-2 text-xs text-muted-foreground">
+                          {row.volumeMl && row.bottleCapacityMl ? (
+                            max > 0 ? (
+                              <>Ce flacon peut contenir <strong className="text-foreground">{max}</strong> booster{max > 1 ? "s" : ""} supplémentaire{max > 1 ? "s" : ""}.</>
+                            ) : (
+                              <>Aucun booster ne rentre dans ce flacon.</>
+                            )
+                          ) : (
+                            <>—</>
+                          )}
+                        </td>
+                        <td className="px-2 py-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onPatch({
+                                largeFormats: data.largeFormats.filter((r) => r.id !== row.id),
+                              })
+                            }
+                            className="rounded border border-border p-1.5 text-destructive hover:bg-destructive/10"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() =>
+              onPatch({
+                largeFormats: [
+                  ...data.largeFormats,
+                  { id: newRowId(), volumeMl: 0, bottleCapacityMl: 0, priceCents: 0 },
+                ],
+              })
+            }
+            className="inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:border-primary hover:text-foreground"
+          >
+            <Plus className="h-4 w-4" /> Ajouter une contenance
+          </button>
+        </section>
+      )}
+
+      {/* -------- Matrice des combinaisons -------- */}
+      <section className="rounded-lg border border-border bg-background/40 p-4 space-y-4">
+        <div>
+          <h3 className="text-base font-semibold">Matrice des variantes</h3>
+          <p className="text-xs text-muted-foreground">
+            Générée automatiquement à partir des goûts actifs et des formats
+            configurés ci-dessus.
+          </p>
+        </div>
+
+        {entries.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border bg-muted/30 px-3 py-4 text-center text-sm text-muted-foreground">
+            Aucune combinaison pour l'instant. Complète les formats ci-dessus
+            pour voir apparaître les variantes.
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-end gap-2 rounded-md bg-muted/30 p-3">
+              <div className="flex items-end gap-2">
+                <Field label="Stock à appliquer">
+                  <input
+                    type="number"
+                    min={0}
+                    className="input h-9 w-28 text-base"
+                    value={bulkStock}
+                    onChange={(e) => setBulkStock(e.target.value)}
+                    placeholder="Ex. 10"
+                  />
+                </Field>
+                <button
+                  type="button"
+                  onClick={applyBulkStock}
+                  className="h-9 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-secondary"
+                >
+                  Appliquer à toutes les lignes
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={deactivateOutOfStock}
+                className="h-9 rounded-lg border border-border bg-background px-3 text-sm font-medium hover:bg-secondary"
+              >
+                Désactiver les lignes sans stock
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+                  <tr>
+                    <th className="px-2 py-2 text-left">Goût</th>
+                    <th className="px-2 py-2 text-left">Format</th>
+                    <th className="px-2 py-2 text-left">Stock</th>
+                    <th className="px-2 py-2 text-left">SKU</th>
+                    <th className="px-2 py-2 text-center">Actif</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e) => {
+                    const cell = getCell(e);
+                    return (
+                      <tr key={e.key} className="border-t border-border">
+                        <td className="px-2 py-2">{e.flavor.name}</td>
+                        <td className="px-2 py-2">{e.label}</td>
+                        <td className="px-2 py-2">
+                          <input
+                            type="number"
+                            min={0}
+                            className="input h-9 w-24 text-base"
+                            value={cell.stock}
+                            onChange={(ev) =>
+                              setCell(e.key, {
+                                stock: Math.max(0, Number(ev.target.value) || 0),
+                              })
+                            }
+                          />
+                        </td>
+                        <td className="px-2 py-2">
+                          <input
+                            className="input h-9 w-48 text-base font-mono text-xs"
+                            value={cell.sku}
+                            onChange={(ev) => setCell(e.key, { sku: ev.target.value })}
+                          />
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={cell.active}
+                            onChange={(ev) => setCell(e.key, { active: ev.target.checked })}
+                            className="h-4 w-4 cursor-pointer"
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function Field({
   label,
   hint,
