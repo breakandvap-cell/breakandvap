@@ -343,19 +343,16 @@ function StepInfo({
     if (!file) return;
     setUploading(slot);
     try {
-      const optimized = await optimizeImage(file, { maxDim: 1600 });
-      const buffer = await optimized.arrayBuffer();
-      const bytes = Array.from(new Uint8Array(buffer));
+      const optimized = await optimizeImage(file);
       const res = await upload({
         data: {
-          productId: productId === "nouveau" ? "nouveau" : productId,
-          filename: optimized.name || file.name,
-          contentType: optimized.type || file.type || "image/webp",
-          bytes,
+          filename: optimized.filename,
+          contentType: optimized.contentType,
+          base64: optimized.base64,
         },
       });
-      if (slot === "main") onPatch({ mainPhoto: res.publicUrl });
-      else onPatch({ photos: [...data.photos, res.publicUrl] });
+      if (slot === "main") onPatch({ mainPhoto: res.url });
+      else onPatch({ photos: [...data.photos, res.url] });
     } catch (err) {
       toast.error((err as Error).message || "Envoi impossible.");
     } finally {
