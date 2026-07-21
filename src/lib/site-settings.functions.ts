@@ -8,11 +8,20 @@ import { supabase } from "@/integrations/supabase/client";
 export type BoosterConfig = {
   boosterVolumeMl: number;
   boosterConcentrationMgPerMl: number;
+  /** Références booster « officielles » (une par type). Renseignées via
+   *  /admin/references-techniques. Si null, le checkout retombe sur le
+   *  premier booster publié de ce type. */
+  defaultBoosterNormaleId: string | null;
+  defaultBoosterSelId: string | null;
+  defaultBoosterIceId: string | null;
 };
 
 export const DEFAULT_BOOSTER_CONFIG: BoosterConfig = {
   boosterVolumeMl: 10,
   boosterConcentrationMgPerMl: 20,
+  defaultBoosterNormaleId: null,
+  defaultBoosterSelId: null,
+  defaultBoosterIceId: null,
 };
 
 // Lecture publique via la policy `TO anon` de `site_settings`.
@@ -22,7 +31,9 @@ export const siteSettingsQueryOptions = () =>
     queryFn: async (): Promise<BoosterConfig> => {
       const { data, error } = await supabase
         .from("site_settings")
-        .select("booster_volume_ml, booster_concentration_mg_per_ml")
+        .select(
+          "booster_volume_ml, booster_concentration_mg_per_ml, default_booster_normale_id, default_booster_sel_id, default_booster_ice_id",
+        )
         .eq("singleton", true)
         .maybeSingle();
       if (error) throw new Error(error.message);
@@ -32,6 +43,12 @@ export const siteSettingsQueryOptions = () =>
         boosterConcentrationMgPerMl:
           Number(data.booster_concentration_mg_per_ml) ||
           DEFAULT_BOOSTER_CONFIG.boosterConcentrationMgPerMl,
+        defaultBoosterNormaleId:
+          (data as { default_booster_normale_id?: string | null }).default_booster_normale_id ?? null,
+        defaultBoosterSelId:
+          (data as { default_booster_sel_id?: string | null }).default_booster_sel_id ?? null,
+        defaultBoosterIceId:
+          (data as { default_booster_ice_id?: string | null }).default_booster_ice_id ?? null,
       };
     },
   });
@@ -114,6 +131,66 @@ export const adminUpdateBoosterConfig = createServerFn({ method: "POST" })
         },
         { onConflict: "singleton" },
       );
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+// ============================================================================
+// Références booster globales (une par type). Sélectionnées explicitement
+// dans /admin/references-techniques. Le checkout et la fiche e-liquide s'y
+// appuient en priorité — repli sur « premier publié du type » si absent.
+// ============================================================================
+
+const boosterRefSchema = z.object({
+  booster_type: z.enum(["normale", "sel", "ice"]),
+  product_id: z.string().uuid().nullable(),
+});
+
+export const adminUpdateDefaultBooster = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => boosterRefSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    // Vérifie que le produit ciblé correspond bien au bon type (sinon on
+    // laisserait l'admin sélectionner un produit sans rapport). null autorisé
+    // pour retirer la référence.
+    if (data.product_id) {
+      const { data: p, error } = await supabaseAdmin
+        .from("products")
+        .select("id, is_nicotine_booster, booster_type")
+        .eq("id", data.product_id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!p) throw new Error("Produit introuvable.");
+      if (!p.is_nicotine_booster) {
+        throw new Error(
+          "Le produit sélectionné n'est pas marqué comme booster de nicotine.",
+        );
+      }
+      const t = ((p as { booster_type?: string | null }).booster_type ?? "normale")
+        .toString()
+        .trim()
+        .toLowerCase();
+      if (t !== data.booster_type) {
+        throw new Error(
+          `Le produit sélectionné est de type « ${t} », attendu « ${data.booster_type} ».`,
+        );
+      }
+    }
+    const column =
+      data.booster_type === "normale"
+        ? "default_booster_normale_id"
+        : data.booster_type === "sel"
+          ? "default_booster_sel_id"
+          : "default_booster_ice_id";
+    const patch: Record<string, unknown> = { singleton: true };
+    patch[column] = data.product_id;
+    const { error } = await supabaseAdmin
+      .from("site_settings")
+      .upsert(patch as never, { onConflict: "singleton" });
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
