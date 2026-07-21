@@ -740,6 +740,42 @@ function validateAll(input: {
     return [base, typeErrors, sale, meta, []];
   }
 
+  // Accessoire CBD : 4 étapes [Base, Type, Vente, Review] — pas d'étape Métier.
+  if (category === "accessoire_cbd") {
+    const typeErrors: string[] = [];
+    const sale: string[] = [];
+    if (state.product_kind === "simple") {
+      if (priceCents <= 0) sale.push("Le prix doit être supérieur à 0 €.");
+    } else {
+      if (state.variant_attribute_name.trim().length === 0)
+        sale.push("Précise le nom de la caractéristique variable (ex. Taille, Longueur, Couleur).");
+      if (parsedChoices.length === 0)
+        sale.push("Ajoute au moins une valeur.");
+      for (let i = 0; i < parsedChoices.length; i++) {
+        const c = parsedChoices[i];
+        if (!c.value) sale.push(`Valeur ${i + 1} : renseigne le libellé.`);
+        if (!Number.isFinite(c.price_cents) || c.price_cents <= 0)
+          sale.push(`Valeur ${i + 1} : prix invalide.`);
+        if (!c.sku) sale.push(`Valeur ${i + 1} : SKU manquant.`);
+      }
+      const seenVal = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.value.toLowerCase();
+        if (k && seenVal.has(k)) sale.push(`Doublon de valeur : ${c.value}.`);
+        seenVal.add(k);
+      }
+      const seenSku = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.sku.toLowerCase();
+        if (k && seenSku.has(k)) sale.push(`Doublon de SKU : ${c.sku}.`);
+        seenSku.add(k);
+      }
+    }
+    if (state.descriptionShort.trim().length === 0)
+      sale.push("Ajoute une description courte du produit.");
+    return [base, typeErrors, sale, []];
+  }
+
   const classicSale: string[] = [];
   if (priceCents <= 0) classicSale.push("Le prix doit être supérieur à 0 €.");
   if (state.descriptionShort.trim().length === 0)
