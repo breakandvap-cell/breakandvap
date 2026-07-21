@@ -416,27 +416,6 @@ function EliquideDetail({
   const variant =
     availableVolumes.find((v) => v.id === selectedVariantId) ?? null;
 
-  // Variante réellement facturée (résout le type de nicotine choisi vers
-  // la ligne product_variants correspondante).
-  const chargedVariant = useMemo(() => {
-    if (!variant) return null;
-    const cap =
-      typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
-        ? Math.max(0, (variant as { max_boosters: number }).max_boosters)
-        : 0;
-    if (cap <= 0) return variant;
-    const match = variants.find(
-      (v) =>
-        v.volume_ml === variant.volume_ml &&
-        ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
-          .toString()
-          .trim()
-          .toLowerCase() === nicotineType &&
-        (v as { is_active?: boolean }).is_active !== false,
-    );
-    return match ?? variant;
-  }, [variant, variants, nicotineType]);
-
   // Flacon vide associé à la contenance sélectionnée (priorité), avec repli
   // sur le flacon vide par défaut du produit.
   const variantEmptyBottleId =
