@@ -1211,3 +1211,182 @@ export const adminGetCustomer = createServerFn({ method: "GET" })
       favorite_product: favorite,
     };
   });
+
+// ============================================================================
+// Références techniques : boosters de nicotine + flacons vides
+// ============================================================================
+
+type EliquideRef = { id: string; name: string; slug: string };
+
+/** Récupère la liste des e-liquides publiés/actifs qui utilisent ce produit
+ *  comme booster (via nicotine_type) ou comme flacon vide (via
+ *  empty_bottle_product_id sur le produit OU la variante). */
+async function computeImpactedEliquides(
+  supabaseAdmin: any,
+  product: {
+    id: string;
+    category: string | null;
+    is_nicotine_booster: boolean | null;
+    booster_type: string | null;
+  },
+): Promise<{
+  asBooster: EliquideRef[];
+  asEmptyBottle: EliquideRef[];
+}> {
+  const asBooster: EliquideRef[] = [];
+  const asEmptyBottle: EliquideRef[] = [];
+
+  if (product.is_nicotine_booster) {
+    const wanted = (product.booster_type ?? "normale").toString().trim().toLowerCase() || "normale";
+    const { data: refs } = await supabaseAdmin
+      .from("product_variants")
+      .select(
+        "nicotine_type, max_boosters, products!product_variants_product_id_fkey!inner(id, name, slug, category, is_published)",
+      )
+      .eq("is_active", true)
+      .eq("products.category", "e_liquide");
+    const seen = new Set<string>();
+    for (const r of (refs ?? []) as Array<{
+      nicotine_type: string | null;
+      max_boosters: number | null;
+      products: { id: string; name: string; slug: string; is_published: boolean } | null;
+    }>) {
+      if ((r.max_boosters ?? 0) <= 0) continue;
+      const t = (r.nicotine_type ?? "normale").toString().trim().toLowerCase();
+      if (t !== wanted) continue;
+      if (!r.products) continue;
+      if (seen.has(r.products.id)) continue;
+      seen.add(r.products.id);
+      asBooster.push({ id: r.products.id, name: r.products.name, slug: r.products.slug });
+    }
+  }
+
+  // Flacon vide : référencé sur products.empty_bottle_product_id (niveau produit)
+  // ou product_variants.empty_bottle_product_id (par contenance).
+  const [prodRefs, varRefs] = await Promise.all([
+    supabaseAdmin
+      .from("products")
+      .select("id, name, slug")
+      .eq("empty_bottle_product_id", product.id)
+      .eq("category", "e_liquide"),
+    supabaseAdmin
+      .from("product_variants")
+      .select(
+        "products!product_variants_product_id_fkey!inner(id, name, slug, category)",
+      )
+      .eq("empty_bottle_product_id", product.id)
+      .eq("is_active", true)
+      .eq("products.category", "e_liquide"),
+  ]);
+  const seenB = new Set<string>();
+  for (const r of (prodRefs.data ?? []) as Array<{ id: string; name: string; slug: string }>) {
+    if (seenB.has(r.id)) continue;
+    seenB.add(r.id);
+    asEmptyBottle.push(r);
+  }
+  for (const r of (varRefs.data ?? []) as Array<{
+    products: { id: string; name: string; slug: string } | null;
+  }>) {
+    if (!r.products || seenB.has(r.products.id)) continue;
+    seenB.add(r.products.id);
+    asEmptyBottle.push(r.products);
+  }
+
+  return { asBooster, asEmptyBottle };
+}
+
+export const adminProductImpact = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: p, error } = await supabaseAdmin
+      .from("products")
+      .select("id, name, category, is_nicotine_booster, booster_type, volume_ml")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!p) throw new Error("Produit introuvable.");
+    const impact = await computeImpactedEliquides(supabaseAdmin, p);
+    const role: "booster" | "empty_bottle" | null = p.is_nicotine_booster
+      ? "booster"
+      : p.category === "accessoire_vape" && (p.volume_ml ?? 0) > 0 && impact.asEmptyBottle.length > 0
+        ? "empty_bottle"
+        : null;
+    return {
+      role,
+      booster_type: p.booster_type,
+      volume_ml: p.volume_ml,
+      as_booster: impact.asBooster,
+      as_empty_bottle: impact.asEmptyBottle,
+      is_protected: impact.asBooster.length + impact.asEmptyBottle.length > 0,
+    };
+  });
+
+export const adminTechnicalReferences = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [boostersRes, bottlesRes] = await Promise.all([
+      supabaseAdmin
+        .from("products")
+        .select(
+          "id, name, slug, photos, is_published, stock, stock_status, booster_type, category, is_nicotine_booster, volume_ml, updated_at",
+        )
+        .eq("is_nicotine_booster", true)
+        .order("booster_type", { ascending: true }),
+      supabaseAdmin
+        .from("products")
+        .select(
+          "id, name, slug, photos, is_published, stock, stock_status, booster_type, category, is_nicotine_booster, volume_ml, updated_at",
+        )
+        .eq("category", "accessoire_vape")
+        .eq("is_nicotine_booster", false)
+        .not("volume_ml", "is", null)
+        .order("volume_ml", { ascending: true }),
+    ]);
+    if (boostersRes.error) throw new Error(boostersRes.error.message);
+    if (bottlesRes.error) throw new Error(bottlesRes.error.message);
+
+    const boosters = await Promise.all(
+      (boostersRes.data ?? []).map(async (p) => {
+        const impact = await computeImpactedEliquides(supabaseAdmin, p);
+        return {
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          photo: (p.photos ?? [])[0] ?? null,
+          is_published: p.is_published,
+          stock: p.stock,
+          stock_status: p.stock_status,
+          booster_type: p.booster_type,
+          volume_ml: p.volume_ml,
+          updated_at: p.updated_at,
+          used_by: impact.asBooster,
+          is_protected: impact.asBooster.length > 0,
+        };
+      }),
+    );
+    const bottles = await Promise.all(
+      (bottlesRes.data ?? []).map(async (p) => {
+        const impact = await computeImpactedEliquides(supabaseAdmin, p);
+        return {
+          id: p.id,
+          name: p.name,
+          slug: p.slug,
+          photo: (p.photos ?? [])[0] ?? null,
+          is_published: p.is_published,
+          stock: p.stock,
+          stock_status: p.stock_status,
+          volume_ml: p.volume_ml,
+          updated_at: p.updated_at,
+          used_by: impact.asEmptyBottle,
+          is_protected: impact.asEmptyBottle.length > 0,
+        };
+      }),
+    );
+
+    return { boosters, bottles };
+  });
