@@ -1661,11 +1661,16 @@ function ContenanceRow({
         onChange={(next) => onUpdate({ quantity_tiers: next } as Partial<FormVariant>)}
       />
 
-      <div className="mt-3">
-        <label className="block text-xs">
-          <span className="mb-1 block text-muted-foreground">
-            Flacon vide suggéré pour cette contenance (optionnel)
-          </span>
+      <details className="mt-3 rounded-md border border-border/60 bg-background/40 p-2 text-xs">
+        <summary className="cursor-pointer text-muted-foreground">
+          Cas particulier — flacon vide spécifique pour cette contenance
+        </summary>
+        <div className="mt-2 space-y-2">
+          <p className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200">
+            Par défaut, le flacon vide est sélectionné automatiquement à
+            l'ajout au panier depuis la liste globale. À utiliser uniquement
+            si cette contenance a une contrainte particulière.
+          </p>
           <select
             className="input"
             value={(variant as FormVariant & { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? ""}
@@ -1675,20 +1680,15 @@ function ContenanceRow({
               } as Partial<FormVariant>)
             }
           >
-            <option value="">— Aucun (pas de suggestion) —</option>
+            <option value="">— Sélection automatique (recommandé) —</option>
             {vapeAccessories.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
               </option>
             ))}
           </select>
-          <span className="mt-1 block text-[11px] text-muted-foreground">
-            Proposé quand le taux demandé dépasse la capacité de ce flacon.
-            Purement informatif — le client peut toujours valider sa commande
-            sans l'ajouter.
-          </span>
-        </label>
-      </div>
+        </div>
+      </details>
     </div>
   );
 }
