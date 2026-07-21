@@ -501,6 +501,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           volumeNum,
           parsedWeight,
           parsedSachets,
+          parsedChoices,
           photos: state.photos,
           onFiles: handleFiles,
           onRemovePhoto: removePhoto,
