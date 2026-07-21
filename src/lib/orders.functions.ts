@@ -184,10 +184,13 @@ export const createOrder = createServerFn({ method: "POST" })
     // choisi par le client — l'ancienne colonne boosters_per_nicotine n'est
     // plus lue nulle part.
     let boosterCfg: BoosterConfig = DEFAULT_BOOSTER_CONFIG;
+    const defaultBoosterByType = new Map<string, string>();
     {
       const { data: settings } = await supabaseAdmin
         .from("site_settings")
-        .select("booster_volume_ml, booster_concentration_mg_per_ml")
+        .select(
+          "booster_volume_ml, booster_concentration_mg_per_ml, default_booster_normale_id, default_booster_sel_id, default_booster_ice_id",
+        )
         .eq("singleton", true)
         .maybeSingle();
       if (settings) {
@@ -198,11 +201,24 @@ export const createOrder = createServerFn({ method: "POST" })
             Number(settings.booster_concentration_mg_per_ml) ||
             DEFAULT_BOOSTER_CONFIG.boosterConcentrationMgPerMl,
         };
+        const s = settings as {
+          default_booster_normale_id?: string | null;
+          default_booster_sel_id?: string | null;
+          default_booster_ice_id?: string | null;
+        };
+        if (s.default_booster_normale_id)
+          defaultBoosterByType.set("normale", s.default_booster_normale_id);
+        if (s.default_booster_sel_id)
+          defaultBoosterByType.set("sel", s.default_booster_sel_id);
+        if (s.default_booster_ice_id)
+          defaultBoosterByType.set("ice", s.default_booster_ice_id);
       }
     }
 
     // Charge les produits booster (un par type) : prix de référence appliqué
     // aux e-liquides 50/100/200 ml selon le type de la variante commandée.
+    // Priorité aux références globales définies dans site_settings ; repli
+    // sur « premier booster publié du type » sinon.
     const boosterByType = new Map<string, { id: string; price_cents: number }>();
     {
       const { data: boosters } = await supabaseAdmin
@@ -210,6 +226,17 @@ export const createOrder = createServerFn({ method: "POST" })
         .select("id, price_cents, is_published, booster_type, created_at")
         .eq("is_nicotine_booster", true)
         .order("created_at", { ascending: true });
+      const byId = new Map<string, { id: string; price_cents: number }>();
+      for (const b of boosters ?? []) {
+        if (!b.is_published) continue;
+        byId.set(b.id, { id: b.id, price_cents: b.price_cents });
+      }
+      // 1) applique les références globales explicites
+      for (const [type, pid] of defaultBoosterByType.entries()) {
+        const hit = byId.get(pid);
+        if (hit) boosterByType.set(type, hit);
+      }
+      // 2) repli : premier publié pour les types encore non résolus
       for (const b of boosters ?? []) {
         if (!b.is_published) continue;
         const key = ((b as { booster_type?: string | null }).booster_type ?? "normale")

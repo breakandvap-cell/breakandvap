@@ -614,6 +614,9 @@ export type Database = {
           booster_concentration_mg_per_ml: number
           booster_volume_ml: number
           created_at: string
+          default_booster_ice_id: string | null
+          default_booster_normale_id: string | null
+          default_booster_sel_id: string | null
           singleton: boolean
           updated_at: string
         }
@@ -621,6 +624,9 @@ export type Database = {
           booster_concentration_mg_per_ml?: number
           booster_volume_ml?: number
           created_at?: string
+          default_booster_ice_id?: string | null
+          default_booster_normale_id?: string | null
+          default_booster_sel_id?: string | null
           singleton?: boolean
           updated_at?: string
         }
@@ -628,10 +634,35 @@ export type Database = {
           booster_concentration_mg_per_ml?: number
           booster_volume_ml?: number
           created_at?: string
+          default_booster_ice_id?: string | null
+          default_booster_normale_id?: string | null
+          default_booster_sel_id?: string | null
           singleton?: boolean
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "site_settings_default_booster_ice_id_fkey"
+            columns: ["default_booster_ice_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_settings_default_booster_normale_id_fkey"
+            columns: ["default_booster_normale_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_settings_default_booster_sel_id_fkey"
+            columns: ["default_booster_sel_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       testimonials: {
         Row: {
