@@ -590,8 +590,9 @@ function validateAll(input: {
   volumeNum: number | null;
   parsedWeight: ParsedTier[];
   parsedSachets: ParsedSachet[];
+  parsedChoices: ParsedChoice[];
 }): string[][] {
-  const { state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets } = input;
+  const { state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets, parsedChoices } = input;
   const base: string[] = [];
   if (state.name.trim().length < 2)
     base.push("Le nom du produit est obligatoire (2 caractères min.).");
@@ -668,6 +669,42 @@ function validateAll(input: {
   }
 
   // Catégories non-CBD : parcours 4 étapes.
+  // Cas particulier accessoire_vape : étape « Type de produit » insérée entre Base et Vente.
+  if (category === "accessoire_vape") {
+    const typeErrors: string[] = []; // sélection par défaut, jamais bloquante
+    const sale: string[] = [];
+    if (state.product_kind === "simple") {
+      if (priceCents <= 0) sale.push("Le prix doit être supérieur à 0 €.");
+    } else {
+      if (state.variant_attribute_name.trim().length === 0)
+        sale.push("Précise le nom de la caractéristique variable (ex. Ohm, Couleur, Contenance).");
+      if (parsedChoices.length === 0)
+        sale.push("Ajoute au moins une valeur.");
+      for (let i = 0; i < parsedChoices.length; i++) {
+        const c = parsedChoices[i];
+        if (!c.value) sale.push(`Valeur ${i + 1} : renseigne le libellé.`);
+        if (!Number.isFinite(c.price_cents) || c.price_cents <= 0)
+          sale.push(`Valeur ${i + 1} : prix invalide.`);
+        if (!c.sku) sale.push(`Valeur ${i + 1} : SKU manquant.`);
+      }
+      const seenVal = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.value.toLowerCase();
+        if (k && seenVal.has(k)) sale.push(`Doublon de valeur : ${c.value}.`);
+        seenVal.add(k);
+      }
+      const seenSku = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.sku.toLowerCase();
+        if (k && seenSku.has(k)) sale.push(`Doublon de SKU : ${c.sku}.`);
+        seenSku.add(k);
+      }
+    }
+    if (state.descriptionShort.trim().length === 0)
+      sale.push("Ajoute une description courte du produit.");
+    return [base, typeErrors, sale, meta, []];
+  }
+
   const classicSale: string[] = [];
   if (priceCents <= 0) classicSale.push("Le prix doit être supérieur à 0 €.");
   if (state.descriptionShort.trim().length === 0)
@@ -699,6 +736,29 @@ function parseSachets(raw: SachetPack[]): ParsedSachet[] {
       weight_g: w,
       price_euros: price,
       stock: Number.isFinite(stock) && stock >= 0 ? stock : 0,
+    });
+  }
+  return out;
+}
+
+type ParsedChoice = {
+  value: string;
+  price_cents: number;
+  stock: number;
+  sku: string;
+};
+function parseVariantChoices(raw: VariantChoice[]): ParsedChoice[] {
+  const out: ParsedChoice[] = [];
+  for (const c of raw) {
+    const value = c.value.trim();
+    const price = Number((c.priceEuros || "").replace(",", "."));
+    const stock = parseInt(c.stock, 10);
+    const sku = c.sku.trim();
+    out.push({
+      value,
+      price_cents: Number.isFinite(price) ? Math.round(price * 100) : NaN,
+      stock: Number.isFinite(stock) && stock >= 0 ? stock : 0,
+      sku,
     });
   }
   return out;
