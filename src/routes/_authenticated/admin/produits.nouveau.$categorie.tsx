@@ -1796,6 +1796,7 @@ function StepReview({
   thcOverLimit,
   parsedWeight,
   parsedSachets,
+  parsedChoices,
   onEditStep,
 }: {
   slug: WizardSlug;
@@ -1811,14 +1812,17 @@ function StepReview({
   thcOverLimit: boolean;
   parsedWeight: ParsedTier[];
   parsedSachets: ParsedSachet[];
+  parsedChoices: ParsedChoice[];
   onEditStep: (s: number) => void;
 }) {
   const missing = errorsByStep.flat();
   const isCbd = category === "cbd";
-  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. Autres → [0,1,2].
+  const isAccVape = category === "accessoire_vape";
+  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. AccVape → [Base 0, Type 1, Vente 2, Meta 3]. Autres → [0,1,2].
   const idxBase = 0;
-  const idxSale = isCbd ? 2 : 1;
-  const idxMeta = isCbd ? 3 : 2;
+  const idxSale = isCbd || isAccVape ? 2 : 1;
+  const idxMeta = isCbd || isAccVape ? 3 : 2;
+  const totalStockVariants = parsedChoices.reduce((s, c) => s + c.stock, 0);
   return (
     <div className="space-y-5">
       <SectionTitle>Relecture avant publication</SectionTitle>
