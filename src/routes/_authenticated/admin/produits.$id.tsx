@@ -85,6 +85,61 @@ function slugify(input: string) {
     .slice(0, 80);
 }
 
+type ImpactData = {
+  is_protected: boolean;
+  as_booster: Array<{ id: string; name: string }>;
+  as_empty_bottle: Array<{ id: string; name: string }>;
+  booster_type: string | null;
+  volume_ml: number | null;
+};
+
+function ImpactPanel({ impact }: { impact: ImpactData }) {
+  const roles: Array<{ label: string; list: Array<{ id: string; name: string }> }> = [];
+  if (impact.as_booster.length > 0)
+    roles.push({
+      label: `booster de nicotine${impact.booster_type ? ` « ${impact.booster_type} »` : ""}`,
+      list: impact.as_booster,
+    });
+  if (impact.as_empty_bottle.length > 0)
+    roles.push({
+      label: `flacon vide${impact.volume_ml ? ` (${impact.volume_ml} ml)` : ""}`,
+      list: impact.as_empty_bottle,
+    });
+  return (
+    <div className="rounded-md border border-fuchsia-500/40 bg-fuchsia-500/10 p-4 text-sm text-fuchsia-100">
+      <div className="mb-2 flex items-center gap-2 font-medium">
+        <ShieldAlert className="h-4 w-4" /> Référence protégée
+      </div>
+      {roles.map((r) => (
+        <div key={r.label} className="mb-2 last:mb-0">
+          <p className="text-xs text-fuchsia-200/80">
+            Utilisé comme <strong>{r.label}</strong> par {r.list.length} e-liquide
+            {r.list.length > 1 ? "s" : ""} :
+          </p>
+          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+            {r.list.map((e) => (
+              <li key={e.id}>
+                <Link
+                  to="/admin/produits/$id"
+                  params={{ id: e.id }}
+                  className="underline hover:text-white"
+                >
+                  {e.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      <p className="mt-2 text-xs text-fuchsia-200/80">
+        Dépublier, désactiver ou changer la catégorie de ce produit peut casser
+        le calcul de prix des e-liquides listés. Reconfigure-les d'abord si
+        besoin.
+      </p>
+    </div>
+  );
+}
+
 function EditProduct() {
   const { id } = Route.useParams();
   const isNew = id === "nouveau";
