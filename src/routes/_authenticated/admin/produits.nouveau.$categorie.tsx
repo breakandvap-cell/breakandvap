@@ -227,8 +227,32 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
 
   const parsedWeight = useMemo(() => parseWeightTiers(state.weight_tiers), [state.weight_tiers]);
   const parsedSachets = useMemo(() => parseSachets(state.sachets), [state.sachets]);
+  const parsedChoices = useMemo(() => parseVariantChoices(state.variant_choices), [state.variant_choices]);
 
-  const errorsByStep = useMemo(() => validateAll({ state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets }), [
+  // Auto-génère un SKU pour chaque variante (attaché à la valeur) tant que
+  // l'admin n'a pas saisi le sien. Évite les doublons via un suffixe court.
+  useEffect(() => {
+    if (category !== "accessoire_vape") return;
+    if (state.product_kind !== "variants") return;
+    setState((s) => {
+      const baseName = s.name.trim();
+      let changed = false;
+      const next = s.variant_choices.map((v) => {
+        if (v.sku.trim().length > 0) return v;
+        const val = v.value.trim();
+        if (!baseName || !val) return v;
+        const nameKey = slugify(baseName).replace(/-/g, "").toUpperCase().slice(0, 6) || "SKU";
+        const valKey = slugify(val).replace(/-/g, "").toUpperCase().slice(0, 6) || "VAR";
+        const suffix = Date.now().toString(36).toUpperCase().slice(-3);
+        changed = true;
+        return { ...v, sku: `${nameKey}-${valKey}-${suffix}` };
+      });
+      return changed ? { ...s, variant_choices: next } : s;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, state.product_kind, state.name, state.variant_choices.length]);
+
+  const errorsByStep = useMemo(() => validateAll({ state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets, parsedChoices }), [
     state,
     category,
     priceCents,
@@ -237,6 +261,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     volumeNum,
     parsedWeight,
     parsedSachets,
+    parsedChoices,
   ]);
 
   const currentErrors = errorsByStep[step];
