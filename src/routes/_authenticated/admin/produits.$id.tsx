@@ -142,7 +142,9 @@ function ImpactPanel({ impact }: { impact: ImpactData }) {
 
 function EditProduct() {
   const { id } = Route.useParams();
-  const isNew = id === "nouveau";
+  const isNew = id === "nouveau" || id === "nouveau-eliquide";
+  const presetCategory: FormState["category"] | null =
+    id === "nouveau-eliquide" ? "e_liquide" : null;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const get = useServerFn(adminGetProduct);
