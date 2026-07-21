@@ -212,13 +212,23 @@ function ProductsList() {
                 </td>
                 <td className="px-3 py-2">{p.is_published ? "Oui" : "Non"}</td>
                 <td className="px-3 py-2 text-right">
-                  <Link
-                    to="/admin/produits/$id"
-                    params={{ id: p.id }}
-                    className="text-primary hover:underline"
-                  >
-                    Modifier
-                  </Link>
+                  {p.category === "e_liquide" ? (
+                    <Link
+                      to="/admin/produits/eliquide/$id"
+                      params={{ id: p.id }}
+                      className="text-primary hover:underline"
+                    >
+                      Modifier
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/admin/produits/$id"
+                      params={{ id: p.id }}
+                      className="text-primary hover:underline"
+                    >
+                      Modifier
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       if (confirm(`Supprimer "${p.name}" ?`)) m.mutate(p.id);
