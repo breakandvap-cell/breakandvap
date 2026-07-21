@@ -966,9 +966,9 @@ function EliquideDetail({
                         : baseUnit + boostersCount * boosterPrice;
                     cart.add(
                       {
-                        key: `${product.id}:${variant.id}:${boostersCount}:${nicotineType}:${effectiveNicotineMg ?? ""}:${flavor ?? ""}`,
+                        key: `${product.id}:${(chargedVariant ?? variant).id}:${boostersCount}:${nicotineType}:${effectiveNicotineMg ?? ""}:${flavor ?? ""}`,
                         productId: product.id,
-                        variantId: variant.id,
+                        variantId: (chargedVariant ?? variant).id,
                         volumeMl: variant.volume_ml,
                         nicotineMg: effectiveNicotineMg,
                         flavor: hasFlavors ? flavor : null,
