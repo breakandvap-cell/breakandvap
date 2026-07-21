@@ -2178,15 +2178,54 @@ function StepReview({
             </>
           )
         ) : (
-          <>
-            <ReviewRow
-              label="Prix TTC"
-              value={priceCents > 0 ? formatPrice(priceCents) : "—"}
-            />
-            <ReviewRow label="Stock" value={String(stockNum)} />
-            <ReviewRow label="Référence (SKU)" value={state.sku || "—"} />
-            <ReviewRow label="Description" value={state.descriptionShort || "—"} />
-          </>
+          category === "accessoire_vape" && state.product_kind === "variants" ? (
+            <>
+              <ReviewRow label="Type de produit" value="Plusieurs choix" />
+              <ReviewRow
+                label="Caractéristique"
+                value={state.variant_attribute_name || "—"}
+              />
+              <ReviewRow
+                label="Valeurs"
+                value={
+                  parsedChoices.length > 0 ? (
+                    <ul className="space-y-0.5 text-xs">
+                      {parsedChoices.map((c, i) => (
+                        <li key={i}>
+                          <strong>{c.value || "—"}</strong> —{" "}
+                          {Number.isFinite(c.price_cents)
+                            ? formatPrice(c.price_cents)
+                            : "—"}{" "}
+                          · stock {c.stock} ·{" "}
+                          <span className="font-mono">{c.sku || "—"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <ReviewRow
+                label="Stock total"
+                value={String(totalStockVariants)}
+              />
+              <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+            </>
+          ) : (
+            <>
+              {category === "accessoire_vape" && (
+                <ReviewRow label="Type de produit" value="Produit simple" />
+              )}
+              <ReviewRow
+                label="Prix TTC"
+                value={priceCents > 0 ? formatPrice(priceCents) : "—"}
+              />
+              <ReviewRow label="Stock" value={String(stockNum)} />
+              <ReviewRow label="Référence (SKU)" value={state.sku || "—"} />
+              <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+            </>
+          )
         )}
       </ReviewSection>
 
