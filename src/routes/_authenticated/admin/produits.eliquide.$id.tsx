@@ -124,9 +124,7 @@ type StepId =
   | "info"
   | "mode"
   | "flavors"
-  | "small_format"
-  | "large_format"
-  | "nicotine"
+  | "formats"
   | "review";
 
 type StepDef = { id: StepId; label: string; implemented: boolean };
