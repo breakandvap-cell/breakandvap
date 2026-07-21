@@ -537,53 +537,132 @@ function validateAll(input: {
   cbdNum: number | null;
   thcNum: number | null;
   volumeNum: number | null;
+  parsedWeight: ParsedTier[];
+  parsedSachets: ParsedSachet[];
 }): string[][] {
-  const { state, category, priceCents, cbdNum, thcNum, volumeNum } = input;
-  const step0: string[] = [];
-  const step1: string[] = [];
-  const step2: string[] = [];
-
+  const { state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets } = input;
+  const base: string[] = [];
   if (state.name.trim().length < 2)
-    step0.push("Le nom du produit est obligatoire (2 caractères min.).");
-  if (state.photos.length === 0)
-    step0.push("Ajoute au moins une photo produit.");
+    base.push("Le nom du produit est obligatoire (2 caractères min.).");
+  if (state.photos.length === 0) base.push("Ajoute au moins une photo produit.");
 
-  if (priceCents <= 0) step1.push("Le prix doit être supérieur à 0 €.");
-  if (state.descriptionShort.trim().length === 0)
-    step1.push("Ajoute une description courte du produit.");
-
+  const meta: string[] = [];
   if (category === "cbd") {
-    if (cbdNum === null) step2.push("Renseigne le taux de CBD (%).");
-    if (thcNum === null) step2.push("Renseigne le taux de THC (%).");
+    if (cbdNum === null) meta.push("Renseigne le taux de CBD (%).");
+    if (thcNum === null) meta.push("Renseigne le taux de THC (%).");
     if (thcNum !== null && thcNum > 0.3)
-      step2.push(
-        "Le taux de THC dépasse la limite légale française de 0,3 %. Publication bloquée.",
-      );
+      meta.push("Le taux de THC dépasse la limite légale française de 0,3 %. Publication bloquée.");
     if (state.coa_url.trim().length === 0)
-      step2.push("Ajoute le lien vers le certificat d'analyse.");
-    if (state.intensity === "") step2.push("Choisis une intensité.");
+      meta.push("Ajoute le lien vers le certificat d'analyse.");
+    if (state.intensity === "") meta.push("Choisis une intensité.");
   }
   if (category === "accessoire_vape") {
     if (state.is_nicotine_booster && state.booster_type.trim().length === 0)
-      step2.push("Précise le type de booster de nicotine.");
+      meta.push("Précise le type de booster de nicotine.");
     if (state.is_empty_bottle && (volumeNum === null || volumeNum <= 0))
-      step2.push(
-        "Renseigne la contenance du flacon vide en millilitres (>0).",
-      );
+      meta.push("Renseigne la contenance du flacon vide en millilitres (>0).");
   }
 
-  return [step0, step1, step2, []];
+  if (category === "cbd") {
+    // Étape 1 (Mode) : pas d'erreur bloquante (sélection par défaut).
+    const modeErrors: string[] = [];
+    // Étape 2 (Vente CBD)
+    const sale: string[] = [];
+    if (state.sale_mode === "weight") {
+      if (parsedWeight.length === 0)
+        sale.push("Ajoute au moins un palier de prix au poids.");
+      // Validation croissance / décroissance / doublons.
+      for (let i = 0; i < parsedWeight.length; i++) {
+        const t = parsedWeight[i];
+        if (!Number.isFinite(t.from_g) || t.from_g < 1)
+          sale.push(`Palier ${i + 1} : quantité de départ invalide.`);
+        if (!Number.isFinite(t.price_per_g) || t.price_per_g <= 0)
+          sale.push(`Palier ${i + 1} : prix au gramme invalide.`);
+      }
+      const seen = new Set<number>();
+      for (const t of parsedWeight) {
+        if (seen.has(t.from_g))
+          sale.push(`Doublon de quantité de départ : ${t.from_g} g.`);
+        seen.add(t.from_g);
+      }
+      const sorted = [...parsedWeight].sort((a, b) => a.from_g - b.from_g);
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i].price_per_g >= sorted[i - 1].price_per_g)
+          sale.push(
+            `Le prix doit décroître à chaque palier (à ${sorted[i].from_g} g).`,
+          );
+      }
+      const stockG = parseInt(state.weight_stock_g, 10) || 0;
+      if (stockG <= 0) sale.push("Renseigne un stock total (grammes) > 0.");
+    } else {
+      if (parsedSachets.length === 0)
+        sale.push("Ajoute au moins un format de sachet.");
+      for (let i = 0; i < parsedSachets.length; i++) {
+        const p = parsedSachets[i];
+        if (!Number.isFinite(p.weight_g) || p.weight_g <= 0)
+          sale.push(`Sachet ${i + 1} : poids invalide.`);
+        if (!Number.isFinite(p.price_euros) || p.price_euros <= 0)
+          sale.push(`Sachet ${i + 1} : prix invalide.`);
+      }
+      const seenP = new Set<number>();
+      for (const p of parsedSachets) {
+        if (seenP.has(p.weight_g))
+          sale.push(`Doublon de format : ${p.weight_g} g.`);
+        seenP.add(p.weight_g);
+      }
+    }
+    if (state.descriptionShort.trim().length === 0)
+      sale.push("Ajoute une description courte du produit.");
+    return [base, modeErrors, sale, meta, []];
+  }
+
+  // Catégories non-CBD : parcours 4 étapes.
+  const classicSale: string[] = [];
+  if (priceCents <= 0) classicSale.push("Le prix doit être supérieur à 0 €.");
+  if (state.descriptionShort.trim().length === 0)
+    classicSale.push("Ajoute une description courte du produit.");
+  return [base, classicSale, meta, []];
 }
 
-function ProgressBar({ step }: { step: 0 | 1 | 2 | 3 }) {
-  const pct = ((step + 1) / 4) * 100;
+type ParsedTier = { from_g: number; price_per_g: number };
+function parseWeightTiers(raw: WeightTier[]): ParsedTier[] {
+  const out: ParsedTier[] = [];
+  for (const t of raw) {
+    const from = parseInt(t.from_g, 10);
+    const price = Number(t.price_per_g.replace(",", "."));
+    if (!Number.isFinite(from) || !Number.isFinite(price)) continue;
+    out.push({ from_g: from, price_per_g: price });
+  }
+  return out;
+}
+
+type ParsedSachet = { weight_g: number; price_euros: number; stock: number };
+function parseSachets(raw: SachetPack[]): ParsedSachet[] {
+  const out: ParsedSachet[] = [];
+  for (const p of raw) {
+    const w = Number(p.weight_g.replace(",", "."));
+    const price = Number(p.price_euros.replace(",", "."));
+    const stock = parseInt(p.stock, 10);
+    if (!Number.isFinite(w) || !Number.isFinite(price)) continue;
+    out.push({
+      weight_g: w,
+      price_euros: price,
+      stock: Number.isFinite(stock) && stock >= 0 ? stock : 0,
+    });
+  }
+  return out;
+}
+
+function ProgressBar({ step, labels }: { step: number; labels: readonly string[] }) {
+  const total = labels.length;
+  const pct = ((step + 1) / total) * 100;
   return (
     <div className="sticky top-0 z-10 -mx-4 border-b bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-md sm:border">
       <div className="mb-2 flex items-center justify-between text-sm">
         <span className="font-medium">
-          Étape {step + 1} sur 4
+          Étape {step + 1} sur {total}
         </span>
-        <span className="text-muted-foreground">{STEP_LABELS[step]}</span>
+        <span className="text-muted-foreground">{labels[step]}</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
         <div
@@ -591,8 +670,11 @@ function ProgressBar({ step }: { step: 0 | 1 | 2 | 3 }) {
           style={{ width: `${pct}%` }}
         />
       </div>
-      <ol className="mt-2 grid grid-cols-4 gap-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-        {STEP_LABELS.map((l, i) => (
+      <ol
+        className="mt-2 grid gap-1 text-[10px] uppercase tracking-wide text-muted-foreground"
+        style={{ gridTemplateColumns: `repeat(${total}, minmax(0, 1fr))` }}
+      >
+        {labels.map((l, i) => (
           <li
             key={l}
             className={`text-center ${i <= step ? "text-foreground" : ""}`}
