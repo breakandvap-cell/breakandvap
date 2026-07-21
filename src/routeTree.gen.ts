@@ -45,6 +45,7 @@ import { Route as AuthenticatedAdminProduitsIdRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminCommandesIdRouteImport } from './routes/_authenticated/admin/commandes.$id'
 import { Route as AuthenticatedAdminClientsIdRouteImport } from './routes/_authenticated/admin/clients.$id'
 import { Route as AuthenticatedAdminProduitsNouveauCategorieRouteImport } from './routes/_authenticated/admin/produits.nouveau.$categorie'
+import { Route as AuthenticatedAdminProduitsEliquideIdRouteImport } from './routes/_authenticated/admin/produits.eliquide.$id'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -241,6 +242,12 @@ const AuthenticatedAdminProduitsNouveauCategorieRoute =
     path: '/$categorie',
     getParentRoute: () => AuthenticatedAdminProduitsNouveauRoute,
   } as any)
+const AuthenticatedAdminProduitsEliquideIdRoute =
+  AuthenticatedAdminProduitsEliquideIdRouteImport.update({
+    id: '/produits/eliquide/$id',
+    path: '/produits/eliquide/$id',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -277,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
+  '/admin/produits/eliquide/$id': typeof AuthenticatedAdminProduitsEliquideIdRoute
   '/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
 }
 export interface FileRoutesByTo {
@@ -313,6 +321,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits': typeof AuthenticatedAdminProduitsIndexRoute
+  '/admin/produits/eliquide/$id': typeof AuthenticatedAdminProduitsEliquideIdRoute
   '/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
 }
 export interface FileRoutesById {
@@ -352,6 +361,7 @@ export interface FileRoutesById {
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/_authenticated/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/_authenticated/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
+  '/_authenticated/admin/produits/eliquide/$id': typeof AuthenticatedAdminProduitsEliquideIdRoute
   '/_authenticated/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
 }
 export interface FileRouteTypes {
@@ -391,6 +401,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes/'
     | '/admin/produits/'
+    | '/admin/produits/eliquide/$id'
     | '/admin/produits/nouveau/$categorie'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -427,6 +438,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes'
     | '/admin/produits'
+    | '/admin/produits/eliquide/$id'
     | '/admin/produits/nouveau/$categorie'
   id:
     | '__root__'
@@ -465,6 +477,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/_authenticated/admin/commandes/'
     | '/_authenticated/admin/produits/'
+    | '/_authenticated/admin/produits/eliquide/$id'
     | '/_authenticated/admin/produits/nouveau/$categorie'
   fileRoutesById: FileRoutesById
 }
@@ -743,6 +756,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProduitsNouveauCategorieRouteImport
       parentRoute: typeof AuthenticatedAdminProduitsNouveauRoute
     }
+    '/_authenticated/admin/produits/eliquide/$id': {
+      id: '/_authenticated/admin/produits/eliquide/$id'
+      path: '/produits/eliquide/$id'
+      fullPath: '/admin/produits/eliquide/$id'
+      preLoaderRoute: typeof AuthenticatedAdminProduitsEliquideIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
   }
 }
 
@@ -788,6 +808,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminProduitsNouveauRoute: typeof AuthenticatedAdminProduitsNouveauRouteWithChildren
   AuthenticatedAdminCommandesIndexRoute: typeof AuthenticatedAdminCommandesIndexRoute
   AuthenticatedAdminProduitsIndexRoute: typeof AuthenticatedAdminProduitsIndexRoute
+  AuthenticatedAdminProduitsEliquideIdRoute: typeof AuthenticatedAdminProduitsEliquideIdRoute
 }
 
 const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren =
@@ -807,6 +828,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminCommandesIndexRoute:
       AuthenticatedAdminCommandesIndexRoute,
     AuthenticatedAdminProduitsIndexRoute: AuthenticatedAdminProduitsIndexRoute,
+    AuthenticatedAdminProduitsEliquideIdRoute:
+      AuthenticatedAdminProduitsEliquideIdRoute,
   }
 
 const AuthenticatedAdminRouteRouteWithChildren =
