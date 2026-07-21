@@ -660,6 +660,308 @@ function StepPlaceholder({ label }: { label: string }) {
 }
 
 // -------------------------------------------------------------------
+// Étape 3 — goûts
+// -------------------------------------------------------------------
+
+function newFlavorId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function StepFlavors({
+  data,
+  onPatch,
+}: {
+  data: WizardData;
+  onPatch: (p: Partial<WizardData>) => void;
+}) {
+  const [showForm, setShowForm] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [draftImage, setDraftImage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const upload = useServerFn(adminUploadProductPhoto);
+
+  const flavors = data.flavors;
+
+  const update = (next: Flavor[]) => onPatch({ flavors: next });
+
+  const move = (index: number, delta: -1 | 1) => {
+    const target = index + delta;
+    if (target < 0 || target >= flavors.length) return;
+    const copy = flavors.slice();
+    [copy[index], copy[target]] = [copy[target], copy[index]];
+    update(copy);
+  };
+
+  const toggle = (id: string) =>
+    update(flavors.map((f) => (f.id === id ? { ...f, active: !f.active } : f)));
+
+  const remove = (id: string) => {
+    const flavor = flavors.find((f) => f.id === id);
+    if (!flavor) return;
+    if (!window.confirm(`Supprimer le goût « ${flavor.name || "sans nom"} » ?`)) {
+      return;
+    }
+    update(flavors.filter((f) => f.id !== id));
+  };
+
+  const duplicate = (id: string) => {
+    const idx = flavors.findIndex((f) => f.id === id);
+    if (idx === -1) return;
+    const src = flavors[idx];
+    const copy = flavors.slice();
+    copy.splice(idx + 1, 0, {
+      ...src,
+      id: newFlavorId(),
+      name: `${src.name} (copie)`.trim(),
+    });
+    update(copy);
+  };
+
+  const resetDraft = () => {
+    setDraftName("");
+    setDraftImage(null);
+    setShowForm(false);
+  };
+
+  const addFlavor = () => {
+    const name = draftName.trim();
+    if (!name) {
+      toast.error("Donne un nom au goût avant de l'ajouter.");
+      return;
+    }
+    update([
+      ...flavors,
+      { id: newFlavorId(), name, image: draftImage, active: true },
+    ]);
+    resetDraft();
+  };
+
+  const handleDraftUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const optimized = await optimizeImage(file);
+      const res = await upload({
+        data: {
+          filename: optimized.filename,
+          contentType: optimized.contentType,
+          base64: optimized.base64,
+        },
+      });
+      setDraftImage(res.url);
+    } catch (err) {
+      toast.error((err as Error).message || "Envoi impossible.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">Goûts du produit</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Liste les saveurs proposées. Le stock sera saisi plus tard, à
+          l'étape « Formats et stocks », une fois les contenances définies.
+        </p>
+      </div>
+
+      {flavors.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
+          Aucun goût pour l'instant. Tu peux en ajouter, ou passer directement
+          à l'étape suivante : le produit sera vendu sans variante de saveur.
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="w-16 px-2 py-2 text-left">Ordre</th>
+                <th className="w-20 px-2 py-2 text-left">Image</th>
+                <th className="px-2 py-2 text-left">Goût</th>
+                <th className="w-20 px-2 py-2 text-center">Actif</th>
+                <th className="w-28 px-2 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flavors.map((f, i) => (
+                <tr key={f.id} className="border-t border-border">
+                  <td className="px-2 py-2">
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => move(i, -1)}
+                        disabled={i === 0}
+                        className="rounded border border-border p-1 hover:bg-secondary disabled:opacity-30"
+                        title="Monter"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => move(i, 1)}
+                        disabled={i === flavors.length - 1}
+                        className="rounded border border-border p-1 hover:bg-secondary disabled:opacity-30"
+                        title="Descendre"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-2 py-2">
+                    {f.image ? (
+                      <img
+                        src={f.image}
+                        alt=""
+                        className="h-12 w-12 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 items-center justify-center rounded bg-muted text-[10px] text-muted-foreground">
+                        —
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-2 py-2">
+                    <input
+                      className="input h-9 w-full text-base"
+                      value={f.name}
+                      onChange={(e) =>
+                        update(
+                          flavors.map((x) =>
+                            x.id === f.id ? { ...x, name: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    />
+                  </td>
+                  <td className="px-2 py-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={f.active}
+                      onChange={() => toggle(f.id)}
+                      className="h-4 w-4 cursor-pointer"
+                    />
+                  </td>
+                  <td className="px-2 py-2">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => duplicate(f.id)}
+                        className="rounded border border-border p-1.5 hover:bg-secondary"
+                        title="Dupliquer"
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => remove(f.id)}
+                        className="rounded border border-border p-1.5 text-destructive hover:bg-destructive/10"
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {showForm ? (
+        <div className="space-y-3 rounded-lg border border-border bg-background/40 p-4">
+          <div className="text-sm font-semibold">Nouveau goût</div>
+          <Field label="Nom du goût" required>
+            <input
+              className="input h-11 text-base"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              placeholder="Ex. Fraise"
+              autoFocus
+            />
+          </Field>
+          <div className="space-y-2">
+            <div className="text-sm font-medium">
+              Image{" "}
+              <span className="text-xs font-normal text-muted-foreground">
+                (optionnel)
+              </span>
+            </div>
+            {draftImage ? (
+              <div className="relative inline-block">
+                <img
+                  src={draftImage}
+                  alt=""
+                  className="h-24 w-24 rounded-md object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => setDraftImage(null)}
+                  className="absolute -right-2 -top-2 rounded-full bg-destructive p-1 text-destructive-foreground shadow"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="flex h-24 w-24 items-center justify-center rounded-md border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-foreground disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Upload className="h-5 w-5" />
+                )}
+              </button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              hidden
+              onChange={handleDraftUpload}
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={resetDraft}
+              className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-secondary"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={addFlavor}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              <Check className="h-4 w-4" /> Ajouter
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setShowForm(true)}
+          className="inline-flex items-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-3 text-sm font-medium text-muted-foreground hover:border-primary hover:text-foreground"
+        >
+          <Plus className="h-4 w-4" /> Ajouter un goût
+        </button>
+      )}
+    </div>
+  );
+}
+
+// -------------------------------------------------------------------
 // Composants utilitaires
 // -------------------------------------------------------------------
 
