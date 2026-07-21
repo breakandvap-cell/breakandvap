@@ -34,8 +34,11 @@ import { optimizeImage } from "@/lib/image-optimize";
 import {
   siteSettingsQueryOptions,
   DEFAULT_BOOSTER_CONFIG,
+  computeNicotineRateMgPerMl,
+  formatNicotineMg,
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
+import { emptyBottleCandidatesQueryOptions } from "@/lib/products";
 
 export const Route = createFileRoute(
   "/_authenticated/admin/produits/eliquide/$id",
@@ -75,6 +78,12 @@ type MatrixCell = {
   active: boolean;
 };
 
+type NicotineTypes = {
+  normale: boolean;
+  sel: boolean;
+  ice: boolean;
+};
+
 type WizardData = {
   // Étape 1 — informations produit
   name: string;
@@ -94,6 +103,8 @@ type WizardData = {
   largeFormats: LargeFormatRow[];
   // Matrice combinatoire : clé stable dérivée du goût + format.
   matrix: Record<string, MatrixCell>;
+  // Étape 5 — nicotine (grand format uniquement)
+  nicotineTypes: NicotineTypes;
 };
 
 const EMPTY: WizardData = {
@@ -110,6 +121,7 @@ const EMPTY: WizardData = {
   smallFormat: { nicotineMg: [], priceCents: 0 },
   largeFormats: [],
   matrix: {},
+  nicotineTypes: { normale: true, sel: true, ice: true },
 };
 
 const NICOTINE_10ML_OPTIONS = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
@@ -125,6 +137,7 @@ type StepId =
   | "mode"
   | "flavors"
   | "formats"
+  | "nicotine"
   | "review";
 
 type StepDef = { id: StepId; label: string; implemented: boolean };
@@ -137,6 +150,9 @@ function buildSteps(mode: SalesMode | null): StepDef[] {
   ];
   if (mode) {
     steps.push({ id: "formats", label: "Formats et stocks", implemented: true });
+  }
+  if (mode === "large_only" || mode === "both") {
+    steps.push({ id: "nicotine", label: "Nicotine", implemented: true });
   }
   steps.push({ id: "review", label: "Relecture & publication", implemented: false });
   return steps;
@@ -260,6 +276,14 @@ function Wizard({
     if (currentStep.id === "formats") {
       return isFormatsStepValid(data);
     }
+    if (currentStep.id === "nicotine") {
+      // Au moins un type doit rester coché.
+      return (
+        data.nicotineTypes.normale ||
+        data.nicotineTypes.sel ||
+        data.nicotineTypes.ice
+      );
+    }
     return false;
   })();
 
@@ -311,6 +335,8 @@ function Wizard({
           <StepFlavors data={data} onPatch={patch} />
         ) : currentStep.id === "formats" ? (
           <StepFormats data={data} onPatch={patch} />
+        ) : currentStep.id === "nicotine" ? (
+          <StepNicotine data={data} onPatch={patch} />
         ) : (
           <StepPlaceholder label={currentStep.label} />
         )}
