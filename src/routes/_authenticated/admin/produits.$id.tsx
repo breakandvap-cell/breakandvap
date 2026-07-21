@@ -1442,28 +1442,11 @@ function ContenanceRow({
             onChange={(e) => onUpdate({ stock: Number(e.target.value) || 0 })}
           />
         </label>
-        <label className="text-xs">
-          <span className="mb-1 block text-muted-foreground">
-            Capacité max de boosters
-          </span>
-          <input
-            className="input"
-            type="number"
-            min={0}
-            max={20}
-            placeholder="0"
-            value={typeof variant.max_boosters === "number" ? variant.max_boosters : 0}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const n = raw === "" ? 0 : Math.max(0, Math.trunc(Number(raw) || 0));
-              const patch: Partial<FormVariant> = { max_boosters: n };
-              // Si on repasse en flacon avec boosters, on efface la liste
-              // fixe (elle ne sert plus qu'aux flacons prêts à l'emploi).
-              if (n > 0) patch.available_nicotine_mg = [];
-              onUpdate(patch);
-            }}
-          />
-        </label>
+        <BottleCapacityField
+          variant={variant}
+          cfg={cfg}
+          onUpdate={onUpdate}
+        />
         <button
           type="button"
           onClick={onRemove}
