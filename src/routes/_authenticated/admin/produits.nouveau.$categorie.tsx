@@ -42,9 +42,16 @@ type WizardSlug = "cbd" | "e-liquide" | "accessoire-vape" | "accessoire-cbd";
 type SimpleCategory = "cbd" | "accessoire_vape" | "accessoire_cbd";
 type Intensity = "leger" | "modere" | "fort";
 type CbdSaleMode = "weight" | "packs";
+type ProductKind = "simple" | "variants";
 
 type WeightTier = { from_g: string; price_per_g: string };
 type SachetPack = { weight_g: string; price_euros: string; stock: string };
+type VariantChoice = {
+  value: string;
+  priceEuros: string;
+  stock: string;
+  sku: string;
+};
 
 const SLUG_TO_CATEGORY: Record<Exclude<WizardSlug, "e-liquide">, SimpleCategory> = {
   cbd: "cbd",
@@ -116,6 +123,10 @@ type WizardState = {
   booster_type: string;
   is_empty_bottle: boolean;
   volume_ml: string;
+  // Accessoire Vape uniquement — parcours « produit simple » vs « plusieurs choix ».
+  product_kind: ProductKind;
+  variant_attribute_name: string;
+  variant_choices: VariantChoice[];
 };
 
 const STEP_LABELS_DEFAULT = ["Base produit", "Vente", "Données métier", "Relecture"] as const;
@@ -126,9 +137,18 @@ const STEP_LABELS_CBD = [
   "Données métier",
   "Relecture",
 ] as const;
+const STEP_LABELS_ACCESSOIRE_VAPE = [
+  "Base produit",
+  "Type de produit",
+  "Vente",
+  "Données métier",
+  "Relecture",
+] as const;
 
 function getStepLabels(category: SimpleCategory): readonly string[] {
-  return category === "cbd" ? STEP_LABELS_CBD : STEP_LABELS_DEFAULT;
+  if (category === "cbd") return STEP_LABELS_CBD;
+  if (category === "accessoire_vape") return STEP_LABELS_ACCESSOIRE_VAPE;
+  return STEP_LABELS_DEFAULT;
 }
 
 function newTier(from_g = "1", price_per_g = ""): WeightTier {
@@ -136,6 +156,9 @@ function newTier(from_g = "1", price_per_g = ""): WeightTier {
 }
 function newSachet(weight_g = "", price_euros = "", stock = "0"): SachetPack {
   return { weight_g, price_euros, stock };
+}
+function newVariantChoice(value = "", priceEuros = "", stock = "0", sku = ""): VariantChoice {
+  return { value, priceEuros, stock, sku };
 }
 
 function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory }) {
@@ -172,6 +195,9 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     booster_type: "normale",
     is_empty_bottle: false,
     volume_ml: "",
+    product_kind: "simple",
+    variant_attribute_name: "",
+    variant_choices: [newVariantChoice()],
   });
 
   // SKU auto-généré à la volée depuis le nom tant que l'admin n'y a pas touché.
@@ -201,8 +227,32 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
 
   const parsedWeight = useMemo(() => parseWeightTiers(state.weight_tiers), [state.weight_tiers]);
   const parsedSachets = useMemo(() => parseSachets(state.sachets), [state.sachets]);
+  const parsedChoices = useMemo(() => parseVariantChoices(state.variant_choices), [state.variant_choices]);
 
-  const errorsByStep = useMemo(() => validateAll({ state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets }), [
+  // Auto-génère un SKU pour chaque variante (attaché à la valeur) tant que
+  // l'admin n'a pas saisi le sien. Évite les doublons via un suffixe court.
+  useEffect(() => {
+    if (category !== "accessoire_vape") return;
+    if (state.product_kind !== "variants") return;
+    setState((s) => {
+      const baseName = s.name.trim();
+      let changed = false;
+      const next = s.variant_choices.map((v) => {
+        if (v.sku.trim().length > 0) return v;
+        const val = v.value.trim();
+        if (!baseName || !val) return v;
+        const nameKey = slugify(baseName).replace(/-/g, "").toUpperCase().slice(0, 6) || "SKU";
+        const valKey = slugify(val).replace(/-/g, "").toUpperCase().slice(0, 6) || "VAR";
+        const suffix = Date.now().toString(36).toUpperCase().slice(-3);
+        changed = true;
+        return { ...v, sku: `${nameKey}-${valKey}-${suffix}` };
+      });
+      return changed ? { ...s, variant_choices: next } : s;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [category, state.product_kind, state.name, state.variant_choices.length]);
+
+  const errorsByStep = useMemo(() => validateAll({ state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets, parsedChoices }), [
     state,
     category,
     priceCents,
@@ -211,6 +261,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     volumeNum,
     parsedWeight,
     parsedSachets,
+    parsedChoices,
   ]);
 
   const currentErrors = errorsByStep[step];
@@ -299,9 +350,16 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           ? "\n\n_Mode de vente : au poids (paliers dégressifs)._"
           : "\n\n_Mode de vente : sachets préparés._"
         : "";
+    const variantsNote =
+      category === "accessoire_vape" && state.product_kind === "variants"
+        ? `\n\n**${state.variant_attribute_name.trim() || "Choix"} disponibles :** ${parsedChoices
+            .filter((c) => c.value)
+            .map((c) => c.value)
+            .join(", ")}`
+        : "";
     const composedDescription = (brand
       ? `**Marque :** ${brand}${description ? `\n\n${description}` : ""}`
-      : description) + modeNote;
+      : description) + modeNote + variantsNote;
 
     // Résout stock / prix / variantes selon le mode CBD choisi.
     let effectivePriceCents = priceCents;
@@ -348,6 +406,22 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
         const cheapest = [...parsedSachets].sort((a, b) => a.price_euros - b.price_euros)[0];
         effectivePriceCents = cheapest ? Math.round(cheapest.price_euros * 100) : 0;
       }
+    } else if (category === "accessoire_vape" && state.product_kind === "variants") {
+      // Une variante par valeur ; volume_ml sert d'index ordinal (obligatoire côté DB).
+      variants = parsedChoices.map((c, i) => ({
+        volume_ml: i + 1,
+        price_cents: Number.isFinite(c.price_cents) ? c.price_cents : 0,
+        stock: c.stock,
+        available_nicotine_mg: [],
+        nicotine_type: "normale",
+        is_active: true,
+        sku: c.sku,
+      }));
+      effectiveStock = parsedChoices.reduce((sum, c) => sum + c.stock, 0);
+      const cheapest = parsedChoices
+        .filter((c) => Number.isFinite(c.price_cents) && c.price_cents > 0)
+        .sort((a, b) => a.price_cents - b.price_cents)[0];
+      effectivePriceCents = cheapest ? cheapest.price_cents : 0;
     }
 
     const payload: ProductInput = {
@@ -450,6 +524,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           volumeNum,
           parsedWeight,
           parsedSachets,
+          parsedChoices,
           photos: state.photos,
           onFiles: handleFiles,
           onRemovePhoto: removePhoto,
@@ -539,8 +614,9 @@ function validateAll(input: {
   volumeNum: number | null;
   parsedWeight: ParsedTier[];
   parsedSachets: ParsedSachet[];
+  parsedChoices: ParsedChoice[];
 }): string[][] {
-  const { state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets } = input;
+  const { state, category, priceCents, cbdNum, thcNum, volumeNum, parsedWeight, parsedSachets, parsedChoices } = input;
   const base: string[] = [];
   if (state.name.trim().length < 2)
     base.push("Le nom du produit est obligatoire (2 caractères min.).");
@@ -617,6 +693,42 @@ function validateAll(input: {
   }
 
   // Catégories non-CBD : parcours 4 étapes.
+  // Cas particulier accessoire_vape : étape « Type de produit » insérée entre Base et Vente.
+  if (category === "accessoire_vape") {
+    const typeErrors: string[] = []; // sélection par défaut, jamais bloquante
+    const sale: string[] = [];
+    if (state.product_kind === "simple") {
+      if (priceCents <= 0) sale.push("Le prix doit être supérieur à 0 €.");
+    } else {
+      if (state.variant_attribute_name.trim().length === 0)
+        sale.push("Précise le nom de la caractéristique variable (ex. Ohm, Couleur, Contenance).");
+      if (parsedChoices.length === 0)
+        sale.push("Ajoute au moins une valeur.");
+      for (let i = 0; i < parsedChoices.length; i++) {
+        const c = parsedChoices[i];
+        if (!c.value) sale.push(`Valeur ${i + 1} : renseigne le libellé.`);
+        if (!Number.isFinite(c.price_cents) || c.price_cents <= 0)
+          sale.push(`Valeur ${i + 1} : prix invalide.`);
+        if (!c.sku) sale.push(`Valeur ${i + 1} : SKU manquant.`);
+      }
+      const seenVal = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.value.toLowerCase();
+        if (k && seenVal.has(k)) sale.push(`Doublon de valeur : ${c.value}.`);
+        seenVal.add(k);
+      }
+      const seenSku = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.sku.toLowerCase();
+        if (k && seenSku.has(k)) sale.push(`Doublon de SKU : ${c.sku}.`);
+        seenSku.add(k);
+      }
+    }
+    if (state.descriptionShort.trim().length === 0)
+      sale.push("Ajoute une description courte du produit.");
+    return [base, typeErrors, sale, meta, []];
+  }
+
   const classicSale: string[] = [];
   if (priceCents <= 0) classicSale.push("Le prix doit être supérieur à 0 €.");
   if (state.descriptionShort.trim().length === 0)
@@ -648,6 +760,29 @@ function parseSachets(raw: SachetPack[]): ParsedSachet[] {
       weight_g: w,
       price_euros: price,
       stock: Number.isFinite(stock) && stock >= 0 ? stock : 0,
+    });
+  }
+  return out;
+}
+
+type ParsedChoice = {
+  value: string;
+  price_cents: number;
+  stock: number;
+  sku: string;
+};
+function parseVariantChoices(raw: VariantChoice[]): ParsedChoice[] {
+  const out: ParsedChoice[] = [];
+  for (const c of raw) {
+    const value = c.value.trim();
+    const price = Number((c.priceEuros || "").replace(",", "."));
+    const stock = parseInt(c.stock, 10);
+    const sku = c.sku.trim();
+    out.push({
+      value,
+      price_cents: Number.isFinite(price) ? Math.round(price * 100) : NaN,
+      stock: Number.isFinite(stock) && stock >= 0 ? stock : 0,
+      sku,
     });
   }
   return out;
@@ -723,6 +858,7 @@ type RenderStepArgs = {
   volumeNum: number | null;
   parsedWeight: ParsedTier[];
   parsedSachets: ParsedSachet[];
+  parsedChoices: ParsedChoice[];
   photos: string[];
   onFiles: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemovePhoto: (idx: number) => void;
@@ -733,6 +869,7 @@ type RenderStepArgs = {
 
 function renderStep(a: RenderStepArgs) {
   const isCbd = a.category === "cbd";
+  const isAccVape = a.category === "accessoire_vape";
   // Séquence : CBD → [Base, Mode, Vente, Meta, Review], autres → [Base, Vente, Meta, Review].
   if (isCbd) {
     switch (a.step) {
@@ -774,10 +911,62 @@ function renderStep(a: RenderStepArgs) {
             thcOverLimit={a.thcOverLimit}
             parsedWeight={a.parsedWeight}
             parsedSachets={a.parsedSachets}
+            parsedChoices={a.parsedChoices}
             onEditStep={a.onEditStep}
           />
         );
     }
+  }
+  if (isAccVape) {
+    // [Base, Type, Vente, Meta, Review]
+    switch (a.step) {
+      case 0:
+        return (
+          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 1:
+        return <StepType state={a.state} setState={a.setState} />;
+      case 2:
+        if (a.state.product_kind === "variants") {
+          return (
+            <StepSaleVariants
+              state={a.state}
+              setState={a.setState}
+              showErrors={a.submitAttempted}
+              errors={a.currentErrors}
+              parsedChoices={a.parsedChoices}
+            />
+          );
+        }
+        return (
+          <StepSale state={a.state} setState={a.setState} onSkuChange={a.onSkuChange} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 3:
+        return (
+          <StepMeta state={a.state} setState={a.setState} category={a.category} showErrors={a.submitAttempted} errors={a.currentErrors} thcOverLimit={a.thcOverLimit} cbdConforme={a.cbdConforme} />
+        );
+      case 4:
+        return (
+          <StepReview
+            slug={a.slug}
+            category={a.category}
+            state={a.state}
+            priceCents={a.priceCents}
+            stockNum={a.stockNum}
+            cbdNum={a.cbdNum}
+            thcNum={a.thcNum}
+            volumeNum={a.volumeNum}
+            errorsByStep={a.errorsByStep}
+            canPublish={a.canPublish && !a.thcOverLimit}
+            thcOverLimit={a.thcOverLimit}
+            parsedWeight={a.parsedWeight}
+            parsedSachets={a.parsedSachets}
+            parsedChoices={a.parsedChoices}
+            onEditStep={a.onEditStep}
+          />
+        );
+    }
+    return null;
   }
   switch (a.step) {
     case 0:
@@ -808,6 +997,7 @@ function renderStep(a: RenderStepArgs) {
           thcOverLimit={a.thcOverLimit}
           parsedWeight={a.parsedWeight}
           parsedSachets={a.parsedSachets}
+          parsedChoices={a.parsedChoices}
           onEditStep={a.onEditStep}
         />
       );
@@ -876,6 +1066,236 @@ function StepMode({
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Étape « Type de produit » (Accessoire Vape) ----------
+function StepType({
+  state,
+  setState,
+}: {
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+}) {
+  const options: Array<{ key: ProductKind; title: string; desc: string; icon: ReactNode }> = [
+    {
+      key: "simple",
+      title: "Produit simple",
+      desc: "Un seul prix, un seul stock. Ex : verre de remplacement, drip tip unique, outil, adaptateur, câble…",
+      icon: <Package className="h-6 w-6" />,
+    },
+    {
+      key: "variants",
+      title: "Produit à plusieurs choix",
+      desc: "Plusieurs valeurs d'une même caractéristique (résistance en Ω, couleur, contenance…), chacune avec son propre stock.",
+      icon: <Scale className="h-6 w-6" />,
+    },
+  ];
+  return (
+    <div className="space-y-4">
+      <SectionTitle>Comment ce produit se décline-t-il&nbsp;?</SectionTitle>
+      <p className="text-sm text-muted-foreground">
+        Ce choix change l'étape suivante. Tu peux revenir en arrière sans
+        perdre tes saisies.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {options.map((o) => {
+          const active = state.product_kind === o.key;
+          return (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => setState((s) => ({ ...s, product_kind: o.key }))}
+              className={`flex flex-col items-start gap-2 rounded-lg border p-4 text-left transition-colors ${
+                active
+                  ? "border-primary bg-primary/5 ring-2 ring-primary/40"
+                  : "border-input hover:border-primary/50"
+              }`}
+            >
+              <div className={`rounded-md p-2 ${active ? "bg-primary/15 text-primary" : "bg-muted"}`}>
+                {o.icon}
+              </div>
+              <div className="font-medium">{o.title}</div>
+              <p className="text-xs text-muted-foreground">{o.desc}</p>
+              {active && (
+                <span className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                  <Check className="h-3 w-3" /> Sélectionné
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Étape « Vente » (Accessoire Vape — plusieurs choix) ----------
+function StepSaleVariants({
+  state,
+  setState,
+  showErrors,
+  errors,
+  parsedChoices,
+}: {
+  state: WizardState;
+  setState: (fn: (s: WizardState) => WizardState) => void;
+  showErrors: boolean;
+  errors: string[];
+  parsedChoices: ParsedChoice[];
+}) {
+  function updateChoice(idx: number, patch: Partial<VariantChoice>) {
+    setState((s) => ({
+      ...s,
+      variant_choices: s.variant_choices.map((c, i) => (i === idx ? { ...c, ...patch } : c)),
+    }));
+  }
+  function addChoice() {
+    setState((s) => ({ ...s, variant_choices: [...s.variant_choices, newVariantChoice()] }));
+  }
+  function removeChoice(idx: number) {
+    setState((s) => ({ ...s, variant_choices: s.variant_choices.filter((_, i) => i !== idx) }));
+  }
+  const totalStock = parsedChoices.reduce((sum, c) => sum + c.stock, 0);
+  return (
+    <div className="space-y-5">
+      <SectionTitle>Produit à plusieurs choix</SectionTitle>
+
+      <div>
+        <label className="text-sm font-medium">
+          Nom de la caractéristique variable *
+        </label>
+        <input
+          type="text"
+          value={state.variant_attribute_name}
+          onChange={(e) =>
+            setState((s) => ({ ...s, variant_attribute_name: e.target.value }))
+          }
+          placeholder="Ex : Ohm, Couleur, Contenance"
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Ce nom apparaîtra dans la description du produit pour aider le
+          client à choisir.
+        </p>
+        <FieldError show={showErrors} errors={errors} match={/caractéristique/i} />
+      </div>
+
+      <div className="overflow-x-auto rounded-md border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left">
+                Valeur {state.variant_attribute_name ? `(${state.variant_attribute_name})` : "(ex : 0,15 Ω)"}
+              </th>
+              <th className="px-3 py-2 text-left">Prix (€)</th>
+              <th className="px-3 py-2 text-left">Stock</th>
+              <th className="px-3 py-2 text-left">SKU</th>
+              <th className="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {state.variant_choices.map((c, i) => (
+              <tr key={i} className="border-t align-top">
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={c.value}
+                    onChange={(e) => updateChoice(i, { value: e.target.value })}
+                    placeholder="ex. 0,15 Ω"
+                    className="w-32 rounded-md border border-input bg-background px-2 py-1"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={c.priceEuros}
+                    onChange={(e) => updateChoice(i, { priceEuros: e.target.value })}
+                    placeholder="3,90"
+                    className="w-24 rounded-md border border-input bg-background px-2 py-1"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="number"
+                    min="0"
+                    inputMode="numeric"
+                    value={c.stock}
+                    onChange={(e) => updateChoice(i, { stock: e.target.value })}
+                    className="w-20 rounded-md border border-input bg-background px-2 py-1"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={c.sku}
+                    onChange={(e) => updateChoice(i, { sku: e.target.value })}
+                    placeholder="auto"
+                    className="w-40 rounded-md border border-input bg-background px-2 py-1 font-mono text-xs"
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  {state.variant_choices.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeChoice(i)}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Retirer
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button
+        type="button"
+        onClick={addChoice}
+        className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+      >
+        <Plus className="h-4 w-4" /> Ajouter une valeur
+      </button>
+
+      <FieldError show={showErrors} errors={errors} match={/Valeur|Doublon|caractéristique/i} />
+
+      {parsedChoices.length > 0 && (
+        <div className="rounded-md border bg-muted/30 p-3 text-xs">
+          <p className="mb-2 font-medium text-foreground">
+            Aperçu — {parsedChoices.length} déclinaison{parsedChoices.length > 1 ? "s" : ""}, stock total : {totalStock}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {parsedChoices.map((c, i) => (
+              <div key={i} className="rounded border bg-background px-3 py-2">
+                <div className="font-medium">{c.value || "—"}</div>
+                <div className="text-muted-foreground">
+                  {Number.isFinite(c.price_cents) ? formatPrice(c.price_cents) : "—"}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  Stock : {c.stock}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label className="text-sm font-medium">Description courte *</label>
+        <textarea
+          value={state.descriptionShort}
+          onChange={(e) => setState((s) => ({ ...s, descriptionShort: e.target.value }))}
+          rows={3}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <FieldError show={showErrors} errors={errors} match={/description/i} />
       </div>
     </div>
   );
@@ -1630,6 +2050,7 @@ function StepReview({
   thcOverLimit,
   parsedWeight,
   parsedSachets,
+  parsedChoices,
   onEditStep,
 }: {
   slug: WizardSlug;
@@ -1645,14 +2066,17 @@ function StepReview({
   thcOverLimit: boolean;
   parsedWeight: ParsedTier[];
   parsedSachets: ParsedSachet[];
+  parsedChoices: ParsedChoice[];
   onEditStep: (s: number) => void;
 }) {
   const missing = errorsByStep.flat();
   const isCbd = category === "cbd";
-  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. Autres → [0,1,2].
+  const isAccVape = category === "accessoire_vape";
+  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. AccVape → [Base 0, Type 1, Vente 2, Meta 3]. Autres → [0,1,2].
   const idxBase = 0;
-  const idxSale = isCbd ? 2 : 1;
-  const idxMeta = isCbd ? 3 : 2;
+  const idxSale = isCbd || isAccVape ? 2 : 1;
+  const idxMeta = isCbd || isAccVape ? 3 : 2;
+  const totalStockVariants = parsedChoices.reduce((s, c) => s + c.stock, 0);
   return (
     <div className="space-y-5">
       <SectionTitle>Relecture avant publication</SectionTitle>
@@ -1754,15 +2178,54 @@ function StepReview({
             </>
           )
         ) : (
-          <>
-            <ReviewRow
-              label="Prix TTC"
-              value={priceCents > 0 ? formatPrice(priceCents) : "—"}
-            />
-            <ReviewRow label="Stock" value={String(stockNum)} />
-            <ReviewRow label="Référence (SKU)" value={state.sku || "—"} />
-            <ReviewRow label="Description" value={state.descriptionShort || "—"} />
-          </>
+          category === "accessoire_vape" && state.product_kind === "variants" ? (
+            <>
+              <ReviewRow label="Type de produit" value="Plusieurs choix" />
+              <ReviewRow
+                label="Caractéristique"
+                value={state.variant_attribute_name || "—"}
+              />
+              <ReviewRow
+                label="Valeurs"
+                value={
+                  parsedChoices.length > 0 ? (
+                    <ul className="space-y-0.5 text-xs">
+                      {parsedChoices.map((c, i) => (
+                        <li key={i}>
+                          <strong>{c.value || "—"}</strong> —{" "}
+                          {Number.isFinite(c.price_cents)
+                            ? formatPrice(c.price_cents)
+                            : "—"}{" "}
+                          · stock {c.stock} ·{" "}
+                          <span className="font-mono">{c.sku || "—"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <ReviewRow
+                label="Stock total"
+                value={String(totalStockVariants)}
+              />
+              <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+            </>
+          ) : (
+            <>
+              {category === "accessoire_vape" && (
+                <ReviewRow label="Type de produit" value="Produit simple" />
+              )}
+              <ReviewRow
+                label="Prix TTC"
+                value={priceCents > 0 ? formatPrice(priceCents) : "—"}
+              />
+              <ReviewRow label="Stock" value={String(stockNum)} />
+              <ReviewRow label="Référence (SKU)" value={state.sku || "—"} />
+              <ReviewRow label="Description" value={state.descriptionShort || "—"} />
+            </>
+          )
         )}
       </ReviewSection>
 
