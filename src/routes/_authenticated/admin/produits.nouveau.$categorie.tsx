@@ -144,10 +144,17 @@ const STEP_LABELS_ACCESSOIRE_VAPE = [
   "Données métier",
   "Relecture",
 ] as const;
+const STEP_LABELS_ACCESSOIRE_CBD = [
+  "Base produit",
+  "Type de produit",
+  "Vente",
+  "Relecture",
+] as const;
 
 function getStepLabels(category: SimpleCategory): readonly string[] {
   if (category === "cbd") return STEP_LABELS_CBD;
   if (category === "accessoire_vape") return STEP_LABELS_ACCESSOIRE_VAPE;
+  if (category === "accessoire_cbd") return STEP_LABELS_ACCESSOIRE_CBD;
   return STEP_LABELS_DEFAULT;
 }
 
@@ -232,7 +239,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
   // Auto-génère un SKU pour chaque variante (attaché à la valeur) tant que
   // l'admin n'a pas saisi le sien. Évite les doublons via un suffixe court.
   useEffect(() => {
-    if (category !== "accessoire_vape") return;
+    if (category !== "accessoire_vape" && category !== "accessoire_cbd") return;
     if (state.product_kind !== "variants") return;
     setState((s) => {
       const baseName = s.name.trim();
@@ -351,7 +358,8 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
           : "\n\n_Mode de vente : sachets préparés._"
         : "";
     const variantsNote =
-      category === "accessoire_vape" && state.product_kind === "variants"
+      (category === "accessoire_vape" || category === "accessoire_cbd") &&
+      state.product_kind === "variants"
         ? `\n\n**${state.variant_attribute_name.trim() || "Choix"} disponibles :** ${parsedChoices
             .filter((c) => c.value)
             .map((c) => c.value)
@@ -406,7 +414,10 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
         const cheapest = [...parsedSachets].sort((a, b) => a.price_euros - b.price_euros)[0];
         effectivePriceCents = cheapest ? Math.round(cheapest.price_euros * 100) : 0;
       }
-    } else if (category === "accessoire_vape" && state.product_kind === "variants") {
+    } else if (
+      (category === "accessoire_vape" || category === "accessoire_cbd") &&
+      state.product_kind === "variants"
+    ) {
       // Une variante par valeur ; volume_ml sert d'index ordinal (obligatoire côté DB).
       variants = parsedChoices.map((c, i) => ({
         volume_ml: i + 1,
@@ -729,6 +740,42 @@ function validateAll(input: {
     return [base, typeErrors, sale, meta, []];
   }
 
+  // Accessoire CBD : 4 étapes [Base, Type, Vente, Review] — pas d'étape Métier.
+  if (category === "accessoire_cbd") {
+    const typeErrors: string[] = [];
+    const sale: string[] = [];
+    if (state.product_kind === "simple") {
+      if (priceCents <= 0) sale.push("Le prix doit être supérieur à 0 €.");
+    } else {
+      if (state.variant_attribute_name.trim().length === 0)
+        sale.push("Précise le nom de la caractéristique variable (ex. Taille, Longueur, Couleur).");
+      if (parsedChoices.length === 0)
+        sale.push("Ajoute au moins une valeur.");
+      for (let i = 0; i < parsedChoices.length; i++) {
+        const c = parsedChoices[i];
+        if (!c.value) sale.push(`Valeur ${i + 1} : renseigne le libellé.`);
+        if (!Number.isFinite(c.price_cents) || c.price_cents <= 0)
+          sale.push(`Valeur ${i + 1} : prix invalide.`);
+        if (!c.sku) sale.push(`Valeur ${i + 1} : SKU manquant.`);
+      }
+      const seenVal = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.value.toLowerCase();
+        if (k && seenVal.has(k)) sale.push(`Doublon de valeur : ${c.value}.`);
+        seenVal.add(k);
+      }
+      const seenSku = new Set<string>();
+      for (const c of parsedChoices) {
+        const k = c.sku.toLowerCase();
+        if (k && seenSku.has(k)) sale.push(`Doublon de SKU : ${c.sku}.`);
+        seenSku.add(k);
+      }
+    }
+    if (state.descriptionShort.trim().length === 0)
+      sale.push("Ajoute une description courte du produit.");
+    return [base, typeErrors, sale, []];
+  }
+
   const classicSale: string[] = [];
   if (priceCents <= 0) classicSale.push("Le prix doit être supérieur à 0 €.");
   if (state.descriptionShort.trim().length === 0)
@@ -870,6 +917,7 @@ type RenderStepArgs = {
 function renderStep(a: RenderStepArgs) {
   const isCbd = a.category === "cbd";
   const isAccVape = a.category === "accessoire_vape";
+  const isAccCbd = a.category === "accessoire_cbd";
   // Séquence : CBD → [Base, Mode, Vente, Meta, Review], autres → [Base, Vente, Meta, Review].
   if (isCbd) {
     switch (a.step) {
@@ -946,6 +994,53 @@ function renderStep(a: RenderStepArgs) {
           <StepMeta state={a.state} setState={a.setState} category={a.category} showErrors={a.submitAttempted} errors={a.currentErrors} thcOverLimit={a.thcOverLimit} cbdConforme={a.cbdConforme} />
         );
       case 4:
+        return (
+          <StepReview
+            slug={a.slug}
+            category={a.category}
+            state={a.state}
+            priceCents={a.priceCents}
+            stockNum={a.stockNum}
+            cbdNum={a.cbdNum}
+            thcNum={a.thcNum}
+            volumeNum={a.volumeNum}
+            errorsByStep={a.errorsByStep}
+            canPublish={a.canPublish && !a.thcOverLimit}
+            thcOverLimit={a.thcOverLimit}
+            parsedWeight={a.parsedWeight}
+            parsedSachets={a.parsedSachets}
+            parsedChoices={a.parsedChoices}
+            onEditStep={a.onEditStep}
+          />
+        );
+    }
+    return null;
+  }
+  if (isAccCbd) {
+    // [Base, Type, Vente, Review] — 4 étapes, pas de Meta.
+    switch (a.step) {
+      case 0:
+        return (
+          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 1:
+        return <StepType state={a.state} setState={a.setState} />;
+      case 2:
+        if (a.state.product_kind === "variants") {
+          return (
+            <StepSaleVariants
+              state={a.state}
+              setState={a.setState}
+              showErrors={a.submitAttempted}
+              errors={a.currentErrors}
+              parsedChoices={a.parsedChoices}
+            />
+          );
+        }
+        return (
+          <StepSale state={a.state} setState={a.setState} onSkuChange={a.onSkuChange} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        );
+      case 3:
         return (
           <StepReview
             slug={a.slug}
@@ -2072,9 +2167,10 @@ function StepReview({
   const missing = errorsByStep.flat();
   const isCbd = category === "cbd";
   const isAccVape = category === "accessoire_vape";
-  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. AccVape → [Base 0, Type 1, Vente 2, Meta 3]. Autres → [0,1,2].
+  const isAccCbd = category === "accessoire_cbd";
+  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. AccVape → [Base 0, Type 1, Vente 2, Meta 3]. AccCbd → [Base 0, Type 1, Vente 2]. Autres → [0,1,2].
   const idxBase = 0;
-  const idxSale = isCbd || isAccVape ? 2 : 1;
+  const idxSale = isCbd || isAccVape || isAccCbd ? 2 : 1;
   const idxMeta = isCbd || isAccVape ? 3 : 2;
   const totalStockVariants = parsedChoices.reduce((s, c) => s + c.stock, 0);
   return (
@@ -2178,7 +2274,8 @@ function StepReview({
             </>
           )
         ) : (
-          category === "accessoire_vape" && state.product_kind === "variants" ? (
+          (category === "accessoire_vape" || category === "accessoire_cbd") &&
+          state.product_kind === "variants" ? (
             <>
               <ReviewRow label="Type de produit" value="Plusieurs choix" />
               <ReviewRow
@@ -2214,7 +2311,7 @@ function StepReview({
             </>
           ) : (
             <>
-              {category === "accessoire_vape" && (
+              {(category === "accessoire_vape" || category === "accessoire_cbd") && (
                 <ReviewRow label="Type de produit" value="Produit simple" />
               )}
               <ReviewRow
@@ -2229,6 +2326,7 @@ function StepReview({
         )}
       </ReviewSection>
 
+      {!isAccCbd && (
       <ReviewSection title="Données métier" onEdit={() => onEditStep(idxMeta)}>
         {category === "cbd" ? (
           <>
@@ -2301,6 +2399,7 @@ function StepReview({
           </>
         )}
       </ReviewSection>
+      )}
     </div>
   );
 }
