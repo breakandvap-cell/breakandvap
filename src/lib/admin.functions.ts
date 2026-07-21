@@ -437,20 +437,63 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
     // set was submitted so admins can freely add/remove volumes).
     const submittedVariants = data.variants ?? [];
     if (data.category === "e_liquide") {
-      // Fetch current variants to compute delete set
+      // Fetch current variants (all rows for this product)
       const { data: existingVariants } = await supabaseAdmin
         .from("product_variants")
-        .select("id, sku")
+        .select("id, sku, volume_ml, nicotine_type")
         .eq("product_id", productId);
-      const submittedIds = new Set(
-        submittedVariants.filter((v) => v.id).map((v) => v.id as string),
+      // Règle : dès qu'une contenance a max_boosters > 0, on matérialise
+      // automatiquement les 3 types de nicotine (normale/sel/ice) pour que
+      // le client dispose systématiquement du choix complet. Le formulaire
+      // admin n'expose qu'une seule ligne par volume : c'est ici qu'on la
+      // décompose. Sur les flacons prêts à l'emploi (max_boosters = 0),
+      // on garde une seule variante (type = normale).
+      const NICOTINE_TYPES_WITH_BOOSTER = ["normale", "sel", "ice"] as const;
+      type ExpandedVariant = (typeof submittedVariants)[number] & {
+        _expandedType: string;
+      };
+      const expanded: ExpandedVariant[] = [];
+      for (const v of submittedVariants) {
+        const cap =
+          typeof v.max_boosters === "number" && Number.isFinite(v.max_boosters)
+            ? Math.max(0, Math.trunc(v.max_boosters))
+            : 0;
+        if (cap > 0) {
+          for (const t of NICOTINE_TYPES_WITH_BOOSTER) {
+            expanded.push({ ...v, _expandedType: t });
+          }
+        } else {
+          const t = (v.nicotine_type ?? "normale").toString().trim().toLowerCase() || "normale";
+          expanded.push({ ...v, _expandedType: t });
+        }
+      }
+      // Index des variantes existantes par (volume_ml, nicotine_type) pour
+      // retrouver l'id à mettre à jour et éviter de casser l'historique.
+      const existingByKey = new Map<string, { id: string; sku: string | null }>();
+      for (const ev of (existingVariants ?? []) as Array<{
+        id: string;
+        sku: string | null;
+        volume_ml: number;
+        nicotine_type: string | null;
+      }>) {
+        const t = (ev.nicotine_type ?? "normale").toString().trim().toLowerCase() || "normale";
+        existingByKey.set(`${ev.volume_ml}::${t}`, { id: ev.id, sku: ev.sku });
+      }
+      // Soft-delete : toute variante existante qui ne correspond plus à une
+      // combinaison (volume, type) soumise est désactivée (is_active=false),
+      // afin de préserver l'historique des commandes qui la référencent.
+      const submittedKeys = new Set(
+        expanded.map((v) => `${v.volume_ml}::${v._expandedType}`),
       );
-      // Soft-delete : les variantes retirées côté formulaire sont désactivées
-      // (is_active=false) et non supprimées, afin de préserver l'historique
-      // des commandes qui les référencent.
-      const toDeactivate = (existingVariants ?? [])
-        .filter((v) => !submittedIds.has(v.id))
-        .map((v) => v.id);
+      const toDeactivate: string[] = [];
+      for (const ev of (existingVariants ?? []) as Array<{
+        id: string;
+        volume_ml: number;
+        nicotine_type: string | null;
+      }>) {
+        const t = (ev.nicotine_type ?? "normale").toString().trim().toLowerCase() || "normale";
+        if (!submittedKeys.has(`${ev.volume_ml}::${t}`)) toDeactivate.push(ev.id);
+      }
       if (toDeactivate.length > 0) {
         await supabaseAdmin
           .from("product_variants")
@@ -464,7 +507,8 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           .map((v) => (v.sku ?? "").toString().trim().toUpperCase())
           .filter(Boolean),
       );
-      for (const v of submittedVariants) {
+      for (const v of expanded) {
+        const nicotineType = v._expandedType;
         // Validation paliers : min croissants, pas de chevauchement.
         const tiers = (v.quantity_tiers ?? []).map((t) => ({
           min_qty: t.min_qty,
@@ -489,9 +533,26 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
             }
           }
         }
-        let sku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
-        if (!sku) sku = ensureUniqueSku(slugSku(data.name, `${v.volume_ml}ML-${v.nicotine_type ?? "N"}`), existingSkus);
-        existingSkus.add(sku);
+        const existing = existingByKey.get(`${v.volume_ml}::${nicotineType}`);
+        // SKU : la ligne saisie par l'admin sert de base ; pour les types
+        // dérivés (sel/ice), on suffixe pour rester unique. On ne réécrit
+        // pas le SKU d'une variante existante afin de préserver la stabilité
+        // des références déjà imprimées / partagées.
+        let sku = existing?.sku ?? "";
+        if (!sku) {
+          const baseSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
+          const suffix = nicotineType === "normale" ? "" : `-${nicotineType.toUpperCase()}`;
+          sku = baseSku
+            ? `${baseSku}${suffix}`
+            : ensureUniqueSku(
+                slugSku(data.name, `${v.volume_ml}ML-${nicotineType.toUpperCase()}`),
+                existingSkus,
+              );
+          if (existingSkus.has(sku.toUpperCase())) {
+            sku = ensureUniqueSku(sku, existingSkus);
+          }
+        }
+        existingSkus.add(sku.toUpperCase());
         const row = {
           product_id: productId,
           volume_ml: v.volume_ml,
@@ -504,7 +565,7 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           available_nicotine_mg: v.available_nicotine_mg ?? [],
           // Colonne obsolète `boosters_per_nicotine` : plus jamais écrite ni
           // lue. Le taux est calculé exclusivement par la formule de dilution.
-          nicotine_type: v.nicotine_type ?? "normale",
+          nicotine_type: nicotineType,
           max_boosters:
             typeof v.max_boosters === "number" && Number.isFinite(v.max_boosters)
               ? Math.max(0, Math.trunc(v.max_boosters))
@@ -516,11 +577,11 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
           empty_bottle_product_id:
             (v as { empty_bottle_product_id?: string | null }).empty_bottle_product_id ?? null,
         };
-        if (v.id) {
+        if (existing?.id) {
           const { error } = await supabaseAdmin
             .from("product_variants")
             .update(row)
-            .eq("id", v.id);
+            .eq("id", existing.id);
           if (error) throw new Error(`Variante ${v.volume_ml} ml : ${error.message}`);
         } else {
           const { error } = await supabaseAdmin
