@@ -1209,12 +1209,14 @@ function VariantsEditor({
         <div>
           <h3 className="text-sm font-medium">Contenances</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Une ligne par taille de flacon. Laisse « Capacité max de boosters »
-            à <strong>0</strong> pour un flacon prêt à l'emploi (10 ml) : tu
-            coches alors les taux de nicotine déjà présents. Pour un flacon
-            avec boosters (50 / 100 / 200 ml), indique la capacité maximale :
-            le site calcule automatiquement les taux résultants selon le
-            dosage global défini dans <em>Paramètres</em>.
+            Une ligne par taille de flacon. Pour un flacon prêt à l'emploi
+            (10 ml), laisse « Capacité réelle du flacon » vide ou égale au
+            volume de base : tu coches alors les taux de nicotine déjà
+            présents. Pour un flacon avec boosters (50 / 100 / 200 ml),
+            renseigne la <strong>capacité réelle</strong> du flacon vide
+            utilisé (ex. 60 ml pour une base 50 ml) : le site déduit
+            automatiquement le nombre de boosters possibles et les taux
+            résultants selon le dosage défini dans <em>Paramètres</em>.
           </p>
           {cfg && (
             <p className="mt-1 text-[11px] text-muted-foreground">
@@ -1315,6 +1317,93 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 // Liste fixe des taux proposés pour un flacon prêt à l'emploi.
 const READY_TO_USE_NICOTINE_MG = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
+
+function BottleCapacityField({
+  variant,
+  cfg,
+  onUpdate,
+}: {
+  variant: FormVariant;
+  cfg: { boosterVolumeMl: number; boosterConcentrationMgPerMl: number } | null;
+  onUpdate: (patch: Partial<FormVariant>) => void;
+}) {
+  const boosterVol = cfg?.boosterVolumeMl && cfg.boosterVolumeMl > 0 ? cfg.boosterVolumeMl : 10;
+  const baseVol = variant.volume_ml || 0;
+  const currentBoosters =
+    typeof variant.max_boosters === "number" && variant.max_boosters > 0
+      ? variant.max_boosters
+      : 0;
+  // Capacité par défaut dérivée de l'ancien champ max_boosters (migration
+  // douce des produits existants) : volume base + boosters × volume booster.
+  const derivedCapacity = baseVol + currentBoosters * boosterVol;
+  const [raw, setRaw] = useState<string>(derivedCapacity > 0 ? String(derivedCapacity) : "");
+  useEffect(() => {
+    // Resynchronise l'input si la variante change (chargement initial,
+    // changement de volume de base, etc.).
+    const next = derivedCapacity > 0 ? String(derivedCapacity) : "";
+    setRaw((prev) => (Number(prev) === derivedCapacity ? prev : next));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [derivedCapacity]);
+
+  const capacityNum = Number(raw);
+  const capacityValid = Number.isFinite(capacityNum) && capacityNum > 0;
+  const freeSpace = capacityValid ? Math.max(0, capacityNum - baseVol) : 0;
+  const computedBoosters = capacityValid && baseVol > 0 ? Math.max(0, Math.floor(freeSpace / boosterVol)) : 0;
+  const overflow = capacityValid && capacityNum < baseVol;
+
+  return (
+    <div className="text-xs sm:col-span-1">
+      <label className="block">
+        <span className="mb-1 block text-muted-foreground">
+          Capacité réelle du flacon (ml)
+        </span>
+        <input
+          className="input"
+          type="number"
+          min={0}
+          max={999}
+          placeholder={baseVol ? String(baseVol) : "0"}
+          value={raw}
+          onChange={(e) => {
+            const v = e.target.value;
+            setRaw(v);
+            const n = Number(v);
+            if (!Number.isFinite(n) || n <= 0 || !baseVol) {
+              onUpdate({ max_boosters: 0 });
+              return;
+            }
+            const free = Math.max(0, n - baseVol);
+            const boosters = Math.max(0, Math.floor(free / boosterVol));
+            const patch: Partial<FormVariant> = { max_boosters: boosters };
+            if (boosters > 0) patch.available_nicotine_mg = [];
+            onUpdate(patch);
+          }}
+        />
+      </label>
+      <p className="mt-1 text-[11px] leading-tight text-muted-foreground">
+        {!baseVol ? (
+          <>Saisis d'abord le volume de base.</>
+        ) : overflow ? (
+          <span className="text-destructive">
+            La capacité doit être ≥ {baseVol} ml (volume de base).
+          </span>
+        ) : !capacityValid ? (
+          <>Flacon prêt à l'emploi (aucun booster).</>
+        ) : computedBoosters === 0 ? (
+          <>Espace libre : {freeSpace} ml → flacon prêt à l'emploi (aucun booster).</>
+        ) : (
+          <>
+            Espace libre : {freeSpace} ml → ce flacon peut contenir{" "}
+            <strong className="text-foreground">
+              {computedBoosters} booster{computedBoosters > 1 ? "s" : ""}
+            </strong>{" "}
+            supplémentaire{computedBoosters > 1 ? "s" : ""} ({boosterVol} ml chacun).
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
 
 function ContenanceRow({
   variant,
@@ -1442,28 +1531,11 @@ function ContenanceRow({
             onChange={(e) => onUpdate({ stock: Number(e.target.value) || 0 })}
           />
         </label>
-        <label className="text-xs">
-          <span className="mb-1 block text-muted-foreground">
-            Capacité max de boosters
-          </span>
-          <input
-            className="input"
-            type="number"
-            min={0}
-            max={20}
-            placeholder="0"
-            value={typeof variant.max_boosters === "number" ? variant.max_boosters : 0}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const n = raw === "" ? 0 : Math.max(0, Math.trunc(Number(raw) || 0));
-              const patch: Partial<FormVariant> = { max_boosters: n };
-              // Si on repasse en flacon avec boosters, on efface la liste
-              // fixe (elle ne sert plus qu'aux flacons prêts à l'emploi).
-              if (n > 0) patch.available_nicotine_mg = [];
-              onUpdate(patch);
-            }}
-          />
-        </label>
+        <BottleCapacityField
+          variant={variant}
+          cfg={cfg}
+          onUpdate={onUpdate}
+        />
         <button
           type="button"
           onClick={onRemove}
