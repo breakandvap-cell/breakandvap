@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Leaf, Droplets, Zap, Sparkles, ArrowLeft } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/admin/produits/nouveau")({
+export const Route = createFileRoute("/_authenticated/admin/produits/nouveau/")({
   ssr: false,
   component: NewProductChoice,
 });
