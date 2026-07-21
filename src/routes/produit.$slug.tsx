@@ -518,6 +518,27 @@ function EliquideDetail({
 
   // Booster produit correspondant au type choisi.
   const effectiveBooster = !isReadyToUse ? boosterMap[nicotineType] ?? null : null;
+  // Variante réellement facturée : résout (volume, type) vers la vraie ligne
+  // product_variants pour que la commande référence la bonne SKU et le bon
+  // booster côté serveur.
+  const chargedVariant = useMemo(() => {
+    if (!variant) return variant;
+    const cap =
+      typeof (variant as { max_boosters?: number | null }).max_boosters === "number"
+        ? Math.max(0, (variant as { max_boosters: number }).max_boosters)
+        : 0;
+    if (cap <= 0) return variant;
+    const match = variants.find(
+      (v) =>
+        v.volume_ml === variant.volume_ml &&
+        ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
+          .toString()
+          .trim()
+          .toLowerCase() === nicotineType &&
+        (v as { is_active?: boolean }).is_active !== false,
+    );
+    return match ?? variant;
+  }, [variant, variants, nicotineType]);
   const missingBooster =
     !isReadyToUse && boostersCount > 0 && effectiveBooster === null;
   const boosterPrice =
