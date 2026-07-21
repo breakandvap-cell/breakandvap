@@ -685,30 +685,41 @@ function EditProduct() {
                 vapeAccessories={vapeAccessories ?? []}
               />
               {(form.variants ?? []).length > 0 && (
-                <div className="grid gap-4 rounded-md border border-border bg-background/30 p-4">
-                  <Field
-                    label="Flacon vide par défaut (optionnel, repli)"
-                    hint="Utilisé uniquement si aucune contenance ci-dessus n'a son propre flacon vide configuré. Reste facultatif."
-                  >
-                    <select
-                      className="input"
-                      value={form.empty_bottle_product_id ?? ""}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          empty_bottle_product_id: e.target.value || null,
-                        })
-                      }
+                <details className="rounded-md border border-border/60 bg-background/20 p-3 text-sm">
+                  <summary className="cursor-pointer text-xs uppercase tracking-wider text-muted-foreground">
+                    Cas particulier — flacon vide spécifique (avancé)
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    <p className="rounded border border-amber-500/30 bg-amber-500/5 p-2 text-[11px] text-amber-200">
+                      Par défaut, le site propose automatiquement le flacon
+                      vide le plus adapté depuis la liste globale (voir
+                      <em> Références techniques → Flacons vides</em>). Ne
+                      renseigne un flacon spécifique ici qu'en dernier recours.
+                    </p>
+                    <Field
+                      label="Forcer un flacon vide par défaut pour cet e-liquide"
+                      hint="Écrase la sélection automatique pour toutes les contenances."
                     >
-                      <option value="">— Aucun (pas de suggestion) —</option>
-                      {(vapeAccessories ?? []).map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+                      <select
+                        className="input"
+                        value={form.empty_bottle_product_id ?? ""}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            empty_bottle_product_id: e.target.value || null,
+                          })
+                        }
+                      >
+                        <option value="">— Sélection automatique (recommandé) —</option>
+                        {(vapeAccessories ?? []).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  </div>
+                </details>
               )}
             </div>
           )}
