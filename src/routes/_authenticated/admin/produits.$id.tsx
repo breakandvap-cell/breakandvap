@@ -7,6 +7,7 @@ import {
   adminUploadProductPhoto,
   adminListVariants,
   adminListProducts,
+  adminProductImpact,
   type ProductInput,
 } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
@@ -25,7 +26,8 @@ import {
 } from "@/lib/site-settings.functions";
 import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent } from "react";
 import { toast } from "sonner";
-import { X, Upload, Loader2, ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { X, Upload, Loader2, ArrowLeft, Plus, Trash2, ShieldAlert } from "lucide-react";
+import { computeProductStatus, StatusBadge } from "@/lib/product-status";
 import {
   shopCategoriesQueryOptions,
   shopSubcategoriesQueryOptions,
@@ -93,6 +95,13 @@ function EditProduct() {
   const upload = useServerFn(adminUploadProductPhoto);
   const listVariantsFn = useServerFn(adminListVariants);
   const listProductsFn = useServerFn(adminListProducts);
+  const impactFn = useServerFn(adminProductImpact);
+  const { data: impact } = useQuery({
+    queryKey: ["admin", "product-impact", id],
+    queryFn: () => impactFn({ data: { id } }),
+    enabled: !isNew,
+    retry: false,
+  });
 
   // Sous-catégories dynamiques pour le champ « sous-catégorie ».
   const { data: shopCats } = useQuery(shopCategoriesQueryOptions());
@@ -467,6 +476,34 @@ function EditProduct() {
       <h1 className="text-2xl font-semibold">
         {isNew ? "Nouveau produit" : `Modifier : ${existing?.name ?? ""}`}
       </h1>
+
+      {!isNew && (
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusBadge
+            status={computeProductStatus({
+              is_published: form.is_published,
+              name: form.name,
+              slug: form.slug,
+              price_cents: form.price_cents,
+              photos: form.photos ?? [],
+              isProtected: impact?.is_protected ?? false,
+              hasVariantsCoveringPrice:
+                form.category === "e_liquide" &&
+                (form.variants ?? []).length > 0 &&
+                (form.variants ?? []).every((v) => (v.price_cents ?? 0) > 0),
+            })}
+          />
+          {impact?.is_protected && (
+            <span className="text-xs text-muted-foreground">
+              Ce badge est un indicateur, pas un bouton.
+            </span>
+          )}
+        </div>
+      )}
+
+      {impact?.is_protected && (
+        <ImpactPanel impact={impact} />
+      )}
 
       <form onSubmit={submit} className="space-y-6" noValidate>
         {/* Bloc 1 — informations principales */}
