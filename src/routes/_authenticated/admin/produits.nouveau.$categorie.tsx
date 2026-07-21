@@ -42,9 +42,16 @@ type WizardSlug = "cbd" | "e-liquide" | "accessoire-vape" | "accessoire-cbd";
 type SimpleCategory = "cbd" | "accessoire_vape" | "accessoire_cbd";
 type Intensity = "leger" | "modere" | "fort";
 type CbdSaleMode = "weight" | "packs";
+type ProductKind = "simple" | "variants";
 
 type WeightTier = { from_g: string; price_per_g: string };
 type SachetPack = { weight_g: string; price_euros: string; stock: string };
+type VariantChoice = {
+  value: string;
+  priceEuros: string;
+  stock: string;
+  sku: string;
+};
 
 const SLUG_TO_CATEGORY: Record<Exclude<WizardSlug, "e-liquide">, SimpleCategory> = {
   cbd: "cbd",
@@ -126,9 +133,18 @@ const STEP_LABELS_CBD = [
   "Données métier",
   "Relecture",
 ] as const;
+const STEP_LABELS_ACCESSOIRE_VAPE = [
+  "Base produit",
+  "Type de produit",
+  "Vente",
+  "Données métier",
+  "Relecture",
+] as const;
 
 function getStepLabels(category: SimpleCategory): readonly string[] {
-  return category === "cbd" ? STEP_LABELS_CBD : STEP_LABELS_DEFAULT;
+  if (category === "cbd") return STEP_LABELS_CBD;
+  if (category === "accessoire_vape") return STEP_LABELS_ACCESSOIRE_VAPE;
+  return STEP_LABELS_DEFAULT;
 }
 
 function newTier(from_g = "1", price_per_g = ""): WeightTier {
@@ -136,6 +152,9 @@ function newTier(from_g = "1", price_per_g = ""): WeightTier {
 }
 function newSachet(weight_g = "", price_euros = "", stock = "0"): SachetPack {
   return { weight_g, price_euros, stock };
+}
+function newVariantChoice(value = "", priceEuros = "", stock = "0", sku = ""): VariantChoice {
+  return { value, priceEuros, stock, sku };
 }
 
 function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory }) {
@@ -172,6 +191,9 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     booster_type: "normale",
     is_empty_bottle: false,
     volume_ml: "",
+    product_kind: "simple",
+    variant_attribute_name: "",
+    variant_choices: [newVariantChoice()],
   });
 
   // SKU auto-généré à la volée depuis le nom tant que l'admin n'y a pas touché.
