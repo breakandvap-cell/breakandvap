@@ -1,80 +1,85 @@
-
-# Navigation progressive par catégories sur /boutique
+# Refonte UX admin — parcours de création produit en étapes
 
 ## Objectif
-Transformer la page boutique en un parcours visuel en 3 niveaux (catégories → sous-catégories → produits), avec gestion complète depuis l'admin. Le bouton "Découvrir le catalogue" continue de pointer vers `/boutique`.
 
-## 1. Base de données (migration)
+Remplacer l'ouverture directe du formulaire produit par un parcours guidé pour les catégories **simples** (CBD, Accessoire Vape, Accessoire CBD). Le parcours e-liquide reste inchangé et continue d'ouvrir le formulaire complet actuel.
 
-Nouvelles tables :
+## Portée
 
-- `public.shop_categories` — catégories principales gérées en base
-  - `key` (unique, ex: `cbd`, `e_liquide`, `accessoire_vape`, `accessoire_cbd`) — pont vers l'enum `product_category` existant
-  - `name`, `description`, `image_url`, `sort_order`, `is_active`
+- Nouvelle page « choisir une catégorie » avant création.
+- Nouveau parcours 4 étapes pour les 3 catégories simples.
+- Écran de relecture avec blocage de publication si champs manquants.
+- Aucune modification du schéma DB, des server functions d'écriture, ni du parcours e-liquide.
 
-- `public.shop_subcategories` — sous-catégories
-  - `category_id` → `shop_categories.id`
-  - `slug` (unique par catégorie), `name`, `description`, `image_url`, `sort_order`, `is_active`
+## Parcours utilisateur
 
-- `products.subcategory_id` (nullable) → `shop_subcategories.id` ; `ON DELETE RESTRICT` pour bloquer la suppression d'une sous-catégorie ayant encore des produits.
+### Écran de départ « Nouveau produit »
 
-RLS : lecture publique (anon + authenticated), écriture réservée aux admins via `has_role(auth.uid(), 'admin')`. GRANT SELECT à anon/authenticated ; ALL à service_role/authenticated pour écriture contrôlée par policy.
+Route : `/admin/produits/nouveau` (aujourd'hui = formulaire vide).
 
-Seed initial dans la même migration :
-- CBD → Accessoire, CBD, Venom, Amazon
-- E-liquides → Frais & Glacé, Fruité & Exotique, Gourmand, Classique
-- Accessoires Vape / Accessoires CBD → aucune sous-catégorie
+À la place, affiche 4 cartes :
 
-Bucket storage `category-images` (public) pour les visuels, créé via l'outil dédié.
+- **CBD** — « Fleurs, résines, huiles… » — *~45 s*
+- **E-liquide** — « Fiole avec contenance, nicotine, goût » — *~3 à 5 min*
+- **Accessoire Vape** — « Batterie, résistance, flacon vide… » — *~45 s*
+- **Accessoire CBD** — « Grinder, papier, briquet… » — *~45 s*
 
-## 2. Page boutique `/boutique`
+Chaque carte navigue vers `/admin/produits/nouveau/{slug}` avec `slug ∈ { cbd, e-liquide, accessoire-vape, accessoire-cbd }`. La carte « E-liquide » redirige vers l'ancien formulaire complet (aucune régression).
 
-Refonte en state machine locale (pas de rechargement) pilotée par `useSearch` :
+### Parcours simple en 4 étapes
 
-- Search params : `categorie?: string` (key), `sous_categorie?: string` (slug)
-- Étape 1 (aucun param) : grille 2×2 des 4 catégories principales, grandes tuiles avec image + titre + description + CTA.
-- Étape 2 (`categorie` seul) :
-  - si la catégorie a des sous-catégories → tuiles des sous-catégories
-  - sinon → produits directement filtrés
-- Étape 3 (`categorie` + `sous_categorie`) : produits filtrés (join sur `subcategory_id`).
-- Fil d'Ariane : `Boutique > CBD > Venom` (chaque niveau cliquable, remonte via `navigate` en modifiant les search params).
-- Lien secondaire "Voir tout le catalogue" qui force `categorie=all` (bypass) → grille produits complète.
-- Transitions douces via `framer-motion` (fade + slide léger) entre les étapes.
+Route : `/admin/produits/nouveau/$categorie` pour les 3 catégories simples.
 
-## 3. Admin `/admin/categories`
+Barre de progression sticky en haut : `Étape N sur 4 — Nom de l'étape`.
 
-Nouvelle route sous `_authenticated/admin/categories.tsx` :
+1. **Base produit** — nom, marque (optionnel), photo principale, catégorie verrouillée (affichée mais non modifiable).
+2. **Vente** — prix TTC, stock, SKU (auto-généré depuis nom + timestamp court, modifiable), description courte.
+3. **Données métier**
+   - **CBD** : taux de CBD (%), taux de THC (%), intensité (léger/modéré/fort), URL certificat d'analyse. Avertissement rouge si THC > 0,3 %.
+   - **Accessoire Vape / CBD** : rien par défaut. Deux cases à cocher optionnelles « Ce produit est un booster de nicotine » et « Ce produit est un flacon vide » — si cochées, affiche les champs déjà existants (type de booster / contenance ml).
+4. **Relecture** — résumé complet en sections (Base, Vente, Métier), avec badge « Prêt à publier » (vert) ou « Champs manquants » (ambre) listant précisément ce qui bloque. Bouton **« Publier »** actif seulement si tout est complet ; bouton secondaire **« Enregistrer en brouillon »** toujours actif.
 
-- Arborescence dépliable (catégorie → sous-catégories)
-- Actions catégorie : éditer nom/description/image, réordonner (boutons ↑↓ + champ `sort_order`)
-- Actions sous-catégorie : créer / éditer / supprimer / réordonner
-- Upload d'image via le bucket `category-images`
-- Suppression :
-  - si des produits sont encore liés → refus avec message clair + lien vers la liste des produits concernés
-  - sinon → confirmation
-- Ajout d'un lien "Catégories" dans la nav admin (`route.tsx`)
+### Validation
 
-Server functions dans `src/lib/categories.functions.ts` (list, create, update, delete, reorder) avec `requireSupabaseAuth` + vérification `has_role admin` pour les mutations.
-
-## 4. Formulaire produit
-
-Dans `admin/produits.$id.tsx` :
-- Le sélecteur catégorie reste basé sur l'enum existant (`product_category`) pour compat.
-- Ajout d'un second `<Select>` "Sous-catégorie" alimenté par les sous-catégories liées à la catégorie choisie (via la key). Vide autorisé.
-- Sauvegarde `subcategory_id` sur `products`.
-
-## 5. Page d'accueil — universes
-
-Dans `flavor-universe.tsx`, mettre à jour les CTA :
-- "Explorer la famille glacée" → `/boutique?categorie=e_liquide&sous_categorie=frais-glace`
-- "Explorer les fruités" → `/boutique?categorie=e_liquide&sous_categorie=fruite-exotique`
-
-## 6. Hors périmètre (inchangé)
-Fiches produit, variantes, tunnel de commande, espace admin hors nouvelle page, RLS existante.
+- Erreurs affichées à côté du champ **ET** dans un bandeau récapitulatif en haut de l'étape en cours si l'employé clique « Étape suivante » avec des champs invalides.
+- Aucune donnée perdue entre étapes (état local persistant tant que la page est ouverte). Retour arrière libre.
+- Champs obligatoires pour publier : nom, photo, prix > 0, description courte, + pour CBD : CBD % et THC % renseignés (peuvent être 0), certificat obligatoire.
+- Publication toujours bloquée si THC > 0,3 % (seuil légal français), même avec bouton « Publier » — remplacé par un message d'erreur explicite dans le bandeau.
 
 ## Détails techniques
 
-- Search schema Zod étendu, `stripSearchParams` pour retirer les valeurs par défaut.
-- Requêtes React Query : `shopCategoriesQueryOptions`, `shopSubcategoriesQueryOptions(categoryId)`, `productsQueryOptions({ categoryKey, subcategorySlug })`.
-- `products` query mise à jour pour supporter le filtre `subcategory_id`.
-- Images : `image_url` stocke l'URL publique renvoyée par `supabase.storage.from('category-images').getPublicUrl(...)`.
+### Fichiers créés
+
+- `src/routes/_authenticated/admin/produits.nouveau.tsx` — écran de choix (4 cartes). Remplace le rendu actuel de `produits.$id.tsx` lorsque `id === "nouveau"` (on continue d'accepter `/admin/produits/nouveau` mais on redirige vers cette route dédiée).
+- `src/routes/_authenticated/admin/produits.nouveau.$categorie.tsx` — parcours guidé. Gère `cbd`, `accessoire-vape`, `accessoire-cbd` ; pour `e-liquide`, redirige vers `/admin/produits/nouveau?legacy=1` (qui rouvre l'ancien formulaire complet).
+- `src/components/product-wizard/` — composants découpés :
+  - `wizard-progress.tsx` (barre de progression)
+  - `step-base.tsx`, `step-sale.tsx`, `step-meta.tsx`, `step-review.tsx`
+  - `wizard-context.tsx` (state + validation par étape via un petit reducer local, pas de librairie externe)
+
+### Fichiers modifiés
+
+- `src/routes/_authenticated/admin/produits.$id.tsx` — quand `id === "nouveau"`, `redirect()` vers `/admin/produits/nouveau`. Le formulaire complet reste utilisé pour toute édition existante (`id ≠ "nouveau"`) et pour le fallback e-liquide via query `?legacy=1`.
+- `src/routes/_authenticated/admin/produits.index.tsx` — le bouton « + Nouveau produit » pointe vers `/admin/produits/nouveau` (identique côté URL, mais rendra désormais l'écran de choix).
+
+### Écriture en base
+
+Le wizard appelle **la server function existante** `adminUpsertProduct` avec le payload équivalent à ce que produit le formulaire complet, en fixant `is_published = true` (bouton Publier) ou `false` (Enregistrer en brouillon). Aucun changement DB, aucune migration.
+
+### Post-publication
+
+Après succès, redirection vers `/admin/produits/$id` (fiche complète existante) pour permettre les ajustements avancés (variantes, quantités dégressives, etc.).
+
+## Tests manuels
+
+1. Créer un CBD complet via le wizard → publication réussie, produit apparaît publié dans la liste.
+2. Laisser le THC vide → étape 4 affiche « Champs manquants : Taux de THC », bouton « Publier » désactivé, bandeau rouge à la tentative.
+3. Saisir THC = 0,5 % → avertissement rouge dès l'étape 3, publication bloquée en étape 4 avec message légal.
+4. Créer un Accessoire Vape « simple » (sans cocher booster/flacon) → 4 étapes, publication OK sans champ métier.
+5. Cliquer « E-liquide » sur l'écran de choix → ouvre l'ancien formulaire complet inchangé.
+
+## Hors périmètre
+
+- Parcours e-liquide (reste sur le formulaire complet actuel).
+- Édition d'un produit existant (reste sur le formulaire complet).
+- Refonte des références techniques (déjà livrée à la brique précédente).

@@ -142,7 +142,9 @@ function ImpactPanel({ impact }: { impact: ImpactData }) {
 
 function EditProduct() {
   const { id } = Route.useParams();
-  const isNew = id === "nouveau";
+  const isNew = id === "nouveau" || id === "nouveau-eliquide";
+  const presetCategory: FormState["category"] | null =
+    id === "nouveau-eliquide" ? "e_liquide" : null;
   const navigate = useNavigate();
   const qc = useQueryClient();
   const get = useServerFn(adminGetProduct);
@@ -184,7 +186,9 @@ function EditProduct() {
     retry: false,
   });
 
-  const [form, setForm] = useState<FormState>(empty);
+  const [form, setForm] = useState<FormState>(
+    presetCategory ? { ...empty, category: presetCategory } : empty,
+  );
   const [priceEuros, setPriceEuros] = useState<string>("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
