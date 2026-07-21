@@ -1381,6 +1381,7 @@ function StepMeta({
   showErrors,
   errors,
   thcOverLimit,
+  cbdConforme,
 }: {
   state: WizardState;
   setState: (fn: (s: WizardState) => WizardState) => void;
@@ -1388,6 +1389,7 @@ function StepMeta({
   showErrors: boolean;
   errors: string[];
   thcOverLimit: boolean;
+  cbdConforme: boolean;
 }) {
   if (category === "cbd") {
     return (
@@ -1440,6 +1442,13 @@ function StepMeta({
               La limite légale française est de 0,3 % de THC. La publication
               sera bloquée tant que ce taux n'est pas conforme.
             </p>
+          </div>
+        )}
+
+        {cbdConforme && (
+          <div className="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+            <ShieldCheck className="h-4 w-4" />
+            Conforme — THC ≤ 0,3 % (limite légale française respectée)
           </div>
         )}
 
