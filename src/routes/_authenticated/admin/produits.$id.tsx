@@ -186,7 +186,9 @@ function EditProduct() {
     retry: false,
   });
 
-  const [form, setForm] = useState<FormState>(empty);
+  const [form, setForm] = useState<FormState>(
+    presetCategory ? { ...empty, category: presetCategory } : empty,
+  );
   const [priceEuros, setPriceEuros] = useState<string>("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [uploading, setUploading] = useState(false);
