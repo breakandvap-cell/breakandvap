@@ -888,6 +888,7 @@ function renderStep(a: RenderStepArgs) {
             thcOverLimit={a.thcOverLimit}
             parsedWeight={a.parsedWeight}
             parsedSachets={a.parsedSachets}
+            parsedChoices={a.parsedChoices}
             onEditStep={a.onEditStep}
           />
         );
