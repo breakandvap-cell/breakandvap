@@ -2167,9 +2167,10 @@ function StepReview({
   const missing = errorsByStep.flat();
   const isCbd = category === "cbd";
   const isAccVape = category === "accessoire_vape";
-  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. AccVape → [Base 0, Type 1, Vente 2, Meta 3]. Autres → [0,1,2].
+  const isAccCbd = category === "accessoire_cbd";
+  // Indices d'édition : CBD → [Base 0, Mode 1, Vente 2, Meta 3]. AccVape → [Base 0, Type 1, Vente 2, Meta 3]. AccCbd → [Base 0, Type 1, Vente 2]. Autres → [0,1,2].
   const idxBase = 0;
-  const idxSale = isCbd || isAccVape ? 2 : 1;
+  const idxSale = isCbd || isAccVape || isAccCbd ? 2 : 1;
   const idxMeta = isCbd || isAccVape ? 3 : 2;
   const totalStockVariants = parsedChoices.reduce((s, c) => s + c.stock, 0);
   return (
@@ -2273,7 +2274,8 @@ function StepReview({
             </>
           )
         ) : (
-          category === "accessoire_vape" && state.product_kind === "variants" ? (
+          (category === "accessoire_vape" || category === "accessoire_cbd") &&
+          state.product_kind === "variants" ? (
             <>
               <ReviewRow label="Type de produit" value="Plusieurs choix" />
               <ReviewRow
@@ -2309,7 +2311,7 @@ function StepReview({
             </>
           ) : (
             <>
-              {category === "accessoire_vape" && (
+              {(category === "accessoire_vape" || category === "accessoire_cbd") && (
                 <ReviewRow label="Type de produit" value="Produit simple" />
               )}
               <ReviewRow
@@ -2324,6 +2326,7 @@ function StepReview({
         )}
       </ReviewSection>
 
+      {!isAccCbd && (
       <ReviewSection title="Données métier" onEdit={() => onEditStep(idxMeta)}>
         {category === "cbd" ? (
           <>
@@ -2396,6 +2399,7 @@ function StepReview({
           </>
         )}
       </ReviewSection>
+      )}
     </div>
   );
 }
