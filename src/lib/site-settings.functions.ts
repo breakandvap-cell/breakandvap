@@ -8,17 +8,23 @@ import { supabase } from "@/integrations/supabase/client";
 export type BoosterConfig = {
   boosterVolumeMl: number;
   boosterConcentrationMgPerMl: number;
-  /** Références booster « officielles » (une par type). Renseignées via
-   *  /admin/references-techniques. Si null, le checkout retombe sur le
-   *  premier booster publié de ce type. */
-  defaultBoosterNormaleId: string | null;
-  defaultBoosterSelId: string | null;
-  defaultBoosterIceId: string | null;
 };
 
 export const DEFAULT_BOOSTER_CONFIG: BoosterConfig = {
   boosterVolumeMl: 10,
   boosterConcentrationMgPerMl: 20,
+};
+
+/** Références booster « officielles » (une par type). Renseignées via
+ *  /admin/references-techniques. Si null, le checkout retombe sur le
+ *  premier booster publié de ce type. */
+export type DefaultBoosterRefs = {
+  defaultBoosterNormaleId: string | null;
+  defaultBoosterSelId: string | null;
+  defaultBoosterIceId: string | null;
+};
+
+export const DEFAULT_BOOSTER_REFS: DefaultBoosterRefs = {
   defaultBoosterNormaleId: null,
   defaultBoosterSelId: null,
   defaultBoosterIceId: null,
@@ -28,7 +34,7 @@ export const DEFAULT_BOOSTER_CONFIG: BoosterConfig = {
 export const siteSettingsQueryOptions = () =>
   queryOptions({
     queryKey: ["site-settings"] as const,
-    queryFn: async (): Promise<BoosterConfig> => {
+    queryFn: async (): Promise<BoosterConfig & DefaultBoosterRefs> => {
       const { data, error } = await supabase
         .from("site_settings")
         .select(
@@ -37,7 +43,7 @@ export const siteSettingsQueryOptions = () =>
         .eq("singleton", true)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      if (!data) return DEFAULT_BOOSTER_CONFIG;
+      if (!data) return { ...DEFAULT_BOOSTER_CONFIG, ...DEFAULT_BOOSTER_REFS };
       return {
         boosterVolumeMl: Number(data.booster_volume_ml) || DEFAULT_BOOSTER_CONFIG.boosterVolumeMl,
         boosterConcentrationMgPerMl:
