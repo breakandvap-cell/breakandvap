@@ -91,13 +91,21 @@ function ProductsList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Produits</h1>
-        <Link
-          to="/admin/produits/$id"
-          params={{ id: "nouveau" }}
-          className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-        >
-          + Nouveau produit
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            to="/admin/produits/import"
+            className="inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/40"
+          >
+            Import CSV
+          </Link>
+          <Link
+            to="/admin/produits/$id"
+            params={{ id: "nouveau" }}
+            className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+          >
+            + Nouveau produit
+          </Link>
+        </div>
       </div>
 
       {duplicateEntries.length > 0 && (
