@@ -294,6 +294,13 @@ export const adminListProducts = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => listProductsSchema.parse(d ?? {}))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
+    return upsertProductCore(context, data);
+  });
+
+async function upsertProductCore(
+  context: AdminContext,
+  data: ProductInput,
+): Promise<{ id: string }> {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("products")
@@ -599,7 +606,7 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
     }
 
     return { id: productId };
-  });
+}
 
 // ---------- SKU helpers ----------
 
