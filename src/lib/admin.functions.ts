@@ -1638,7 +1638,7 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
       const stockStatus: "in_stock" | "low_stock" | "out_of_stock" =
         totalStock === 0 ? "out_of_stock" : totalStock < 10 ? "low_stock" : "in_stock";
 
-      let payload: ProductInput;
+      let payload: unknown;
       if (bucket.kind === "empty_bottle") {
         payload = {
           name: displayName,
@@ -1655,7 +1655,7 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
           volume_ml: bucket.volume_ml ?? null,
           variants: [],
           flavors: [],
-        } as ProductInput;
+        };
       } else {
         payload = {
           name: displayName,
@@ -1679,7 +1679,7 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
             is_active: true,
           })),
           flavors: [],
-        } as ProductInput;
+        };
       }
 
       try {
