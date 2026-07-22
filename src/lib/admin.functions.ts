@@ -325,6 +325,13 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => productInputSchema.parse(d))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
+    return upsertProductCore(context, data);
+  });
+
+async function upsertProductCore(
+  context: AdminContext,
+  data: ProductInput,
+): Promise<{ id: string }> {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // ---- Garde-fou : empêche de casser silencieusement un booster référencé ----
     // Si le produit est actuellement marqué comme booster de nicotine et qu'un
@@ -599,7 +606,7 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
     }
 
     return { id: productId };
-  });
+}
 
 // ---------- SKU helpers ----------
 
@@ -1450,4 +1457,248 @@ export const adminTechnicalReferences = createServerFn({ method: "GET" })
     );
 
     return { boosters, bottles };
+  });
+
+// ============================================================
+// Import CSV en masse — crée plusieurs produits « brouillon »
+// en réutilisant `upsertProductCore` (donc toute la logique de
+// validation, expansion des variantes e-liquide, etc.).
+// ============================================================
+
+const bulkImportRowSchema = z.object({
+  line: z.number().int().min(1),
+  marque: z.string().trim().max(120).default(""),
+  nom: z.string().trim().min(1).max(160),
+  volume_ml: z.number().int().min(0).max(10_000).nullable(),
+  type: z.string().trim().max(80),
+  nicotines_10ml: z.array(z.number().int().min(0).max(50)).max(20).default([]),
+  stock: z.number().int().min(0).max(100_000).default(0),
+  category: z.string().trim().max(40),
+  subcategory: z.string().trim().max(120).default(""),
+  ref_fournisseur: z.string().trim().max(120).default(""),
+});
+
+const bulkImportSchema = z.object({
+  rows: z.array(bulkImportRowSchema).min(1).max(1000),
+});
+
+type BulkRow = z.infer<typeof bulkImportRowSchema>;
+
+function bulkSlug(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+function classifyRow(row: BulkRow): { kind: "eliquide_10ml" | "eliquide_large" | "empty_bottle"; error?: string } {
+  const cat = row.category.trim().toLowerCase();
+  const type = row.type.trim().toLowerCase();
+  if (cat === "e_liquide") {
+    if (type.includes("10ml") || type.includes("prêt") || type.includes("pret")) {
+      return { kind: "eliquide_10ml" };
+    }
+    if (type.includes("boosterable") || type.includes("base")) {
+      if (!row.volume_ml || row.volume_ml <= 0) {
+        return { kind: "eliquide_large", error: "Volume manquant pour un e-liquide grand format." };
+      }
+      return { kind: "eliquide_large" };
+    }
+    return { kind: "eliquide_10ml", error: `Type e-liquide inconnu : « ${row.type} ».` };
+  }
+  if (cat === "accessoire_vape") {
+    if (type.includes("flacon")) {
+      if (!row.volume_ml || row.volume_ml <= 0) {
+        return { kind: "empty_bottle", error: "Volume manquant pour un flacon vide." };
+      }
+      return { kind: "empty_bottle" };
+    }
+    return { kind: "empty_bottle", error: `Type accessoire non supporté : « ${row.type} ».` };
+  }
+  return { kind: "empty_bottle", error: `Catégorie non supportée à l'import : « ${row.category} ».` };
+}
+
+export const adminBulkImportProducts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => bulkImportSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const errors: Array<{ line: number; message: string }> = [];
+    // Slugs déjà existants dans la base — évite collision avec produits en place.
+    const { data: existingSlugs } = await supabaseAdmin
+      .from("products")
+      .select("slug");
+    const takenSlugs = new Set(
+      ((existingSlugs ?? []) as Array<{ slug: string }>).map((r) => r.slug),
+    );
+
+    // Regroupe les e-liquides par (marque|nom) pour fusionner les contenances.
+    type Bucket = {
+      kind: "eliquide" | "empty_bottle";
+      lines: number[];
+      marque: string;
+      nom: string;
+      subcategory: string;
+      // e-liquide : variantes agrégées
+      variants: Array<{
+        volume_ml: number;
+        stock: number;
+        available_nicotine_mg: number[];
+        max_boosters: number | null;
+      }>;
+      // flacon vide : direct
+      volume_ml?: number | null;
+      stock: number;
+    };
+    const buckets = new Map<string, Bucket>();
+
+    for (const row of data.rows) {
+      const cls = classifyRow(row);
+      if (cls.error) {
+        errors.push({ line: row.line, message: cls.error });
+        continue;
+      }
+      const marque = row.marque.trim();
+      const nom = row.nom.trim();
+      const displayName = marque ? `${marque} ${nom}` : nom;
+      if (cls.kind === "empty_bottle") {
+        const key = `bottle::${bulkSlug(displayName)}::${row.volume_ml}`;
+        buckets.set(key, {
+          kind: "empty_bottle",
+          lines: [row.line],
+          marque,
+          nom,
+          subcategory: row.subcategory,
+          variants: [],
+          volume_ml: row.volume_ml,
+          stock: row.stock,
+        });
+        continue;
+      }
+      const key = `eliq::${bulkSlug(marque)}::${bulkSlug(nom)}`;
+      const existing = buckets.get(key);
+      const volume = cls.kind === "eliquide_10ml" ? 10 : row.volume_ml!;
+      const nics =
+        cls.kind === "eliquide_10ml"
+          ? Array.from(new Set(row.nicotines_10ml)).sort((a, b) => a - b)
+          : [0];
+      const variant = {
+        volume_ml: volume,
+        stock: row.stock,
+        available_nicotine_mg: nics,
+        // 10ml prêt-à-l'emploi : pas de boosters. Grand format : capacité à
+        // renseigner manuellement (null = non déterminé, admin complètera).
+        max_boosters: cls.kind === "eliquide_10ml" ? 0 : null,
+      };
+      if (existing && existing.kind === "eliquide") {
+        // Si un doublon exact de volume est présent, on fusionne les stocks
+        // et les taux de nicotine plutôt que de créer deux variantes.
+        const dupe = existing.variants.find((v) => v.volume_ml === variant.volume_ml);
+        if (dupe) {
+          dupe.stock += variant.stock;
+          dupe.available_nicotine_mg = Array.from(
+            new Set([...dupe.available_nicotine_mg, ...variant.available_nicotine_mg]),
+          ).sort((a, b) => a - b);
+        } else {
+          existing.variants.push(variant);
+        }
+        existing.lines.push(row.line);
+        existing.stock += row.stock;
+      } else {
+        buckets.set(key, {
+          kind: "eliquide",
+          lines: [row.line],
+          marque,
+          nom,
+          subcategory: row.subcategory,
+          variants: [variant],
+          stock: row.stock,
+        });
+      }
+    }
+
+    let created = 0;
+    for (const bucket of buckets.values()) {
+      const displayName = bucket.marque
+        ? `${bucket.marque} ${bucket.nom}`
+        : bucket.nom;
+      // Génération d'un slug unique (base + suffixe -2, -3… si collision).
+      const base = bulkSlug(displayName) || "produit";
+      let slug = base;
+      let i = 2;
+      while (takenSlugs.has(slug)) slug = `${base}-${i++}`;
+      takenSlugs.add(slug);
+
+      const totalStock = Math.max(0, bucket.stock);
+      const stockStatus: "in_stock" | "low_stock" | "out_of_stock" =
+        totalStock === 0 ? "out_of_stock" : totalStock < 10 ? "low_stock" : "in_stock";
+
+      let payload: unknown;
+      if (bucket.kind === "empty_bottle") {
+        payload = {
+          name: displayName,
+          slug,
+          category: "accessoire_vape",
+          subcategory: bucket.subcategory,
+          description: "",
+          price_cents: 0,
+          currency: "EUR",
+          stock: totalStock,
+          stock_status: stockStatus,
+          is_published: false,
+          photos: [],
+          volume_ml: bucket.volume_ml ?? null,
+          variants: [],
+          flavors: [],
+        };
+      } else {
+        payload = {
+          name: displayName,
+          slug,
+          category: "e_liquide",
+          subcategory: bucket.subcategory,
+          description: "",
+          price_cents: 0,
+          currency: "EUR",
+          stock: totalStock,
+          stock_status: stockStatus,
+          is_published: false,
+          photos: [],
+          variants: bucket.variants.map((v) => ({
+            volume_ml: v.volume_ml,
+            price_cents: 0,
+            stock: v.stock,
+            available_nicotine_mg: v.available_nicotine_mg,
+            nicotine_type: "normale",
+            max_boosters: v.max_boosters,
+            is_active: true,
+          })),
+          flavors: [],
+        };
+      }
+
+      try {
+        // Passe par le pipeline officiel (validation Zod + expansion variantes).
+        const parsed = productInputSchema.parse(payload);
+        await upsertProductCore({ supabase: context.supabase, userId: context.userId }, parsed);
+        created++;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        for (const l of bucket.lines) {
+          errors.push({ line: l, message: `Création refusée : ${msg}` });
+        }
+      }
+    }
+
+    await logAction(context.userId, "product.bulk_import", "product", null, {
+      created,
+      errors: errors.length,
+    });
+
+    return { created, ignored: errors.length, errors };
   });
