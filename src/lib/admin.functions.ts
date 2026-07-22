@@ -325,6 +325,13 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => productInputSchema.parse(d))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
+    return upsertProductCore(context, data);
+  });
+
+async function upsertProductCore(
+  context: AdminContext,
+  data: ProductInput,
+): Promise<{ id: string }> {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // ---- Garde-fou : empêche de casser silencieusement un booster référencé ----
     // Si le produit est actuellement marqué comme booster de nicotine et qu'un
