@@ -12,10 +12,13 @@ import {
 const productInputSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(160),
-  // Marque optionnelle : sert uniquement à composer la référence SKU
-  // (segment MARQUE en 6 caractères). Non persistée en colonne dédiée —
-  // la marque figure déjà dans `description` via le wizard.
+  // Marque optionnelle : persistée en colonne dédiée `products.brand`.
+  // Sert aussi à composer la référence SKU (segment MARQUE en 6 caractères).
   brand: z.string().trim().max(60).optional().or(z.literal("")),
+  // Gamme optionnelle (ex : « Iceberg » pour Liquidelab). Persistée en
+  // colonne dédiée `products.product_range`. Insérée dans le SKU entre la
+  // marque et le nom (segment 8 caractères) uniquement si renseignée.
+  range: z.string().trim().max(60).optional().or(z.literal("")),
   slug: z
     .preprocess(
       // Défense en profondeur : si le wizard laisse passer un slug avec
