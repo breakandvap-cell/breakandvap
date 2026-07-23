@@ -313,7 +313,7 @@ function wizardDataFromExisting(
   return {
     ...EMPTY,
     name: existing.name ?? "",
-    brand: parsed.brand,
+    brand: ((existing as { brand?: string | null }).brand ?? "").toString().trim() || parsed.brand,
     range: ((existing as { product_range?: string | null }).product_range ?? "").toString(),
     shortDescription: parsed.shortDescription,
     description: parsed.description,
