@@ -35,6 +35,9 @@ import {
 
 export const Route = createFileRoute("/_authenticated/admin/produits/$id")({
   ssr: false,
+  validateSearch: (search): { legacy?: string } => ({
+    legacy: search.legacy === "1" ? "1" : undefined,
+  }),
   component: EditProduct,
 });
 
@@ -142,6 +145,7 @@ function ImpactPanel({ impact }: { impact: ImpactData }) {
 
 function EditProduct() {
   const { id } = Route.useParams();
+  const { legacy } = Route.useSearch();
   if (id === "nouveau") {
     return <Navigate to="/admin/produits/nouveau" />;
   }
@@ -536,7 +540,7 @@ function EditProduct() {
     );
   }
 
-  if (!isNew && existing) {
+  if (!isNew && existing && legacy !== "1") {
     const category = existing.category === "accessoire" ? "accessoire_vape" : existing.category;
     if (category === "e_liquide") {
       return <Navigate to="/admin/produits/eliquide/$id" params={{ id: existing.id }} />;
