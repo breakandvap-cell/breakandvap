@@ -439,7 +439,9 @@ async function upsertProductCore(
         name: f.name,
         stock: f.stock,
         photo: (f as { photo?: string | null }).photo ?? null,
-        sku: ((f as { sku?: string }).sku ?? "").toString().trim() || slugSku(data.name, f.name),
+        sku:
+          ((f as { sku?: string }).sku ?? "").toString().trim() ||
+          buildFlavorSku(data.brand ?? "", data.name, f.name),
         is_active: (f as { is_active?: boolean }).is_active ?? true,
       }))) as never,
       updated_by: context.userId,
