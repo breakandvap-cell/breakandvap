@@ -6,13 +6,15 @@
 // « Utiliser l'ancien formulaire » retombe sur le formulaire e-liquide
 // historique le temps que ce parcours soit complet.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
   Check,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   Copy,
@@ -21,6 +23,8 @@ import {
   Layers,
   Loader2,
   Plus,
+  Save,
+  Send,
   Trash2,
   Upload,
   X,
@@ -29,6 +33,8 @@ import { toast } from "sonner";
 import {
   adminGetProduct,
   adminUploadProductPhoto,
+  adminUpsertProduct,
+  type ProductInput,
 } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
 import {
@@ -38,7 +44,12 @@ import {
   formatNicotineMg,
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
-import { emptyBottleCandidatesQueryOptions } from "@/lib/products";
+import {
+  emptyBottleCandidatesQueryOptions,
+  boosterProductsQueryOptions,
+  normalizeBoosterTypeKey,
+  type BoosterProduct,
+} from "@/lib/products";
 
 export const Route = createFileRoute(
   "/_authenticated/admin/produits/eliquide/$id",
@@ -154,7 +165,7 @@ function buildSteps(mode: SalesMode | null): StepDef[] {
   if (mode === "large_only" || mode === "both") {
     steps.push({ id: "nicotine", label: "Nicotine", implemented: true });
   }
-  steps.push({ id: "review", label: "Relecture & publication", implemented: false });
+  steps.push({ id: "review", label: "Relecture & publication", implemented: true });
   return steps;
 }
 
