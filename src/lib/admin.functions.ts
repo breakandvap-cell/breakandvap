@@ -309,6 +309,8 @@ const listProductsSchema = z.object({
     .optional()
     .or(z.literal("")),
   status: z.enum(["published", "draft", "out_of_stock"]).optional().or(z.literal("")),
+  brand: z.string().trim().max(60).optional().or(z.literal("")),
+  range: z.string().trim().max(60).optional().or(z.literal("")),
 });
 
 export const adminListProducts = createServerFn({ method: "GET" })
@@ -319,15 +321,63 @@ export const adminListProducts = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("products")
-      .select("id, name, slug, category, price_cents, currency, stock, stock_status, is_published, updated_at")
+      .select("id, name, slug, category, brand, product_range, price_cents, currency, stock, stock_status, is_published, updated_at")
       .order("updated_at", { ascending: false });
     if (data.category) q = q.eq("category", data.category);
     if (data.status === "published") q = q.eq("is_published", true);
     else if (data.status === "draft") q = q.eq("is_published", false);
     else if (data.status === "out_of_stock") q = q.eq("stock_status", "out_of_stock");
+    if (data.brand) q = q.ilike("brand", data.brand);
+    if (data.range) q = q.ilike("product_range", data.range);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+// Renvoie la liste des marques distinctes déjà saisies (auto-complétion).
+export const adminListBrands = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select("brand")
+      .not("brand", "is", null);
+    if (error) throw new Error(error.message);
+    const set = new Set<string>();
+    for (const r of (data ?? []) as Array<{ brand: string | null }>) {
+      const v = (r.brand ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
+  });
+
+// Renvoie la liste des gammes existantes, éventuellement filtrées par marque.
+// Utilisée pour l'auto-complétion du champ « Gamme » dans les wizards.
+export const adminListRanges = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ brand: z.string().trim().max(60).optional().or(z.literal("")) })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("products")
+      .select("brand, product_range")
+      .not("product_range", "is", null);
+    if (data.brand) q = q.ilike("brand", data.brand);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const set = new Set<string>();
+    for (const r of (rows ?? []) as Array<{ product_range: string | null }>) {
+      const v = (r.product_range ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
   });
 
 export const adminGetProduct = createServerFn({ method: "GET" })
