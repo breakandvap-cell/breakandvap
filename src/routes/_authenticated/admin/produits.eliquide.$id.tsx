@@ -1597,7 +1597,10 @@ function buildPayloadFromWizard(
       nicotine_type: "normale",
       max_boosters: 0,
       is_active: true,
-      sku: `${slugify(data.name).replace(/-/g, "").toUpperCase().slice(0, 8) || "ELIQ"}-10ML`,
+      // SKU laissé vide : le serveur génère une référence canonique unique
+      // (MARQUE-NOM-VOLUME[-TYPE][-NNMG]) et évite les collisions entre
+      // variantes dérivées (normale / sel / ice) d'un même volume.
+      sku: "",
     });
   }
 
@@ -1613,7 +1616,7 @@ function buildPayloadFromWizard(
         nicotine_type: "normale",
         max_boosters: maxBoostersFor(row, cfg),
         is_active: true,
-        sku: `${slugify(data.name).replace(/-/g, "").toUpperCase().slice(0, 8) || "ELIQ"}-${row.volumeMl}ML`,
+        sku: "",
       });
     }
   }
@@ -1647,6 +1650,7 @@ function buildPayloadFromWizard(
   return {
     id: existingId && existingId !== "nouveau" ? existingId : undefined,
     name: data.name.trim(),
+    brand,
     slug: finalSlug,
     category: "e_liquide",
     subcategory: "",

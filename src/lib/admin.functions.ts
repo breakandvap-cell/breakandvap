@@ -12,6 +12,10 @@ import {
 const productInputSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(160),
+  // Marque optionnelle : sert uniquement à composer la référence SKU
+  // (segment MARQUE en 6 caractères). Non persistée en colonne dédiée —
+  // la marque figure déjà dans `description` via le wizard.
+  brand: z.string().trim().max(60).optional().or(z.literal("")),
   slug: z
     .preprocess(
       // Défense en profondeur : si le wizard laisse passer un slug avec
@@ -435,7 +439,9 @@ async function upsertProductCore(
         name: f.name,
         stock: f.stock,
         photo: (f as { photo?: string | null }).photo ?? null,
-        sku: ((f as { sku?: string }).sku ?? "").toString().trim() || slugSku(data.name, f.name),
+        sku:
+          ((f as { sku?: string }).sku ?? "").toString().trim() ||
+          buildFlavorSku(data.brand ?? "", data.name, f.name),
         is_active: (f as { is_active?: boolean }).is_active ?? true,
       }))) as never,
       updated_by: context.userId,
@@ -556,23 +562,32 @@ async function upsertProductCore(
           }
         }
         const existing = existingByKey.get(`${v.volume_ml}::${nicotineType}`);
-        // SKU : la ligne saisie par l'admin sert de base ; pour les types
-        // dérivés (sel/ice), on suffixe pour rester unique. On ne réécrit
-        // pas le SKU d'une variante existante afin de préserver la stabilité
-        // des références déjà imprimées / partagées.
+        // Politique SKU :
+        //  - une variante existante conserve son SKU (stable, potentiellement
+        //    imprimée / partagée) ;
+        //  - un SKU saisi manuellement par l'admin dans le wizard est respecté ;
+        //  - sinon on génère un SKU canonique unique via `buildVariantSku` :
+        //    MARQUE-NOM-VOLUME[-TYPE][-NNMG]. Le taux de nicotine n'est ajouté
+        //    que pour les formats à taux fixe (une seule valeur autorisée).
         let sku = existing?.sku ?? "";
         if (!sku) {
-          const baseSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
-          const suffix = nicotineType === "normale" ? "" : `-${nicotineType.toUpperCase()}`;
-          sku = baseSku
-            ? `${baseSku}${suffix}`
-            : ensureUniqueSku(
-                slugSku(data.name, `${v.volume_ml}ML-${nicotineType.toUpperCase()}`),
-                existingSkus,
-              );
-          if (existingSkus.has(sku.toUpperCase())) {
-            sku = ensureUniqueSku(sku, existingSkus);
-          }
+          const providedSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
+          const availableMg = (v.available_nicotine_mg ?? []) as number[];
+          const fixedMg =
+            (typeof v.max_boosters === "number" ? v.max_boosters : 0) === 0 &&
+            availableMg.length === 1
+              ? availableMg[0]
+              : null;
+          const candidate = providedSku
+            ? providedSku
+            : buildVariantSku({
+                brand: data.brand ?? "",
+                name: data.name,
+                volumeMl: v.volume_ml,
+                nicotineType,
+                fixedMg,
+              });
+          sku = ensureUniqueSku(candidate, existingSkus);
         }
         existingSkus.add(sku.toUpperCase());
         const row = {
@@ -624,21 +639,59 @@ async function upsertProductCore(
 }
 
 // ---------- SKU helpers ----------
+//
+// Format canonique d'un SKU de variante :
+//   [MARQUE(6)-]NOM(10)-<vol>ML[-TYPE][-NNMG]
+//
+// Où :
+//   MARQUE  = 6 premiers caractères significatifs de la marque (facultatif).
+//   NOM     = 10 premiers caractères significatifs du nom produit.
+//   TYPE    = SEL / ICE pour les types dérivés (omis pour « normale »).
+//   NNMG    = taux fixe sur 2 chiffres (ex : 06MG) — uniquement pour les
+//             formats 10 ml à taux fixe (une seule valeur autorisée).
+// L'unicité est ensuite garantie par `ensureUniqueSku` (-2, -3, …).
 
-function slugSku(productName: string, suffix: string): string {
-  const base = (productName ?? "")
+function skuSegment(input: string, maxLen: number): string {
+  return (input ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 8);
-  const sfx = (suffix ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 10);
-  return (`${base}-${sfx}` || "SKU").slice(0, 32);
+    .slice(0, maxLen);
+}
+
+export function buildVariantSku(args: {
+  brand: string | null | undefined;
+  name: string;
+  volumeMl: number;
+  nicotineType?: string | null;
+  fixedMg?: number | null;
+}): string {
+  const parts: string[] = [];
+  const brandSeg = skuSegment(args.brand ?? "", 6);
+  if (brandSeg) parts.push(brandSeg);
+  parts.push(skuSegment(args.name, 10) || "PRD");
+  parts.push(`${Math.max(0, Math.trunc(args.volumeMl))}ML`);
+  const type = (args.nicotineType ?? "normale").toString().trim().toLowerCase();
+  if (type && type !== "normale") parts.push(skuSegment(type, 6));
+  if (typeof args.fixedMg === "number" && Number.isFinite(args.fixedMg)) {
+    parts.push(`${String(Math.max(0, Math.trunc(args.fixedMg))).padStart(2, "0")}MG`);
+  }
+  return parts.join("-").slice(0, 40);
+}
+
+export function buildFlavorSku(
+  brand: string | null | undefined,
+  productName: string,
+  flavor: string,
+): string {
+  const parts: string[] = [];
+  const brandSeg = skuSegment(brand ?? "", 6);
+  if (brandSeg) parts.push(brandSeg);
+  parts.push(skuSegment(productName, 10) || "PRD");
+  const fseg = skuSegment(flavor, 8);
+  if (fseg) parts.push(fseg);
+  return parts.join("-").slice(0, 40);
 }
 
 function ensureUniqueSku(base: string, taken: Set<string>): string {

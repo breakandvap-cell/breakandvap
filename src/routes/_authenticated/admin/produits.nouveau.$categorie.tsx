@@ -437,6 +437,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
 
     const payload: ProductInput = {
       name: state.name.trim(),
+      brand,
       slug: finalSlug || slugify(`produit-${Date.now()}`),
       category,
       subcategory: "",
