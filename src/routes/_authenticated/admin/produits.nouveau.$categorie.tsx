@@ -4,9 +4,11 @@ import {
   Navigate,
   useNavigate,
 } from "@tanstack/react-router";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  adminGetProduct,
+  adminListVariants,
   adminUpsertProduct,
   adminUploadProductPhoto,
   type ProductInput,
@@ -53,6 +55,9 @@ type VariantChoice = {
   sku: string;
 };
 
+type AdminProduct = Awaited<ReturnType<typeof adminGetProduct>>;
+type AdminVariant = Awaited<ReturnType<typeof adminListVariants>>[number];
+
 const SLUG_TO_CATEGORY: Record<Exclude<WizardSlug, "e-liquide">, SimpleCategory> = {
   cbd: "cbd",
   "accessoire-vape": "accessoire_vape",
@@ -61,6 +66,9 @@ const SLUG_TO_CATEGORY: Record<Exclude<WizardSlug, "e-liquide">, SimpleCategory>
 
 export const Route = createFileRoute("/_authenticated/admin/produits/nouveau/$categorie")({
   ssr: false,
+  validateSearch: (search): { edit?: string } => ({
+    edit: typeof search.edit === "string" ? search.edit : undefined,
+  }),
   component: WizardEntry,
 });
 
@@ -82,20 +90,50 @@ function generateSku(name: string) {
 
 function WizardEntry() {
   const { categorie } = Route.useParams();
+  const { edit } = Route.useSearch();
   const slug = categorie as WizardSlug;
+  const category = SLUG_TO_CATEGORY[slug as Exclude<WizardSlug, "e-liquide">];
+  const get = useServerFn(adminGetProduct);
+  const listVariants = useServerFn(adminListVariants);
+  const { data: existing, isLoading: loadingProduct } = useQuery({
+    queryKey: ["admin", "product", edit],
+    queryFn: () => get({ data: { id: edit! } }),
+    enabled: Boolean(edit && category),
+    retry: false,
+  });
+  const { data: existingVariants = [], isLoading: loadingVariants } = useQuery({
+    queryKey: ["admin", "product-variants", edit],
+    queryFn: () => listVariants({ data: { productId: edit! } }),
+    enabled: Boolean(edit && category),
+    retry: false,
+  });
   if (slug === "e-liquide") {
     return (
       <Navigate
         to="/admin/produits/eliquide/$id"
-        params={{ id: "nouveau" }}
+        params={{ id: edit ?? "nouveau" }}
       />
     );
   }
-  const category = SLUG_TO_CATEGORY[slug as Exclude<WizardSlug, "e-liquide">];
   if (!category) {
     return <Navigate to="/admin/produits/nouveau" />;
   }
-  return <Wizard slug={slug} category={category} />;
+  if (edit && (loadingProduct || loadingVariants)) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Chargement du produit…
+      </div>
+    );
+  }
+  return (
+    <Wizard
+      slug={slug}
+      category={category}
+      productId={edit}
+      existing={existing ?? null}
+      existingVariants={existingVariants}
+    />
+  );
 }
 
 type WizardState = {
@@ -127,6 +165,31 @@ type WizardState = {
   product_kind: ProductKind;
   variant_attribute_name: string;
   variant_choices: VariantChoice[];
+};
+
+const EMPTY_STATE: WizardState = {
+  name: "",
+  brand: "",
+  photos: [],
+  sale_mode: "weight",
+  weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
+  weight_stock_g: "0",
+  sachets: [newSachet("1", "", "0")],
+  priceEuros: "",
+  stock: "0",
+  sku: "",
+  descriptionShort: "",
+  cbd_percent: "",
+  thc_percent: "",
+  intensity: "",
+  coa_url: "",
+  is_nicotine_booster: false,
+  booster_type: "normale",
+  is_empty_bottle: false,
+  volume_ml: "",
+  product_kind: "simple",
+  variant_attribute_name: "",
+  variant_choices: [newVariantChoice()],
 };
 
 const STEP_LABELS_DEFAULT = ["Base produit", "Vente", "Données métier", "Relecture"] as const;
@@ -168,7 +231,126 @@ function newVariantChoice(value = "", priceEuros = "", stock = "0", sku = ""): V
   return { value, priceEuros, stock, sku };
 }
 
-function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory }) {
+function cleanedDescription(description: string | null | undefined) {
+  const raw = (description ?? "").trim();
+  const brand = raw.match(/^\*\*Marque\s*:\*\*\s*([^\n]+)/i)?.[1]?.trim() ?? "";
+  const variable = raw.match(/^\*\*(.+?) disponibles\s*:\*\*\s*([^\n]+)/im);
+  const body = raw
+    .split(/\n+/)
+    .filter((line) => !/^\*\*Marque\s*:/i.test(line.trim()))
+    .filter((line) => !/^_Mode de vente\s*:/i.test(line.trim()))
+    .filter((line) => !/^\*\*.+? disponibles\s*:/i.test(line.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return {
+    brand,
+    description: body || raw,
+    attributeName: variable?.[1]?.trim() ?? "Choix",
+    values: variable?.[2]?.split(",").map((v) => v.trim()).filter(Boolean) ?? [],
+  };
+}
+
+function centsToEuros(cents: number | null | undefined) {
+  return typeof cents === "number" && Number.isFinite(cents) && cents > 0
+    ? (cents / 100).toFixed(2)
+    : "";
+}
+
+function stateFromExisting(
+  category: SimpleCategory,
+  existing: AdminProduct | null,
+  variants: AdminVariant[],
+): WizardState {
+  if (!existing) return { ...EMPTY_STATE, variant_choices: [newVariantChoice()] };
+  const parsed = cleanedDescription(existing.description);
+  const activeVariants = (variants ?? [])
+    .filter((v) => (v as { is_active?: boolean }).is_active !== false)
+    .sort((a, b) => a.volume_ml - b.volume_ml);
+  const base: WizardState = {
+    ...EMPTY_STATE,
+    name: existing.name ?? "",
+    brand: parsed.brand,
+    photos: Array.isArray(existing.photos) ? existing.photos : [],
+    priceEuros: centsToEuros(existing.price_cents),
+    stock: String(existing.stock ?? 0),
+    descriptionShort: parsed.description,
+    cbd_percent:
+      typeof existing.cbd_percent === "number" ? String(existing.cbd_percent) : "",
+    thc_percent:
+      typeof existing.thc_percent === "number" ? String(existing.thc_percent) : "",
+    coa_url: existing.coa_url ?? "",
+    is_nicotine_booster: Boolean(existing.is_nicotine_booster),
+    booster_type:
+      (existing as { booster_type?: string | null }).booster_type ?? "normale",
+    is_empty_bottle:
+      category === "accessoire_vape" &&
+      typeof (existing as { volume_ml?: number | null }).volume_ml === "number",
+    volume_ml:
+      typeof (existing as { volume_ml?: number | null }).volume_ml === "number"
+        ? String((existing as { volume_ml: number }).volume_ml)
+        : "",
+  };
+
+  if (category === "cbd" && activeVariants.length > 0) {
+    const first = activeVariants[0] as AdminVariant & { quantity_tiers?: unknown };
+    const tiers = Array.isArray(first.quantity_tiers)
+      ? (first.quantity_tiers as Array<{ min_qty?: number; price_cents?: number }>)
+      : [];
+    if (tiers.length > 0) {
+      return {
+        ...base,
+        sale_mode: "weight",
+        weight_stock_g: String(first.stock ?? existing.stock ?? 0),
+        weight_tiers: tiers.map((t) =>
+          newTier(String(t.min_qty ?? 1), centsToEuros(t.price_cents ?? 0)),
+        ),
+      };
+    }
+    return {
+      ...base,
+      sale_mode: "packs",
+      sachets: activeVariants.map((v) =>
+        newSachet(String(v.volume_ml), centsToEuros(v.price_cents), String(v.stock ?? 0)),
+      ),
+    };
+  }
+
+  if (
+    (category === "accessoire_vape" || category === "accessoire_cbd") &&
+    activeVariants.length > 0
+  ) {
+    return {
+      ...base,
+      product_kind: "variants",
+      variant_attribute_name: parsed.attributeName,
+      variant_choices: activeVariants.map((v, i) =>
+        newVariantChoice(
+          parsed.values[i] ?? `Choix ${i + 1}`,
+          centsToEuros(v.price_cents),
+          String(v.stock ?? 0),
+          v.sku ?? "",
+        ),
+      ),
+    };
+  }
+
+  return base;
+}
+
+function Wizard({
+  slug,
+  category,
+  productId,
+  existing,
+  existingVariants,
+}: {
+  slug: WizardSlug;
+  category: SimpleCategory;
+  productId?: string;
+  existing: AdminProduct | null;
+  existingVariants: AdminVariant[];
+}) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const save = useServerFn(adminUpsertProduct);
@@ -182,30 +364,9 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
   const [skuTouched, setSkuTouched] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [state, setState] = useState<WizardState>({
-    name: "",
-    brand: "",
-    photos: [],
-    sale_mode: "weight",
-    weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
-    weight_stock_g: "0",
-    sachets: [newSachet("1", "", "0")],
-    priceEuros: "",
-    stock: "0",
-    sku: "",
-    descriptionShort: "",
-    cbd_percent: "",
-    thc_percent: "",
-    intensity: "",
-    coa_url: "",
-    is_nicotine_booster: false,
-    booster_type: "normale",
-    is_empty_bottle: false,
-    volume_ml: "",
-    product_kind: "simple",
-    variant_attribute_name: "",
-    variant_choices: [newVariantChoice()],
-  });
+  const [state, setState] = useState<WizardState>(() =>
+    stateFromExisting(category, existing, existingVariants),
+  );
 
   // SKU auto-généré à la volée depuis le nom tant que l'admin n'y a pas touché.
   useEffect(() => {
@@ -282,12 +443,22 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
   const m = useMutation({
     mutationFn: (payload: ProductInput) => save({ data: payload }),
     onSuccess: async (row) => {
-      toast.success("Produit créé.");
+      toast.success(productId ? "Produit et variantes enregistrés." : "Produit et variantes créés.");
       await qc.invalidateQueries({ queryKey: ["admin", "products"] });
       await qc.invalidateQueries({ queryKey: ["products"] });
       const newId = (row as { id?: string } | null)?.id;
       if (newId) {
-        navigate({ to: "/admin/produits/$id", params: { id: newId } });
+        const targetSlug =
+          category === "cbd"
+            ? "cbd"
+            : category === "accessoire_vape"
+              ? "accessoire-vape"
+              : "accessoire-cbd";
+        navigate({
+          to: "/admin/produits/nouveau/$categorie",
+          params: { categorie: targetSlug },
+          search: { edit: newId },
+        });
       } else {
         navigate({ to: "/admin/produits" });
       }
@@ -436,6 +607,7 @@ function Wizard({ slug, category }: { slug: WizardSlug; category: SimpleCategory
     }
 
     const payload: ProductInput = {
+      id: productId,
       name: state.name.trim(),
       brand,
       slug: finalSlug || slugify(`produit-${Date.now()}`),

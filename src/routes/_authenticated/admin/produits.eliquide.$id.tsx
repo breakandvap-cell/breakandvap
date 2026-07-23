@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 import {
   adminGetProduct,
+  adminListVariants,
   adminUploadProductPhoto,
   adminUpsertProduct,
   type ProductInput,
@@ -137,6 +138,194 @@ const EMPTY: WizardData = {
 
 const NICOTINE_10ML_OPTIONS = [0, 3, 6, 9, 10, 11, 12, 16, 20] as const;
 
+type AdminProduct = Awaited<ReturnType<typeof adminGetProduct>>;
+type AdminVariant = Awaited<ReturnType<typeof adminListVariants>>[number];
+
+function splitStoredDescription(description: string | null | undefined) {
+  const raw = (description ?? "").trim();
+  if (!raw) return { brand: "", shortDescription: "", description: "", pgVg: "", country: "" };
+
+  const meta: Record<"brand" | "pgVg" | "country", string> = {
+    brand: "",
+    pgVg: "",
+    country: "",
+  };
+  const body = raw
+    .split(/\n+/)
+    .map((line) => {
+      const brand = line.match(/^\*\*Marque\s*:\*\*\s*(.+)$/i);
+      if (brand) {
+        meta.brand = brand[1].trim();
+        return "";
+      }
+      const pgvg = line.match(/^\*\*PG\/VG\s*:\*\*\s*(.+)$/i);
+      if (pgvg) {
+        meta.pgVg = pgvg[1].trim();
+        return "";
+      }
+      const country = line.match(/^\*\*Origine\s*:\*\*\s*(.+)$/i);
+      if (country) {
+        meta.country = country[1].trim();
+        return "";
+      }
+      return line;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  if (!meta.brand && !meta.pgVg && !meta.country) {
+    return { ...meta, shortDescription: "", description: raw };
+  }
+  const paragraphs = body.split(/\n\n+/).map((p) => p.trim()).filter(Boolean);
+  return {
+    ...meta,
+    shortDescription: paragraphs[0] ?? "",
+    description: paragraphs.slice(1).join("\n\n") || paragraphs[0] || "",
+  };
+}
+
+function flavorIdFor(name: string, index: number) {
+  return slugifyUrl(name) || `gout-${index + 1}`;
+}
+
+function distributeStock(total: number, index: number, count: number) {
+  if (count <= 1) return Math.max(0, Math.trunc(total));
+  const safeTotal = Math.max(0, Math.trunc(total));
+  const base = Math.floor(safeTotal / count);
+  return base + (index < safeTotal % count ? 1 : 0);
+}
+
+function wizardDataFromExisting(
+  existing: AdminProduct,
+  variants: AdminVariant[],
+): WizardData {
+  const photos = Array.isArray(existing.photos) ? existing.photos : [];
+  const parsed = splitStoredDescription(existing.description);
+  const rawFlavors = Array.isArray((existing as { flavors?: unknown }).flavors)
+    ? ((existing as { flavors: unknown[] }).flavors as Array<Record<string, unknown>>)
+    : [];
+  const flavors: Flavor[] = rawFlavors
+    .map((f, i) => {
+      const name = typeof f.name === "string" ? f.name.trim() : "";
+      if (!name) return null;
+      return {
+        id: flavorIdFor(name, i),
+        name,
+        image: typeof f.photo === "string" && f.photo ? f.photo : null,
+        active: typeof f.is_active === "boolean" ? f.is_active : true,
+      } satisfies Flavor;
+    })
+    .filter((f): f is Flavor => Boolean(f));
+  const activeFlavors = flavors.filter((f) => f.active);
+  const matrixFlavors = activeFlavors.length > 0
+    ? activeFlavors
+    : [{ id: "__default__", name: "Sans variante", image: null, active: true } as Flavor];
+
+  const activeVariants = (variants ?? []).filter(
+    (v) => (v as { is_active?: boolean }).is_active !== false,
+  );
+  const byVolume = new Map<number, AdminVariant>();
+  for (const v of activeVariants) {
+    const type = ((v as { nicotine_type?: string | null }).nicotine_type ?? "normale")
+      .toString()
+      .trim()
+      .toLowerCase();
+    const current = byVolume.get(v.volume_ml);
+    if (!current || type === "normale") byVolume.set(v.volume_ml, v);
+  }
+
+  const smallMg = new Set<number>();
+  let smallPriceCents = 0;
+  let smallRepresentative: AdminVariant | null = null;
+  const largeFormats: LargeFormatRow[] = [];
+  const matrix: Record<string, MatrixCell> = {};
+
+  for (const v of Array.from(byVolume.values()).sort((a, b) => a.volume_ml - b.volume_ml)) {
+    const cap = typeof (v as { max_boosters?: number | null }).max_boosters === "number"
+      ? Math.max(0, Math.trunc((v as { max_boosters: number }).max_boosters))
+      : 0;
+    const nicotineValues = Array.isArray(v.available_nicotine_mg)
+      ? v.available_nicotine_mg.filter((n) => Number.isFinite(n)).sort((a, b) => a - b)
+      : [];
+    const isSmall = v.volume_ml === 10 && cap === 0;
+    if (isSmall) {
+      smallRepresentative = v;
+      smallPriceCents = v.price_cents || smallPriceCents;
+      for (const mg of nicotineValues.length > 0 ? nicotineValues : [v.max_nicotine_mg ?? 0]) {
+        smallMg.add(Math.max(0, Math.trunc(mg)));
+      }
+      continue;
+    }
+    largeFormats.push({
+      id: `volume-${v.volume_ml}`,
+      volumeMl: v.volume_ml,
+      bottleCapacityMl: v.volume_ml + cap * DEFAULT_BOOSTER_CONFIG.boosterVolumeMl,
+      priceCents: v.price_cents,
+    });
+  }
+
+  const smallMgList = Array.from(smallMg).sort((a, b) => a - b);
+  if (smallRepresentative && smallMgList.length > 0) {
+    let index = 0;
+    const totalCells = matrixFlavors.length * smallMgList.length;
+    for (const f of matrixFlavors) {
+      for (const mg of smallMgList) {
+        matrix[`small:${f.id}:${mg}`] = {
+          stock: distributeStock(smallRepresentative.stock, index, totalCells),
+          sku: smallRepresentative.sku ?? defaultSkuFor(existing.name, {
+            key: `small:${f.id}:${mg}`,
+            flavor: f,
+            kind: "small",
+            label: `10 ml · ${mg} mg`,
+            suffix: `10ML-${String(mg).padStart(2, "0")}MG`,
+          }),
+          active: true,
+        };
+        index++;
+      }
+    }
+  }
+
+  for (const row of largeFormats) {
+    const representative = byVolume.get(row.volumeMl);
+    if (!representative) continue;
+    matrixFlavors.forEach((f, index) => {
+      matrix[`large:${f.id}:${row.id}`] = {
+        stock: distributeStock(representative.stock, index, matrixFlavors.length),
+        sku: representative.sku ?? defaultSkuFor(existing.name, {
+          key: `large:${f.id}:${row.id}`,
+          flavor: f,
+          kind: "large",
+          label: `${row.volumeMl} ml`,
+          suffix: `${row.volumeMl}ML`,
+        }),
+        active: true,
+      };
+    });
+  }
+
+  const hasSmall = smallMgList.length > 0;
+  const hasLarge = largeFormats.length > 0;
+  return {
+    ...EMPTY,
+    name: existing.name ?? "",
+    brand: parsed.brand,
+    shortDescription: parsed.shortDescription,
+    description: parsed.description,
+    mainPhoto: photos[0] ?? null,
+    photos: photos.slice(1),
+    pgVg: parsed.pgVg,
+    country: parsed.country,
+    salesMode: hasSmall && hasLarge ? "both" : hasSmall ? "small_only" : hasLarge ? "large_only" : null,
+    flavors,
+    smallFormat: { nicotineMg: smallMgList, priceCents: smallPriceCents },
+    largeFormats,
+    matrix,
+    nicotineTypes: { normale: true, sel: true, ice: true },
+  };
+}
+
 // -------------------------------------------------------------------
 // Structure du parcours — active/inactive selon salesMode. Seules les
 // étapes 1 et 2 sont visitables actuellement ; les suivantes sont
@@ -204,14 +393,21 @@ function ELiquideWizardEntry() {
   const { id } = Route.useParams();
   const isNew = id === "nouveau";
   const get = useServerFn(adminGetProduct);
+  const listVariants = useServerFn(adminListVariants);
   const { data: existing, isLoading } = useQuery({
     queryKey: ["admin", "product", id],
     queryFn: () => get({ data: { id } }),
     enabled: !isNew,
     retry: false,
   });
+  const { data: existingVariants = [], isLoading: loadingVariants } = useQuery({
+    queryKey: ["admin", "product-variants", id],
+    queryFn: () => listVariants({ data: { productId: id } }),
+    enabled: !isNew,
+    retry: false,
+  });
 
-  if (!isNew && isLoading) {
+  if (!isNew && (isLoading || loadingVariants)) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" /> Chargement du produit…
@@ -219,7 +415,13 @@ function ELiquideWizardEntry() {
     );
   }
 
-  return <Wizard productId={id} existing={existing ?? null} />;
+  return (
+    <Wizard
+      productId={id}
+      existing={existing ?? null}
+      existingVariants={existingVariants}
+    />
+  );
 }
 
 // -------------------------------------------------------------------
@@ -229,31 +431,24 @@ function ELiquideWizardEntry() {
 function Wizard({
   productId,
   existing,
+  existingVariants,
 }: {
   productId: string;
-  existing: Awaited<ReturnType<typeof adminGetProduct>> | null;
+  existing: AdminProduct | null;
+  existingVariants: AdminVariant[];
 }) {
   const isNew = productId === "nouveau";
 
   // Hydrate le brouillon depuis sessionStorage, sinon depuis le produit
-  // existant. Les champs non encore stockés en base (marque, PG/VG, pays,
-  // description courte) restent vides à l'édition tant que le schéma
-  // n'est pas étendu par les étapes suivantes.
+  // existant avec toutes ses contenances/variantes.
   const initial = useMemo<WizardData>(() => {
+    if (existing) {
+      return wizardDataFromExisting(existing, existingVariants);
+    }
     const draft = loadDraft(productId);
     if (draft) return draft;
-    if (existing) {
-      const photos = Array.isArray(existing.photos) ? existing.photos : [];
-      return {
-        ...EMPTY,
-        name: existing.name ?? "",
-        description: existing.description ?? "",
-        mainPhoto: photos[0] ?? null,
-        photos: photos.slice(1),
-      };
-    }
     return EMPTY;
-  }, [productId, existing]);
+  }, [productId, existing, existingVariants]);
 
   const [data, setData] = useState<WizardData>(initial);
   const [stepIndex, setStepIndex] = useState(0);
@@ -323,14 +518,16 @@ function Wizard({
         >
           <ArrowLeft className="h-4 w-4" /> Choisir un autre type
         </Link>
-        <Link
-          to="/admin/produits/$id"
-          params={{ id: isNew ? "nouveau-eliquide" : productId }}
-          className="text-xs text-muted-foreground underline hover:text-foreground"
-          title="Bascule vers l'ancien formulaire complet en attendant que ce parcours soit finalisé."
-        >
-          Utiliser l'ancien formulaire
-        </Link>
+        {isNew ? (
+          <Link
+            to="/admin/produits/$id"
+            params={{ id: "nouveau-eliquide" }}
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+            title="Bascule vers l'ancien formulaire complet en secours."
+          >
+            Utiliser l'ancien formulaire
+          </Link>
+        ) : null}
       </div>
 
       {/* Barre de progression */}
@@ -1875,7 +2072,7 @@ function StepReview({
         /* ignore */
       }
       const newId = (row as { id?: string } | null)?.id;
-      if (newId) navigate({ to: "/admin/produits/$id", params: { id: newId } });
+      if (newId) navigate({ to: "/admin/produits/eliquide/$id", params: { id: newId } });
       else navigate({ to: "/admin/produits" });
     },
     onError: (e) => toast.error((e as Error).message || "Enregistrement impossible."),

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link, Navigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -142,6 +142,9 @@ function ImpactPanel({ impact }: { impact: ImpactData }) {
 
 function EditProduct() {
   const { id } = Route.useParams();
+  if (id === "nouveau") {
+    return <Navigate to="/admin/produits/nouveau" />;
+  }
   const isNew = id === "nouveau" || id === "nouveau-eliquide";
   const presetCategory: FormState["category"] | null =
     id === "nouveau-eliquide" ? "e_liquide" : null;
@@ -530,6 +533,26 @@ function EditProduct() {
       <div className="rounded-md border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
         Impossible de charger ce produit : {(loadError as Error).message}
       </div>
+    );
+  }
+
+  if (!isNew && existing) {
+    const category = existing.category === "accessoire" ? "accessoire_vape" : existing.category;
+    if (category === "e_liquide") {
+      return <Navigate to="/admin/produits/eliquide/$id" params={{ id: existing.id }} />;
+    }
+    const wizardSlug =
+      category === "cbd"
+        ? "cbd"
+        : category === "accessoire_vape"
+          ? "accessoire-vape"
+          : "accessoire-cbd";
+    return (
+      <Navigate
+        to="/admin/produits/nouveau/$categorie"
+        params={{ categorie: wizardSlug }}
+        search={{ edit: existing.id }}
+      />
     );
   }
 
