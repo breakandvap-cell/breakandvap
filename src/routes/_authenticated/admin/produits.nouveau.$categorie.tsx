@@ -272,7 +272,13 @@ function stateFromExisting(
   const base: WizardState = {
     ...EMPTY_STATE,
     name: existing.name ?? "",
-    brand: parsed.brand,
+    brand:
+      ((existing as { brand?: string | null }).brand ?? "").toString().trim() ||
+      parsed.brand,
+    range:
+      ((existing as { product_range?: string | null }).product_range ?? "")
+        .toString()
+        .trim(),
     photos: Array.isArray(existing.photos) ? existing.photos : [],
     priceEuros: centsToEuros(existing.price_cents),
     stock: String(existing.stock ?? 0),
