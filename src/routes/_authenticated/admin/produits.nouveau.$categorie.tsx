@@ -2397,6 +2397,7 @@ function StepReview({
       <ReviewSection title="Base produit" onEdit={() => onEditStep(idxBase)}>
         <ReviewRow label="Nom" value={state.name || "—"} />
         <ReviewRow label="Marque" value={state.brand || "—"} />
+        <ReviewRow label="Gamme" value={state.range || "—"} />
         <ReviewRow label="Catégorie" value={CATEGORY_LABELS[category]} />
         <ReviewRow
           label="Photos"
