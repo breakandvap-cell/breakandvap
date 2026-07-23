@@ -2183,6 +2183,7 @@ function StepReview({
         <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <ReviewKV k="Nom" v={data.name || "—"} />
           <ReviewKV k="Marque" v={data.brand || "—"} />
+          <ReviewKV k="Gamme" v={data.range || "—"} />
           <ReviewKV k="PG / VG" v={data.pgVg || "—"} />
           <ReviewKV k="Origine" v={data.country || "—"} />
         </dl>
