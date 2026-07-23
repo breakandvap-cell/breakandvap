@@ -1554,7 +1554,8 @@ function buildPayloadFromWizard(
   cfg: BoosterConfig,
   existingId?: string,
 ): ProductInput {
-  const finalSlug = slugify(data.name) || slugify(`eliquide-${Date.now()}`);
+  const finalSlug =
+    slugifyUrl(data.name) || slugifyUrl(`eliquide-${Date.now()}`);
   const brand = data.brand.trim();
   const shortDesc = data.shortDescription.trim();
   const longDesc = data.description.trim();
