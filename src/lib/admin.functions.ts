@@ -639,21 +639,59 @@ async function upsertProductCore(
 }
 
 // ---------- SKU helpers ----------
+//
+// Format canonique d'un SKU de variante :
+//   [MARQUE(6)-]NOM(10)-<vol>ML[-TYPE][-NNMG]
+//
+// Où :
+//   MARQUE  = 6 premiers caractères significatifs de la marque (facultatif).
+//   NOM     = 10 premiers caractères significatifs du nom produit.
+//   TYPE    = SEL / ICE pour les types dérivés (omis pour « normale »).
+//   NNMG    = taux fixe sur 2 chiffres (ex : 06MG) — uniquement pour les
+//             formats 10 ml à taux fixe (une seule valeur autorisée).
+// L'unicité est ensuite garantie par `ensureUniqueSku` (-2, -3, …).
 
-function slugSku(productName: string, suffix: string): string {
-  const base = (productName ?? "")
+function skuSegment(input: string, maxLen: number): string {
+  return (input ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 8);
-  const sfx = (suffix ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "")
-    .slice(0, 10);
-  return (`${base}-${sfx}` || "SKU").slice(0, 32);
+    .slice(0, maxLen);
+}
+
+export function buildVariantSku(args: {
+  brand: string | null | undefined;
+  name: string;
+  volumeMl: number;
+  nicotineType?: string | null;
+  fixedMg?: number | null;
+}): string {
+  const parts: string[] = [];
+  const brandSeg = skuSegment(args.brand ?? "", 6);
+  if (brandSeg) parts.push(brandSeg);
+  parts.push(skuSegment(args.name, 10) || "PRD");
+  parts.push(`${Math.max(0, Math.trunc(args.volumeMl))}ML`);
+  const type = (args.nicotineType ?? "normale").toString().trim().toLowerCase();
+  if (type && type !== "normale") parts.push(skuSegment(type, 6));
+  if (typeof args.fixedMg === "number" && Number.isFinite(args.fixedMg)) {
+    parts.push(`${String(Math.max(0, Math.trunc(args.fixedMg))).padStart(2, "0")}MG`);
+  }
+  return parts.join("-").slice(0, 40);
+}
+
+export function buildFlavorSku(
+  brand: string | null | undefined,
+  productName: string,
+  flavor: string,
+): string {
+  const parts: string[] = [];
+  const brandSeg = skuSegment(brand ?? "", 6);
+  if (brandSeg) parts.push(brandSeg);
+  parts.push(skuSegment(productName, 10) || "PRD");
+  const fseg = skuSegment(flavor, 8);
+  if (fseg) parts.push(fseg);
+  return parts.join("-").slice(0, 40);
 }
 
 function ensureUniqueSku(base: string, taken: Set<string>): string {
