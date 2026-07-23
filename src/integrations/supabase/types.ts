@@ -392,6 +392,7 @@ export type Database = {
         Row: {
           booster_product_id: string | null
           booster_type: string | null
+          brand: string | null
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent: number | null
           coa_url: string | null
@@ -409,6 +410,7 @@ export type Database = {
           nicotine_mg: number | null
           photos: string[]
           price_cents: number
+          product_range: string | null
           slug: string
           stock: number
           stock_status: Database["public"]["Enums"]["stock_status"]
@@ -421,6 +423,7 @@ export type Database = {
         Insert: {
           booster_product_id?: string | null
           booster_type?: string | null
+          brand?: string | null
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
@@ -438,6 +441,7 @@ export type Database = {
           nicotine_mg?: number | null
           photos?: string[]
           price_cents: number
+          product_range?: string | null
           slug: string
           stock?: number
           stock_status?: Database["public"]["Enums"]["stock_status"]
@@ -450,6 +454,7 @@ export type Database = {
         Update: {
           booster_product_id?: string | null
           booster_type?: string | null
+          brand?: string | null
           category?: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
@@ -467,6 +472,7 @@ export type Database = {
           nicotine_mg?: number | null
           photos?: string[]
           price_cents?: number
+          product_range?: string | null
           slug?: string
           stock?: number
           stock_status?: Database["public"]["Enums"]["stock_status"]
