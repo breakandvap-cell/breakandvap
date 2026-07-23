@@ -140,6 +140,7 @@ type WizardState = {
   // Étape 1
   name: string;
   brand: string;
+  range: string;
   photos: string[];
   // Étape 2 (mode CBD) / Étape 2 classique
   sale_mode: CbdSaleMode; // uniquement utilisé pour CBD
@@ -170,6 +171,7 @@ type WizardState = {
 const EMPTY_STATE: WizardState = {
   name: "",
   brand: "",
+  range: "",
   photos: [],
   sale_mode: "weight",
   weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
