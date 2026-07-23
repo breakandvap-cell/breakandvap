@@ -13,11 +13,26 @@ const productInputSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(160),
   slug: z
-    .string()
-    .trim()
-    .min(2)
-    .max(160)
-    .regex(/^[a-z0-9-]+$/, "Slug invalide (a-z, 0-9, -)"),
+    .preprocess(
+      // Défense en profondeur : si le wizard laisse passer un slug avec
+      // accents / majuscules / espaces / apostrophes, on le normalise ici
+      // plutôt que de bloquer l'admin avec une erreur technique.
+      (v) =>
+        typeof v === "string"
+          ? v
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/^-+|-+$/g, "")
+              .slice(0, 160)
+          : v,
+      z
+        .string()
+        .min(2, "L'adresse URL (slug) est vide — renseigne un nom de produit.")
+        .max(160)
+        .regex(/^[a-z0-9-]+$/, "Adresse URL invalide (lettres a-z, chiffres, tirets)."),
+    ),
   category: z.enum([
     "cbd",
     "e_liquide",
