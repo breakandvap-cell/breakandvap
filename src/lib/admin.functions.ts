@@ -12,6 +12,10 @@ import {
 const productInputSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(160),
+  // Marque optionnelle : sert uniquement à composer la référence SKU
+  // (segment MARQUE en 6 caractères). Non persistée en colonne dédiée —
+  // la marque figure déjà dans `description` via le wizard.
+  brand: z.string().trim().max(60).optional().or(z.literal("")),
   slug: z
     .preprocess(
       // Défense en profondeur : si le wizard laisse passer un slug avec
