@@ -2649,3 +2649,20 @@ function ReviewRow({
     </div>
   );
 }
+// Datalist « Gamme » filtré par marque, partagé entre les wizards simples.
+function SimpleRangeSuggestions({ brand }: { brand: string }) {
+  const rangesFn = useServerFn(adminListRanges);
+  const brandKey = brand.trim().toLowerCase();
+  const { data: ranges } = useQuery({
+    queryKey: ["admin", "product-ranges", brandKey],
+    queryFn: () => rangesFn({ data: { brand: brand.trim() } }),
+    staleTime: 60_000,
+  });
+  return (
+    <datalist id="simple-range-suggestions">
+      {(ranges ?? []).map((r) => (
+        <option key={r} value={r} />
+      ))}
+    </datalist>
+  );
+}
