@@ -522,6 +522,7 @@ function Wizard({
           <Link
             to="/admin/produits/$id"
             params={{ id: "nouveau-eliquide" }}
+            search={{ legacy: "1" }}
             className="text-xs text-muted-foreground underline hover:text-foreground"
             title="Bascule vers l'ancien formulaire complet en secours."
           >
