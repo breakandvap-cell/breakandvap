@@ -192,6 +192,7 @@ function ProductDetail() {
             >
               {product.name}
             </h1>
+            <BrandRangeLine product={product} />
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="text-2xl font-semibold sm:text-3xl">
@@ -633,6 +634,7 @@ function EliquideDetail({
             >
               {product.name}
             </h1>
+            <BrandRangeLine product={product} />
 
             <div className="mt-4 flex items-baseline gap-3">
               <span className="text-3xl font-semibold">
