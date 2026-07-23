@@ -1868,6 +1868,7 @@ function buildPayloadFromWizard(
     id: existingId && existingId !== "nouveau" ? existingId : undefined,
     name: data.name.trim(),
     brand,
+    range: data.range.trim(),
     slug: finalSlug,
     category: "e_liquide",
     subcategory: "",
