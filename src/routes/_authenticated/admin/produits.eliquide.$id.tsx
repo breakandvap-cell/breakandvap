@@ -348,6 +348,16 @@ function Wizard({
           <StepFormats data={data} onPatch={patch} />
         ) : currentStep.id === "nicotine" ? (
           <StepNicotine data={data} onPatch={patch} />
+        ) : currentStep.id === "review" ? (
+          <StepReview
+            data={data}
+            productId={productId}
+            isNew={isNew}
+            onJumpToStep={(id) => {
+              const idx = steps.findIndex((s) => s.id === id);
+              if (idx >= 0) setStepIndex(idx);
+            }}
+          />
         ) : (
           <StepPlaceholder label={currentStep.label} />
         )}
@@ -363,14 +373,20 @@ function Wizard({
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
-        <button
-          type="button"
-          onClick={goNext}
-          disabled={!canAdvance}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-40"
-        >
-          Continuer <ArrowRight className="h-4 w-4" />
-        </button>
+        {currentStep.id !== "review" ? (
+          <button
+            type="button"
+            onClick={goNext}
+            disabled={!canAdvance}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-40"
+          >
+            Continuer <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : (
+          <span className="text-xs text-muted-foreground">
+            Utilise les boutons de publication ci-dessus.
+          </span>
+        )}
       </div>
     </div>
   );
