@@ -1178,3 +1178,21 @@ function FlavorPicker({
     </div>
   );
 }
+
+// Affiche « Marque · Gamme » sous le titre du produit lorsque ces champs
+// sont renseignés en base. Purement visuel : n'ajoute rien si les deux
+// colonnes sont vides.
+function BrandRangeLine({
+  product,
+}: {
+  product: { brand?: string | null; product_range?: string | null };
+}) {
+  const brand = (product.brand ?? "").trim();
+  const range = (product.product_range ?? "").trim();
+  if (!brand && !range) return null;
+  return (
+    <p className="mt-1 text-xs uppercase tracking-[0.25em] text-muted-foreground">
+      {[brand, range].filter(Boolean).join(" · ")}
+    </p>
+  );
+}
