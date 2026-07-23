@@ -562,23 +562,32 @@ async function upsertProductCore(
           }
         }
         const existing = existingByKey.get(`${v.volume_ml}::${nicotineType}`);
-        // SKU : la ligne saisie par l'admin sert de base ; pour les types
-        // dérivés (sel/ice), on suffixe pour rester unique. On ne réécrit
-        // pas le SKU d'une variante existante afin de préserver la stabilité
-        // des références déjà imprimées / partagées.
+        // Politique SKU :
+        //  - une variante existante conserve son SKU (stable, potentiellement
+        //    imprimée / partagée) ;
+        //  - un SKU saisi manuellement par l'admin dans le wizard est respecté ;
+        //  - sinon on génère un SKU canonique unique via `buildVariantSku` :
+        //    MARQUE-NOM-VOLUME[-TYPE][-NNMG]. Le taux de nicotine n'est ajouté
+        //    que pour les formats à taux fixe (une seule valeur autorisée).
         let sku = existing?.sku ?? "";
         if (!sku) {
-          const baseSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
-          const suffix = nicotineType === "normale" ? "" : `-${nicotineType.toUpperCase()}`;
-          sku = baseSku
-            ? `${baseSku}${suffix}`
-            : ensureUniqueSku(
-                slugSku(data.name, `${v.volume_ml}ML-${nicotineType.toUpperCase()}`),
-                existingSkus,
-              );
-          if (existingSkus.has(sku.toUpperCase())) {
-            sku = ensureUniqueSku(sku, existingSkus);
-          }
+          const providedSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
+          const availableMg = (v.available_nicotine_mg ?? []) as number[];
+          const fixedMg =
+            (typeof v.max_boosters === "number" ? v.max_boosters : 0) === 0 &&
+            availableMg.length === 1
+              ? availableMg[0]
+              : null;
+          const candidate = providedSku
+            ? providedSku
+            : buildVariantSku({
+                brand: data.brand ?? "",
+                name: data.name,
+                volumeMl: v.volume_ml,
+                nicotineType,
+                fixedMg,
+              });
+          sku = ensureUniqueSku(candidate, existingSkus);
         }
         existingSkus.add(sku.toUpperCase());
         const row = {
