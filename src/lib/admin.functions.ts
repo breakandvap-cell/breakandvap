@@ -669,6 +669,7 @@ function skuSegment(input: string, maxLen: number): string {
 
 export function buildVariantSku(args: {
   brand: string | null | undefined;
+  range?: string | null | undefined;
   name: string;
   volumeMl: number;
   nicotineType?: string | null;
@@ -677,6 +678,8 @@ export function buildVariantSku(args: {
   const parts: string[] = [];
   const brandSeg = skuSegment(args.brand ?? "", 6);
   if (brandSeg) parts.push(brandSeg);
+  const rangeSeg = skuSegment(args.range ?? "", 8);
+  if (rangeSeg) parts.push(rangeSeg);
   parts.push(skuSegment(args.name, 10) || "PRD");
   parts.push(`${Math.max(0, Math.trunc(args.volumeMl))}ML`);
   const type = (args.nicotineType ?? "normale").toString().trim().toLowerCase();
@@ -691,10 +694,13 @@ export function buildFlavorSku(
   brand: string | null | undefined,
   productName: string,
   flavor: string,
+  range?: string | null | undefined,
 ): string {
   const parts: string[] = [];
   const brandSeg = skuSegment(brand ?? "", 6);
   if (brandSeg) parts.push(brandSeg);
+  const rangeSeg = skuSegment(range ?? "", 8);
+  if (rangeSeg) parts.push(rangeSeg);
   parts.push(skuSegment(productName, 10) || "PRD");
   const fseg = skuSegment(flavor, 8);
   if (fseg) parts.push(fseg);
