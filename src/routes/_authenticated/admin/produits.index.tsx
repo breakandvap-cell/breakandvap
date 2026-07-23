@@ -180,12 +180,38 @@ function ProductsList() {
 
         {(search.category || search.status) && (
           <button
-            onClick={() => setFilter({ category: "", status: "" })}
+            onClick={() => setFilter({ category: "", status: "", brand: "", range: "" })}
             className="text-sm text-muted-foreground hover:text-foreground"
           >
             Réinitialiser
           </button>
         )}
+
+        <div className="flex items-center gap-2">
+          <label htmlFor="brand" className="text-sm text-muted-foreground">
+            Marque
+          </label>
+          <input
+            id="brand"
+            value={search.brand ?? ""}
+            onChange={(e) => setFilter({ brand: e.target.value })}
+            placeholder="Toutes"
+            className="w-40 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label htmlFor="range" className="text-sm text-muted-foreground">
+            Gamme
+          </label>
+          <input
+            id="range"
+            value={search.range ?? ""}
+            onChange={(e) => setFilter({ range: e.target.value })}
+            placeholder="Toutes"
+            className="w-40 rounded-md border border-input bg-background px-3 py-2 text-sm"
+          />
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-md border">
@@ -193,6 +219,7 @@ function ProductsList() {
           <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
             <tr>
               <th className="px-3 py-2">Nom</th>
+              <th className="px-3 py-2">Marque · Gamme</th>
               <th className="px-3 py-2">Catégorie</th>
               <th className="px-3 py-2">Prix</th>
               <th className="px-3 py-2">Stock</th>
@@ -218,6 +245,14 @@ function ProductsList() {
                       })}
                     />
                   </div>
+                </td>
+                <td className="px-3 py-2 text-xs text-muted-foreground">
+                  {[
+                    (p as { brand?: string | null }).brand ?? "",
+                    (p as { product_range?: string | null }).product_range ?? "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "—"}
                 </td>
                 <td className="px-3 py-2 text-muted-foreground">{CATEGORY_LABELS[p.category]}</td>
                 <td className="px-3 py-2">{formatPrice(p.price_cents, p.currency)}</td>
@@ -261,7 +296,7 @@ function ProductsList() {
             ))}
             {data.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">
+                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
                   Aucun produit ne correspond aux filtres.
                 </td>
               </tr>
