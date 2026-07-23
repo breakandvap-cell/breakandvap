@@ -693,7 +693,22 @@ function StepInfo({
           value={data.brand}
           onChange={(e) => onPatch({ brand: e.target.value })}
           placeholder="Ex. Vape Institut"
+          list="wizard-brand-suggestions"
         />
+      </Field>
+
+      <Field
+        label="Gamme"
+        hint="Optionnel — famille de produits d'une marque (ex. « Iceberg »)"
+      >
+        <input
+          className="input h-11 text-base"
+          value={data.range}
+          onChange={(e) => onPatch({ range: e.target.value })}
+          placeholder="Ex. Iceberg"
+          list="wizard-range-suggestions"
+        />
+        <BrandRangeSuggestions brand={data.brand} />
       </Field>
 
       <Field label="Description courte" hint="Une phrase — sert d'accroche en boutique">
