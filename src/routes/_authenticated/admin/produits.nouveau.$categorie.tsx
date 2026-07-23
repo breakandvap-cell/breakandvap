@@ -618,6 +618,7 @@ function Wizard({
       id: productId,
       name: state.name.trim(),
       brand,
+      range: state.range.trim(),
       slug: finalSlug || slugify(`produit-${Date.now()}`),
       category,
       subcategory: "",
