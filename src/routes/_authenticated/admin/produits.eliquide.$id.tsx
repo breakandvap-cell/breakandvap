@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import {
   adminGetProduct,
   adminListVariants,
+  adminListRanges,
   adminUploadProductPhoto,
   adminUpsertProduct,
   type ProductInput,
@@ -100,6 +101,7 @@ type WizardData = {
   // Étape 1 — informations produit
   name: string;
   brand: string;
+  range: string;
   shortDescription: string;
   description: string;
   mainPhoto: string | null;
@@ -122,6 +124,7 @@ type WizardData = {
 const EMPTY: WizardData = {
   name: "",
   brand: "",
+  range: "",
   shortDescription: "",
   description: "",
   mainPhoto: null,
@@ -310,7 +313,8 @@ function wizardDataFromExisting(
   return {
     ...EMPTY,
     name: existing.name ?? "",
-    brand: parsed.brand,
+    brand: ((existing as { brand?: string | null }).brand ?? "").toString().trim() || parsed.brand,
+    range: ((existing as { product_range?: string | null }).product_range ?? "").toString(),
     shortDescription: parsed.shortDescription,
     description: parsed.description,
     mainPhoto: photos[0] ?? null,
@@ -689,7 +693,22 @@ function StepInfo({
           value={data.brand}
           onChange={(e) => onPatch({ brand: e.target.value })}
           placeholder="Ex. Vape Institut"
+          list="wizard-brand-suggestions"
         />
+      </Field>
+
+      <Field
+        label="Gamme"
+        hint="Optionnel — famille de produits d'une marque (ex. « Iceberg »)"
+      >
+        <input
+          className="input h-11 text-base"
+          value={data.range}
+          onChange={(e) => onPatch({ range: e.target.value })}
+          placeholder="Ex. Iceberg"
+          list="wizard-range-suggestions"
+        />
+        <BrandRangeSuggestions brand={data.brand} />
       </Field>
 
       <Field label="Description courte" hint="Une phrase — sert d'accroche en boutique">
@@ -1849,6 +1868,7 @@ function buildPayloadFromWizard(
     id: existingId && existingId !== "nouveau" ? existingId : undefined,
     name: data.name.trim(),
     brand,
+    range: data.range.trim(),
     slug: finalSlug,
     category: "e_liquide",
     subcategory: "",
@@ -2163,6 +2183,7 @@ function StepReview({
         <dl className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <ReviewKV k="Nom" v={data.name || "—"} />
           <ReviewKV k="Marque" v={data.brand || "—"} />
+          <ReviewKV k="Gamme" v={data.range || "—"} />
           <ReviewKV k="PG / VG" v={data.pgVg || "—"} />
           <ReviewKV k="Origine" v={data.country || "—"} />
         </dl>
@@ -2411,6 +2432,25 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+// Datalists partagés pour l'auto-complétion « Marque » et « Gamme » (étape 1).
+// Les gammes sont filtrées par marque saisie ; sans marque, on liste tout.
+function BrandRangeSuggestions({ brand }: { brand: string }) {
+  const rangesFn = useServerFn(adminListRanges);
+  const brandKey = brand.trim().toLowerCase();
+  const { data: ranges } = useQuery({
+    queryKey: ["admin", "product-ranges", brandKey],
+    queryFn: () => rangesFn({ data: { brand: brand.trim() } }),
+    staleTime: 60_000,
+  });
+  return (
+    <datalist id="wizard-range-suggestions">
+      {(ranges ?? []).map((r) => (
+        <option key={r} value={r} />
+      ))}
+    </datalist>
   );
 }
 

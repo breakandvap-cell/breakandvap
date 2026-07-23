@@ -12,10 +12,13 @@ import {
 const productInputSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(2).max(160),
-  // Marque optionnelle : sert uniquement à composer la référence SKU
-  // (segment MARQUE en 6 caractères). Non persistée en colonne dédiée —
-  // la marque figure déjà dans `description` via le wizard.
+  // Marque optionnelle : persistée en colonne dédiée `products.brand`.
+  // Sert aussi à composer la référence SKU (segment MARQUE en 6 caractères).
   brand: z.string().trim().max(60).optional().or(z.literal("")),
+  // Gamme optionnelle (ex : « Iceberg » pour Liquidelab). Persistée en
+  // colonne dédiée `products.product_range`. Insérée dans le SKU entre la
+  // marque et le nom (segment 8 caractères) uniquement si renseignée.
+  range: z.string().trim().max(60).optional().or(z.literal("")),
   slug: z
     .preprocess(
       // Défense en profondeur : si le wizard laisse passer un slug avec
@@ -306,6 +309,8 @@ const listProductsSchema = z.object({
     .optional()
     .or(z.literal("")),
   status: z.enum(["published", "draft", "out_of_stock"]).optional().or(z.literal("")),
+  brand: z.string().trim().max(60).optional().or(z.literal("")),
+  range: z.string().trim().max(60).optional().or(z.literal("")),
 });
 
 export const adminListProducts = createServerFn({ method: "GET" })
@@ -316,15 +321,63 @@ export const adminListProducts = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("products")
-      .select("id, name, slug, category, price_cents, currency, stock, stock_status, is_published, updated_at")
+      .select("id, name, slug, category, brand, product_range, price_cents, currency, stock, stock_status, is_published, updated_at")
       .order("updated_at", { ascending: false });
     if (data.category) q = q.eq("category", data.category);
     if (data.status === "published") q = q.eq("is_published", true);
     else if (data.status === "draft") q = q.eq("is_published", false);
     else if (data.status === "out_of_stock") q = q.eq("stock_status", "out_of_stock");
+    if (data.brand) q = q.ilike("brand", data.brand);
+    if (data.range) q = q.ilike("product_range", data.range);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+// Renvoie la liste des marques distinctes déjà saisies (auto-complétion).
+export const adminListBrands = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("products")
+      .select("brand")
+      .not("brand", "is", null);
+    if (error) throw new Error(error.message);
+    const set = new Set<string>();
+    for (const r of (data ?? []) as Array<{ brand: string | null }>) {
+      const v = (r.brand ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
+  });
+
+// Renvoie la liste des gammes existantes, éventuellement filtrées par marque.
+// Utilisée pour l'auto-complétion du champ « Gamme » dans les wizards.
+export const adminListRanges = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ brand: z.string().trim().max(60).optional().or(z.literal("")) })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("products")
+      .select("brand, product_range")
+      .not("product_range", "is", null);
+    if (data.brand) q = q.ilike("brand", data.brand);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const set = new Set<string>();
+    for (const r of (rows ?? []) as Array<{ product_range: string | null }>) {
+      const v = (r.product_range ?? "").trim();
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "fr"));
   });
 
 export const adminGetProduct = createServerFn({ method: "GET" })
@@ -408,6 +461,8 @@ async function upsertProductCore(
       slug: data.slug,
       category: data.category,
       subcategory: data.subcategory || null,
+      brand: (data.brand ?? "").trim() || null,
+      product_range: (data.range ?? "").trim() || null,
       description: data.description || null,
       price_cents: data.price_cents,
       currency: data.currency || "EUR",
@@ -441,7 +496,7 @@ async function upsertProductCore(
         photo: (f as { photo?: string | null }).photo ?? null,
         sku:
           ((f as { sku?: string }).sku ?? "").toString().trim() ||
-          buildFlavorSku(data.brand ?? "", data.name, f.name),
+          buildFlavorSku(data.brand ?? "", data.name, f.name, data.range ?? ""),
         is_active: (f as { is_active?: boolean }).is_active ?? true,
       }))) as never,
       updated_by: context.userId,
@@ -584,6 +639,7 @@ async function upsertProductCore(
               : null;
           const candidate = buildVariantSku({
             brand: data.brand ?? "",
+            range: data.range ?? "",
             name: data.name,
             volumeMl: v.volume_ml,
             nicotineType,
@@ -664,6 +720,7 @@ function skuSegment(input: string, maxLen: number): string {
 
 export function buildVariantSku(args: {
   brand: string | null | undefined;
+  range?: string | null | undefined;
   name: string;
   volumeMl: number;
   nicotineType?: string | null;
@@ -672,6 +729,8 @@ export function buildVariantSku(args: {
   const parts: string[] = [];
   const brandSeg = skuSegment(args.brand ?? "", 6);
   if (brandSeg) parts.push(brandSeg);
+  const rangeSeg = skuSegment(args.range ?? "", 8);
+  if (rangeSeg) parts.push(rangeSeg);
   parts.push(skuSegment(args.name, 10) || "PRD");
   parts.push(`${Math.max(0, Math.trunc(args.volumeMl))}ML`);
   const type = (args.nicotineType ?? "normale").toString().trim().toLowerCase();
@@ -686,10 +745,13 @@ export function buildFlavorSku(
   brand: string | null | undefined,
   productName: string,
   flavor: string,
+  range?: string | null | undefined,
 ): string {
   const parts: string[] = [];
   const brandSeg = skuSegment(brand ?? "", 6);
   if (brandSeg) parts.push(brandSeg);
+  const rangeSeg = skuSegment(range ?? "", 8);
+  if (rangeSeg) parts.push(rangeSeg);
   parts.push(skuSegment(productName, 10) || "PRD");
   const fseg = skuSegment(flavor, 8);
   if (fseg) parts.push(fseg);

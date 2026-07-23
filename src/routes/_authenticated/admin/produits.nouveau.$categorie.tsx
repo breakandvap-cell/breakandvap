@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   adminGetProduct,
   adminListVariants,
+  adminListRanges,
   adminUpsertProduct,
   adminUploadProductPhoto,
   type ProductInput,
@@ -140,6 +141,7 @@ type WizardState = {
   // Étape 1
   name: string;
   brand: string;
+  range: string;
   photos: string[];
   // Étape 2 (mode CBD) / Étape 2 classique
   sale_mode: CbdSaleMode; // uniquement utilisé pour CBD
@@ -170,6 +172,7 @@ type WizardState = {
 const EMPTY_STATE: WizardState = {
   name: "",
   brand: "",
+  range: "",
   photos: [],
   sale_mode: "weight",
   weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
@@ -270,7 +273,13 @@ function stateFromExisting(
   const base: WizardState = {
     ...EMPTY_STATE,
     name: existing.name ?? "",
-    brand: parsed.brand,
+    brand:
+      ((existing as { brand?: string | null }).brand ?? "").toString().trim() ||
+      parsed.brand,
+    range:
+      ((existing as { product_range?: string | null }).product_range ?? "")
+        .toString()
+        .trim(),
     photos: Array.isArray(existing.photos) ? existing.photos : [],
     priceEuros: centsToEuros(existing.price_cents),
     stock: String(existing.stock ?? 0),
@@ -610,6 +619,7 @@ function Wizard({
       id: productId,
       name: state.name.trim(),
       brand,
+      range: state.range.trim(),
       slug: finalSlug || slugify(`produit-${Date.now()}`),
       category,
       subcategory: "",
@@ -1921,6 +1931,22 @@ function StepBase({
       </div>
 
       <div>
+        <label className="text-sm font-medium">Gamme (optionnel)</label>
+        <input
+          type="text"
+          value={state.range}
+          onChange={(e) => setState((s) => ({ ...s, range: e.target.value }))}
+          placeholder="Ex : Iceberg"
+          list="simple-range-suggestions"
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Famille de produits d'une marque (regroupement commercial).
+        </p>
+        <SimpleRangeSuggestions brand={state.brand} />
+      </div>
+
+      <div>
         <label className="text-sm font-medium">Catégorie</label>
         <div className="mt-1 flex items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm">
           <span className="rounded-md bg-background px-2 py-0.5 text-xs font-medium">
@@ -2371,6 +2397,7 @@ function StepReview({
       <ReviewSection title="Base produit" onEdit={() => onEditStep(idxBase)}>
         <ReviewRow label="Nom" value={state.name || "—"} />
         <ReviewRow label="Marque" value={state.brand || "—"} />
+        <ReviewRow label="Gamme" value={state.range || "—"} />
         <ReviewRow label="Catégorie" value={CATEGORY_LABELS[category]} />
         <ReviewRow
           label="Photos"
@@ -2621,5 +2648,22 @@ function ReviewRow({
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd>{value}</dd>
     </div>
+  );
+}
+// Datalist « Gamme » filtré par marque, partagé entre les wizards simples.
+function SimpleRangeSuggestions({ brand }: { brand: string }) {
+  const rangesFn = useServerFn(adminListRanges);
+  const brandKey = brand.trim().toLowerCase();
+  const { data: ranges } = useQuery({
+    queryKey: ["admin", "product-ranges", brandKey],
+    queryFn: () => rangesFn({ data: { brand: brand.trim() } }),
+    staleTime: 60_000,
+  });
+  return (
+    <datalist id="simple-range-suggestions">
+      {(ranges ?? []).map((r) => (
+        <option key={r} value={r} />
+      ))}
+    </datalist>
   );
 }
