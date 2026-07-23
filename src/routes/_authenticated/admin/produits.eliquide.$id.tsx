@@ -2433,6 +2433,25 @@ function Field({
   );
 }
 
+// Datalists partagés pour l'auto-complétion « Marque » et « Gamme » (étape 1).
+// Les gammes sont filtrées par marque saisie ; sans marque, on liste tout.
+function BrandRangeSuggestions({ brand }: { brand: string }) {
+  const rangesFn = useServerFn(adminListRanges);
+  const brandKey = brand.trim().toLowerCase();
+  const { data: ranges } = useQuery({
+    queryKey: ["admin", "product-ranges", brandKey],
+    queryFn: () => rangesFn({ data: { brand: brand.trim() } }),
+    staleTime: 60_000,
+  });
+  return (
+    <datalist id="wizard-range-suggestions">
+      {(ranges ?? []).map((r) => (
+        <option key={r} value={r} />
+      ))}
+    </datalist>
+  );
+}
+
 // -------------------------------------------------------------------
 // Étape 5 — Nicotine (grand format uniquement)
 // -------------------------------------------------------------------
