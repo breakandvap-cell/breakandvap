@@ -411,6 +411,8 @@ async function upsertProductCore(
       slug: data.slug,
       category: data.category,
       subcategory: data.subcategory || null,
+      brand: (data.brand ?? "").trim() || null,
+      product_range: (data.range ?? "").trim() || null,
       description: data.description || null,
       price_cents: data.price_cents,
       currency: data.currency || "EUR",
