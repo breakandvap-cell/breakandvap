@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import {
   adminGetProduct,
   adminListVariants,
+  adminListRanges,
   adminUploadProductPhoto,
   adminUpsertProduct,
   type ProductInput,
