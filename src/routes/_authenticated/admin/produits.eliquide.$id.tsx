@@ -1071,6 +1071,19 @@ function slugify(input: string): string {
     .slice(0, 20);
 }
 
+// Slug d'URL : minuscules, sans accents, [a-z0-9-]. Utilisé pour `products.slug`
+// (validation server: /^[a-z0-9-]+$/). NE PAS confondre avec `slugify` ci-dessus
+// qui produit un identifiant SKU en majuscules.
+function slugifyUrl(input: string): string {
+  return (input || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
 function maxBoostersFor(row: LargeFormatRow, cfg: BoosterConfig): number {
   if (!row.volumeMl || !row.bottleCapacityMl) return 0;
   const spare = row.bottleCapacityMl - row.volumeMl;
@@ -1541,7 +1554,8 @@ function buildPayloadFromWizard(
   cfg: BoosterConfig,
   existingId?: string,
 ): ProductInput {
-  const finalSlug = slugify(data.name) || slugify(`eliquide-${Date.now()}`);
+  const finalSlug =
+    slugifyUrl(data.name) || slugifyUrl(`eliquide-${Date.now()}`);
   const brand = data.brand.trim();
   const shortDesc = data.shortDescription.trim();
   const longDesc = data.description.trim();
