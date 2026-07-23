@@ -1931,6 +1931,22 @@ function StepBase({
       </div>
 
       <div>
+        <label className="text-sm font-medium">Gamme (optionnel)</label>
+        <input
+          type="text"
+          value={state.range}
+          onChange={(e) => setState((s) => ({ ...s, range: e.target.value }))}
+          placeholder="Ex : Iceberg"
+          list="simple-range-suggestions"
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">
+          Famille de produits d'une marque (regroupement commercial).
+        </p>
+        <SimpleRangeSuggestions brand={state.brand} />
+      </div>
+
+      <div>
         <label className="text-sm font-medium">Catégorie</label>
         <div className="mt-1 flex items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm">
           <span className="rounded-md bg-background px-2 py-0.5 text-xs font-medium">
