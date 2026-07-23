@@ -17,11 +17,20 @@ import { computeProductStatus, StatusBadge } from "@/lib/product-status";
 type ProductFilters = {
   category?: "" | "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd";
   status?: "" | "published" | "draft" | "out_of_stock";
+  brand?: string;
+  range?: string;
 };
 
 const listOptions = (filters: ProductFilters) =>
   queryOptions({
-    queryKey: ["admin", "products", filters.category ?? "all", filters.status ?? "all"],
+    queryKey: [
+      "admin",
+      "products",
+      filters.category ?? "all",
+      filters.status ?? "all",
+      filters.brand ?? "",
+      filters.range ?? "",
+    ],
     queryFn: () => adminListProducts({ data: filters }),
   });
 
@@ -39,6 +48,8 @@ export const Route = createFileRoute("/_authenticated/admin/produits/")({
     status: ["published", "draft", "out_of_stock"].includes(search.status as string)
       ? (search.status as ProductFilters["status"])
       : "",
+    brand: typeof search.brand === "string" ? search.brand.slice(0, 60) : "",
+    range: typeof search.range === "string" ? search.range.slice(0, 60) : "",
   }),
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) => context.queryClient.ensureQueryData(listOptions(deps)),
