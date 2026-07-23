@@ -101,6 +101,7 @@ type WizardData = {
   // Étape 1 — informations produit
   name: string;
   brand: string;
+  range: string;
   shortDescription: string;
   description: string;
   mainPhoto: string | null;
@@ -123,6 +124,7 @@ type WizardData = {
 const EMPTY: WizardData = {
   name: "",
   brand: "",
+  range: "",
   shortDescription: "",
   description: "",
   mainPhoto: null,
