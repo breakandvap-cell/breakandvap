@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   adminGetProduct,
   adminListVariants,
+  adminListRanges,
   adminUpsertProduct,
   adminUploadProductPhoto,
   type ProductInput,
