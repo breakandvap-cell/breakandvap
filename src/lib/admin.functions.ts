@@ -461,10 +461,11 @@ async function upsertProductCore(
       await logAction(context.userId, "product.create", "product", productId, { name: data.name });
     }
 
-    // Sync variants (only meaningful for e-liquide, but we simply replace whatever
-    // set was submitted so admins can freely add/remove volumes).
+    // Sync variants/contenances. Les wizards de création ET d'édition passent
+    // par ce chemin unique : on met à jour les lignes existantes, on ajoute les
+    // nouvelles et on désactive celles qui ont été retirées.
     const submittedVariants = data.variants ?? [];
-    if (data.category === "e_liquide") {
+    if (submittedVariants.length > 0) {
       // Fetch current variants (all rows for this product)
       const { data: existingVariants } = await supabaseAdmin
         .from("product_variants")
@@ -486,7 +487,7 @@ async function upsertProductCore(
           typeof v.max_boosters === "number" && Number.isFinite(v.max_boosters)
             ? Math.max(0, Math.trunc(v.max_boosters))
             : 0;
-        if (cap > 0) {
+        if (data.category === "e_liquide" && cap > 0) {
           for (const t of NICOTINE_TYPES_WITH_BOOSTER) {
             expanded.push({ ...v, _expandedType: t });
           }
@@ -569,24 +570,25 @@ async function upsertProductCore(
         //  - sinon on génère un SKU canonique unique via `buildVariantSku` :
         //    MARQUE-NOM-VOLUME[-TYPE][-NNMG]. Le taux de nicotine n'est ajouté
         //    que pour les formats à taux fixe (une seule valeur autorisée).
-        let sku = existing?.sku ?? "";
-        if (!sku) {
-          const providedSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
+        const currentSku = (existing?.sku ?? "").toString().trim().toUpperCase();
+        const providedSku = ((v as { sku?: string }).sku ?? "").toString().trim().toUpperCase();
+        let sku = currentSku;
+        if (providedSku && providedSku !== currentSku) {
+          sku = ensureUniqueSku(providedSku, existingSkus);
+        } else if (!sku) {
           const availableMg = (v.available_nicotine_mg ?? []) as number[];
           const fixedMg =
             (typeof v.max_boosters === "number" ? v.max_boosters : 0) === 0 &&
             availableMg.length === 1
               ? availableMg[0]
               : null;
-          const candidate = providedSku
-            ? providedSku
-            : buildVariantSku({
-                brand: data.brand ?? "",
-                name: data.name,
-                volumeMl: v.volume_ml,
-                nicotineType,
-                fixedMg,
-              });
+          const candidate = buildVariantSku({
+            brand: data.brand ?? "",
+            name: data.name,
+            volumeMl: v.volume_ml,
+            nicotineType,
+            fixedMg,
+          });
           sku = ensureUniqueSku(candidate, existingSkus);
         }
         existingSkus.add(sku.toUpperCase());
