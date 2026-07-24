@@ -33,6 +33,7 @@ import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_auth
 import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
 import { Route as AuthenticatedAdminTemoignagesRouteImport } from './routes/_authenticated/admin/temoignages'
 import { Route as AuthenticatedAdminReferencesTechniquesRouteImport } from './routes/_authenticated/admin/references-techniques'
+import { Route as AuthenticatedAdminReceptionMarchandiseRouteImport } from './routes/_authenticated/admin/reception-marchandise'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/admin/parametres'
 import { Route as AuthenticatedAdminFacturesRouteImport } from './routes/_authenticated/admin/factures'
 import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authenticated/admin/clients'
@@ -171,6 +172,12 @@ const AuthenticatedAdminReferencesTechniquesRoute =
     path: '/references-techniques',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminReceptionMarchandiseRoute =
+  AuthenticatedAdminReceptionMarchandiseRouteImport.update({
+    id: '/reception-marchandise',
+    path: '/reception-marchandise',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminParametresRoute =
   AuthenticatedAdminParametresRouteImport.update({
     id: '/parametres',
@@ -279,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/factures': typeof AuthenticatedAdminFacturesRoute
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
@@ -317,6 +325,7 @@ export interface FileRoutesByTo {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/factures': typeof AuthenticatedAdminFacturesRoute
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
@@ -358,6 +367,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/_authenticated/admin/factures': typeof AuthenticatedAdminFacturesRoute
   '/_authenticated/admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/_authenticated/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
   '/_authenticated/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
@@ -399,6 +409,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/factures'
     | '/admin/parametres'
+    | '/admin/reception-marchandise'
     | '/admin/references-techniques'
     | '/admin/temoignages'
     | '/compte/adresses'
@@ -437,6 +448,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/factures'
     | '/admin/parametres'
+    | '/admin/reception-marchandise'
     | '/admin/references-techniques'
     | '/admin/temoignages'
     | '/compte/adresses'
@@ -477,6 +489,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clients'
     | '/_authenticated/admin/factures'
     | '/_authenticated/admin/parametres'
+    | '/_authenticated/admin/reception-marchandise'
     | '/_authenticated/admin/references-techniques'
     | '/_authenticated/admin/temoignages'
     | '/_authenticated/compte/adresses'
@@ -685,6 +698,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminReferencesTechniquesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/reception-marchandise': {
+      id: '/_authenticated/admin/reception-marchandise'
+      path: '/reception-marchandise'
+      fullPath: '/admin/reception-marchandise'
+      preLoaderRoute: typeof AuthenticatedAdminReceptionMarchandiseRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/parametres': {
       id: '/_authenticated/admin/parametres'
       path: '/parametres'
@@ -805,6 +825,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminClientsRoute: typeof AuthenticatedAdminClientsRouteWithChildren
   AuthenticatedAdminFacturesRoute: typeof AuthenticatedAdminFacturesRoute
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminReceptionMarchandiseRoute: typeof AuthenticatedAdminReceptionMarchandiseRoute
   AuthenticatedAdminReferencesTechniquesRoute: typeof AuthenticatedAdminReferencesTechniquesRoute
   AuthenticatedAdminTemoignagesRoute: typeof AuthenticatedAdminTemoignagesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -824,6 +845,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminClientsRoute: AuthenticatedAdminClientsRouteWithChildren,
     AuthenticatedAdminFacturesRoute: AuthenticatedAdminFacturesRoute,
     AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+    AuthenticatedAdminReceptionMarchandiseRoute:
+      AuthenticatedAdminReceptionMarchandiseRoute,
     AuthenticatedAdminReferencesTechniquesRoute:
       AuthenticatedAdminReferencesTechniquesRoute,
     AuthenticatedAdminTemoignagesRoute: AuthenticatedAdminTemoignagesRoute,

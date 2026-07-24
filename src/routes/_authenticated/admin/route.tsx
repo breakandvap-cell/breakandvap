@@ -41,6 +41,7 @@ function AdminNav() {
       | "/admin/factures"
       | "/admin/categories"
       | "/admin/references-techniques"
+      | "/admin/reception-marchandise"
       | "/admin/temoignages"
       | "/admin/parametres";
     label: string;
@@ -50,6 +51,7 @@ function AdminNav() {
     { to: "/admin/produits", label: "Produits" },
     { to: "/admin/categories", label: "Catégories" },
     { to: "/admin/references-techniques", label: "Références techniques" },
+    { to: "/admin/reception-marchandise", label: "Réception marchandise" },
     { to: "/admin/commandes", label: "Commandes" },
     { to: "/admin/clients", label: "Clients" },
     { to: "/admin/factures", label: "Factures" },
