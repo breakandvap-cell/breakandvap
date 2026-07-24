@@ -670,6 +670,47 @@ export type Database = {
           },
         ]
       }
+      supplier_mappings: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          supplier: string
+          supplier_label: string | null
+          supplier_ref: string | null
+          updated_at: string
+          variant_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          supplier: string
+          supplier_label?: string | null
+          supplier_ref?: string | null
+          updated_at?: string
+          variant_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          supplier?: string
+          supplier_label?: string | null
+          supplier_ref?: string | null
+          updated_at?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_mappings_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       testimonials: {
         Row: {
           author_name: string
