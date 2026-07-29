@@ -138,6 +138,7 @@ function ReceptionPage() {
   const mapFn = useServerFn(receptionCreateMapping);
 
   const [fileName, setFileName] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [csvLines, setCsvLines] = useState<CsvLine[]>([]);
   const [recognized, setRecognized] = useState<Recognized[]>([]);
   const [unrecognized, setUnrecognized] = useState<Unrecognized[]>([]);
@@ -186,13 +187,20 @@ function ReceptionPage() {
 
   const applyMutation = useMutation({
     mutationFn: () => {
+      const invoice = invoiceNumber.trim();
+      if (!invoice) throw new Error("Numéro de facture fournisseur requis.");
       const updates = recognized
         .filter((r) => checked[r.line])
         .map((r) => ({ variant_id: r.variantId, qty: r.qty }));
       const pending = unrecognized.filter((u) => u.decision !== "to_create").length;
       const to_create = unrecognized.filter((u) => u.decision === "to_create").length;
       return applyFn({
-        data: { supplier: dominantSupplier || "inconnu", updates, counts: { pending, to_create } },
+        data: {
+          supplier: dominantSupplier || "inconnu",
+          invoice_number: invoice,
+          updates,
+          counts: { pending, to_create },
+        },
       });
     },
     onSuccess: async (res) => {
@@ -201,6 +209,7 @@ function ReceptionPage() {
       // Décale l'affichage : on retire les lignes cochées et appliquées
       setRecognized((prev) => prev.filter((r) => !checked[r.line]));
       setChecked({});
+      setInvoiceNumber("");
       await qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
     onError: (e) => toast.error((e as Error).message),
