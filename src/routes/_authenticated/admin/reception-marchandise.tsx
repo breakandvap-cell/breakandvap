@@ -138,6 +138,7 @@ function ReceptionPage() {
   const mapFn = useServerFn(receptionCreateMapping);
 
   const [fileName, setFileName] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
   const [csvLines, setCsvLines] = useState<CsvLine[]>([]);
   const [recognized, setRecognized] = useState<Recognized[]>([]);
   const [unrecognized, setUnrecognized] = useState<Unrecognized[]>([]);
@@ -186,13 +187,20 @@ function ReceptionPage() {
 
   const applyMutation = useMutation({
     mutationFn: () => {
+      const invoice = invoiceNumber.trim();
+      if (!invoice) throw new Error("Numéro de facture fournisseur requis.");
       const updates = recognized
         .filter((r) => checked[r.line])
         .map((r) => ({ variant_id: r.variantId, qty: r.qty }));
       const pending = unrecognized.filter((u) => u.decision !== "to_create").length;
       const to_create = unrecognized.filter((u) => u.decision === "to_create").length;
       return applyFn({
-        data: { supplier: dominantSupplier || "inconnu", updates, counts: { pending, to_create } },
+        data: {
+          supplier: dominantSupplier || "inconnu",
+          invoice_number: invoice,
+          updates,
+          counts: { pending, to_create },
+        },
       });
     },
     onSuccess: async (res) => {
@@ -201,6 +209,7 @@ function ReceptionPage() {
       // Décale l'affichage : on retire les lignes cochées et appliquées
       setRecognized((prev) => prev.filter((r) => !checked[r.line]));
       setChecked({});
+      setInvoiceNumber("");
       await qc.invalidateQueries({ queryKey: ["admin", "products"] });
     },
     onError: (e) => toast.error((e as Error).message),
@@ -343,6 +352,25 @@ function ReceptionPage() {
         {fileName && <span className="text-xs text-muted-foreground">{fileName}</span>}
       </label>
 
+      <div className="flex flex-col gap-1 max-w-md">
+        <label htmlFor="invoice-number" className="text-sm font-medium">
+          Numéro de facture fournisseur <span className="text-destructive">*</span>
+        </label>
+        <input
+          id="invoice-number"
+          type="text"
+          value={invoiceNumber}
+          onChange={(e) => setInvoiceNumber(e.target.value)}
+          placeholder="Ex. FAC-2026-00123"
+          className="rounded-md border px-3 py-2 text-sm"
+          autoComplete="off"
+        />
+        <p className="text-xs text-muted-foreground">
+          Obligatoire pour appliquer les stocks. Le couple fournisseur + numéro est mémorisé pour
+          empêcher tout ré-import accidentel de la même facture.
+        </p>
+      </div>
+
       {matchMutation.isPending && (
         <p className="text-sm text-muted-foreground">Analyse des lignes…</p>
       )}
@@ -378,6 +406,7 @@ function ReceptionPage() {
               onClick={() => applyMutation.mutate()}
               disabled={
                 applyMutation.isPending ||
+                !invoiceNumber.trim() ||
                 recognized.filter((r) => checked[r.line]).length === 0
               }
               className="inline-flex items-center rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"

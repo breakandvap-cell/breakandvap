@@ -670,6 +670,48 @@ export type Database = {
           },
         ]
       }
+      supplier_invoices: {
+        Row: {
+          created_at: string
+          id: string
+          imported_at: string
+          imported_by: string | null
+          invoice_norm: string | null
+          invoice_number: string
+          lines_total: number
+          supplier: string
+          supplier_norm: string | null
+          updated_at: string
+          updated_variants: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          invoice_norm?: string | null
+          invoice_number: string
+          lines_total?: number
+          supplier: string
+          supplier_norm?: string | null
+          updated_at?: string
+          updated_variants?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          imported_at?: string
+          imported_by?: string | null
+          invoice_norm?: string | null
+          invoice_number?: string
+          lines_total?: number
+          supplier?: string
+          supplier_norm?: string | null
+          updated_at?: string
+          updated_variants?: number
+        }
+        Relationships: []
+      }
       supplier_mappings: {
         Row: {
           created_at: string

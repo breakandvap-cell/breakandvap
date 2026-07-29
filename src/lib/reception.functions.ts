@@ -258,12 +258,14 @@ export const receptionApplyStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: {
     supplier: string;
+    invoice_number: string;
     updates: Array<{ variant_id: string; qty: number }>;
     counts: { pending: number; to_create: number };
   }) =>
     z
       .object({
         supplier: z.string().trim().min(1).max(120),
+        invoice_number: z.string().trim().min(1).max(120),
         updates: z
           .array(
             z.object({
@@ -284,6 +286,22 @@ export const receptionApplyStock = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    // Vérifie l'unicité fournisseur + numéro de facture pour éviter tout doublon d'import.
+    const supplierNorm = data.supplier.trim().toLowerCase();
+    const invoiceNorm = data.invoice_number.trim().toLowerCase();
+    const { data: dup, error: dupErr } = await supabaseAdmin
+      .from("supplier_invoices")
+      .select("id, invoice_number, imported_at, updated_variants")
+      .eq("supplier_norm", supplierNorm)
+      .eq("invoice_norm", invoiceNorm)
+      .maybeSingle();
+    if (dupErr) throw new Error(dupErr.message);
+    if (dup) {
+      throw new Error(
+        `Facture « ${dup.invoice_number} » déjà importée pour ce fournisseur le ${new Date(dup.imported_at).toLocaleDateString("fr-FR")} (${dup.updated_variants} variante(s) mise(s) à jour). Import bloqué.`,
+      );
+    }
+
     let updated = 0;
     const failures: Array<{ variant_id: string; message: string }> = [];
 
@@ -303,14 +321,33 @@ export const receptionApplyStock = createServerFn({ method: "POST" })
       updated++;
     }
 
+    // Mémorisation de la facture pour bloquer les prochains imports en doublon.
+    const { error: invErr } = await supabaseAdmin.from("supplier_invoices").insert({
+      supplier: data.supplier.trim(),
+      invoice_number: data.invoice_number.trim(),
+      lines_total: data.updates.length,
+      updated_variants: updated,
+      imported_by: context.userId,
+    });
+    if (invErr) {
+      // Cas de course : une autre session vient d'enregistrer la même facture.
+      if ((invErr as any).code === "23505") {
+        throw new Error(
+          `Facture « ${data.invoice_number} » déjà enregistrée pour ce fournisseur.`,
+        );
+      }
+      throw new Error(invErr.message);
+    }
+
     // Journal admin
     await supabaseAdmin.from("admin_action_log").insert({
       admin_id: context.userId,
       action: "supplier_reception.apply",
       entity_type: "supplier_reception",
-      entity_id: null,
+      entity_id: data.invoice_number.trim(),
       details: {
         supplier: data.supplier,
+        invoice_number: data.invoice_number.trim(),
         updated,
         failed: failures.length,
         pending_association: data.counts.pending,
