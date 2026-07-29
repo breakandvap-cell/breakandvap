@@ -352,6 +352,25 @@ function ReceptionPage() {
         {fileName && <span className="text-xs text-muted-foreground">{fileName}</span>}
       </label>
 
+      <div className="flex flex-col gap-1 max-w-md">
+        <label htmlFor="invoice-number" className="text-sm font-medium">
+          Numéro de facture fournisseur <span className="text-destructive">*</span>
+        </label>
+        <input
+          id="invoice-number"
+          type="text"
+          value={invoiceNumber}
+          onChange={(e) => setInvoiceNumber(e.target.value)}
+          placeholder="Ex. FAC-2026-00123"
+          className="rounded-md border px-3 py-2 text-sm"
+          autoComplete="off"
+        />
+        <p className="text-xs text-muted-foreground">
+          Obligatoire pour appliquer les stocks. Le couple fournisseur + numéro est mémorisé pour
+          empêcher tout ré-import accidentel de la même facture.
+        </p>
+      </div>
+
       {matchMutation.isPending && (
         <p className="text-sm text-muted-foreground">Analyse des lignes…</p>
       )}
