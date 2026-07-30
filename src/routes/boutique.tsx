@@ -22,11 +22,15 @@ import {
   ActiveFilterChips,
   FiltersPanelBody,
   MobileFiltersToggle,
+  SortSelect,
   type FilterPatch,
 } from "@/components/shop-filters";
 import {
   applyShopFilters,
   buildFacets,
+  isSortValue,
+  sortProducts,
+  type SortValue,
   type ShopFilters,
 } from "@/lib/product-search";
 
@@ -45,6 +49,7 @@ const searchSchema = z.object({
   // 0 = pas de borne définie
   prix_min: fallback(z.number(), 0).default(0),
   prix_max: fallback(z.number(), 0).default(0),
+  tri: fallback(z.string(), "pertinence").default("pertinence"),
 });
 
 export const Route = createFileRoute("/boutique")({
@@ -153,6 +158,14 @@ function BoutiquePage() {
     [scopedProducts, filters, variantVolumes],
   );
 
+  const sort: SortValue = isSortValue(search.tri) ? search.tri : "pertinence";
+  const visibleProducts = useMemo(
+    () => sortProducts(filteredProducts, sort, filters.q),
+    [filteredProducts, sort, filters.q],
+  );
+  const setSort = (v: SortValue) =>
+    navigate({ to: ".", search: (prev: ShopSearch) => ({ ...prev, tri: v }) });
+
   const goto = (opts: {
     categorie?: string;
     sous_categorie?: string;
@@ -199,6 +212,7 @@ function BoutiquePage() {
         en_stock: false,
         prix_min: 0,
         prix_max: 0,
+        tri: "pertinence",
       }),
     });
 
@@ -304,14 +318,17 @@ function BoutiquePage() {
             </aside>
 
             <div className="min-w-0 flex-1">
-              <p className="mb-3 text-sm text-muted-foreground">
-                <span className="font-medium text-foreground">
-                  {filteredProducts.length} produit
-                  {filteredProducts.length > 1 ? "s" : ""}
-                </span>{" "}
-                correspondant{filteredProducts.length > 1 ? "s" : ""} à votre
-                sélection
-              </p>
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {filteredProducts.length} produit
+                    {filteredProducts.length > 1 ? "s" : ""}
+                  </span>{" "}
+                  correspondant{filteredProducts.length > 1 ? "s" : ""} à votre
+                  sélection
+                </p>
+                <SortSelect value={sort} onChange={setSort} />
+              </div>
               <ActiveFilterChips
                 filters={filters}
                 onChange={patchFilters}
@@ -332,7 +349,7 @@ function BoutiquePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
-                  {filteredProducts.map((p) => (
+                  {visibleProducts.map((p) => (
                     <ProductCard
                       key={p.id}
                       product={p}
