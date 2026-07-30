@@ -172,15 +172,6 @@ export function sortProducts(
   return out;
 }
 
-type FacetsUnused = {
-  brands: string[];
-  ranges: string[];
-  flavors: string[];
-  volumes: number[];
-  minPriceCents: number;
-  maxPriceCents: number;
-};
-
 /** Valeurs réellement présentes dans le sous-catalogue affiché. */
 export function buildFacets(
   products: ProductRow[],
