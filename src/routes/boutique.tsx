@@ -30,6 +30,8 @@ import {
   type ShopFilters,
 } from "@/lib/product-search";
 
+type ShopSearch = z.infer<typeof searchSchema>;
+
 const searchSchema = z.object({
   categorie: fallback(z.string(), "").default(""),
   sous_categorie: fallback(z.string(), "").default(""),
@@ -158,7 +160,7 @@ function BoutiquePage() {
   }) =>
     navigate({
       to: ".",
-      search: (prev) => ({
+      search: (prev: ShopSearch) => ({
         ...prev,
         categorie: opts.categorie ?? "",
         sous_categorie: opts.sous_categorie ?? "",
@@ -169,7 +171,7 @@ function BoutiquePage() {
   const patchFilters = (patch: FilterPatch) =>
     navigate({
       to: ".",
-      search: (prev) => ({
+      search: (prev: ShopSearch) => ({
         ...prev,
         q: patch.q ?? prev.q,
         marques: patch.marques ?? prev.marques,
@@ -187,7 +189,7 @@ function BoutiquePage() {
   const resetFilters = () =>
     navigate({
       to: ".",
-      search: (prev) => ({
+      search: (prev: ShopSearch) => ({
         ...prev,
         q: "",
         marques: [],
