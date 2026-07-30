@@ -263,6 +263,26 @@ export const productVariantsQueryOptions = (productId: string | undefined) =>
   });
 
 // Cherche les variantes des e-liquides listés, pour afficher un « à partir de »
+
+/** Volumes (ml) disponibles par produit, pour les filtres boutique. */
+export const allVariantVolumesQueryOptions = () =>
+  queryOptions({
+    queryKey: ["product-variant-volumes"] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("product_id, volume_ml")
+        .eq("is_active", true);
+      if (error) throw new Error(error.message);
+      const map: Record<string, number[]> = {};
+      for (const v of data ?? []) {
+        const list = (map[v.product_id] ||= []);
+        if (!list.includes(v.volume_ml)) list.push(v.volume_ml);
+      }
+      return map;
+    },
+  });
+
 // sur les cartes catalogue sans requête par produit.
 export const variantsForProductsQueryOptions = (productIds: string[]) =>
   queryOptions({
