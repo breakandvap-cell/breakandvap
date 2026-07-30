@@ -1,7 +1,41 @@
 import { useState } from "react";
-import { SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, SlidersHorizontal, X } from "lucide-react";
 import { formatPrice } from "@/lib/products";
+import { SORT_OPTIONS, type SortValue } from "@/lib/product-search";
 import type { Facets, ShopFilters } from "@/lib/product-search";
+
+export function SortSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: SortValue;
+  onChange: (v: SortValue) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 ${className ?? ""}`}
+    >
+      <ArrowUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <label htmlFor="tri-catalogue" className="sr-only">
+        Trier le catalogue
+      </label>
+      <select
+        id="tri-catalogue"
+        value={value}
+        onChange={(e) => onChange(e.target.value as SortValue)}
+        className="min-w-0 bg-transparent pr-1 text-base outline-none sm:text-sm"
+      >
+        {SORT_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value} className="bg-card">
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 export type FilterPatch = Partial<ShopFilters>;
 
