@@ -1,9 +1,11 @@
+import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import {
   STOCK_LABELS,
+  allVariantVolumesQueryOptions,
   formatPrice,
   productsQueryOptions,
   type ProductRow,
@@ -16,11 +18,31 @@ import {
 } from "@/lib/categories.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { CategoryTileFx } from "@/components/category-tile-fx";
+import {
+  ActiveFilterChips,
+  FiltersPanelBody,
+  MobileFiltersToggle,
+  type FilterPatch,
+} from "@/components/shop-filters";
+import {
+  applyShopFilters,
+  buildFacets,
+  type ShopFilters,
+} from "@/lib/product-search";
 
 const searchSchema = z.object({
   categorie: fallback(z.string(), "").default(""),
   sous_categorie: fallback(z.string(), "").default(""),
   tout: fallback(z.boolean(), false).default(false),
+  q: fallback(z.string(), "").default(""),
+  marques: fallback(z.string().array(), []).default([]),
+  gammes: fallback(z.string().array(), []).default([]),
+  gouts: fallback(z.string().array(), []).default([]),
+  volumes: fallback(z.number().array(), []).default([]),
+  en_stock: fallback(z.boolean(), false).default(false),
+  // 0 = pas de borne définie
+  prix_min: fallback(z.number(), 0).default(0),
+  prix_max: fallback(z.number(), 0).default(0),
 });
 
 export const Route = createFileRoute("/boutique")({
@@ -29,6 +51,7 @@ export const Route = createFileRoute("/boutique")({
     context.queryClient.ensureQueryData(shopCategoriesQueryOptions());
     context.queryClient.ensureQueryData(shopSubcategoriesQueryOptions());
     context.queryClient.ensureQueryData(productsQueryOptions());
+    context.queryClient.ensureQueryData(allVariantVolumesQueryOptions());
   },
   head: () => ({
     meta: [
