@@ -87,6 +87,8 @@ function BoutiquePage() {
   const { data: categories } = useSuspenseQuery(shopCategoriesQueryOptions());
   const { data: subcategories } = useSuspenseQuery(shopSubcategoriesQueryOptions());
   const { data: allProducts } = useSuspenseQuery(productsQueryOptions());
+  const { data: variantVolumes } = useSuspenseQuery(allVariantVolumesQueryOptions());
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const activeCat = categories.find(
     (c) => c.is_active && c.key === search.categorie,
@@ -99,28 +101,55 @@ function BoutiquePage() {
     : undefined;
 
   const showAll = search.tout;
+  const filters: ShopFilters = {
+    q: search.q,
+    marques: search.marques,
+    gammes: search.gammes,
+    gouts: search.gouts,
+    volumes: search.volumes,
+    en_stock: search.en_stock,
+    prix_min: search.prix_min > 0 ? search.prix_min : null,
+    prix_max: search.prix_max > 0 ? search.prix_max : null,
+  };
+  const hasQuery = search.q.trim().length > 0;
 
   // Étape courante
   let stage: "categories" | "subcategories" | "products" = "categories";
-  if (showAll) stage = "products";
+  if (showAll || hasQuery) stage = "products";
   else if (activeCat && activeCatSubs.length > 0 && !activeSub) stage = "subcategories";
   else if (activeCat) stage = "products";
 
-  const filteredProducts = allProducts.filter((p) => {
-    if (showAll) return true;
-    if (activeCat) {
-      if (!KNOWN_CATEGORY_KEYS.has(activeCat.key)) return false;
-      if (p.category !== activeCat.key) return false;
-      if (activeSub) {
-        return (
-          (p.subcategory ?? "").trim().toLowerCase() ===
-          activeSub.name.trim().toLowerCase()
-        );
-      }
-      return true;
-    }
-    return true;
-  });
+  // 1) Périmètre catégorie / sous-catégorie
+  const scopedProducts = useMemo(
+    () =>
+      allProducts.filter((p) => {
+        if (hasQuery && !showAll && !activeCat) return true;
+        if (showAll) return true;
+        if (activeCat) {
+          if (!KNOWN_CATEGORY_KEYS.has(activeCat.key)) return false;
+          if (p.category !== activeCat.key) return false;
+          if (activeSub) {
+            return (
+              (p.subcategory ?? "").trim().toLowerCase() ===
+              activeSub.name.trim().toLowerCase()
+            );
+          }
+          return true;
+        }
+        return true;
+      }),
+    [allProducts, activeCat, activeSub, showAll, hasQuery],
+  );
+
+  // 2) Facettes calculées sur le périmètre, 3) filtres cumulés
+  const facets = useMemo(
+    () => buildFacets(scopedProducts, variantVolumes),
+    [scopedProducts, variantVolumes],
+  );
+  const filteredProducts = useMemo(
+    () => applyShopFilters(scopedProducts, filters, variantVolumes),
+    [scopedProducts, filters, variantVolumes],
+  );
 
   const goto = (opts: {
     categorie?: string;
@@ -129,12 +158,55 @@ function BoutiquePage() {
   }) =>
     navigate({
       to: ".",
-      search: {
+      search: (prev) => ({
+        ...prev,
         categorie: opts.categorie ?? "",
         sous_categorie: opts.sous_categorie ?? "",
         tout: opts.tout ?? false,
-      },
+      }),
     });
+
+  const patchFilters = (patch: FilterPatch) =>
+    navigate({
+      to: ".",
+      search: (prev) => ({
+        ...prev,
+        q: patch.q ?? prev.q,
+        marques: patch.marques ?? prev.marques,
+        gammes: patch.gammes ?? prev.gammes,
+        gouts: patch.gouts ?? prev.gouts,
+        volumes: patch.volumes ?? prev.volumes,
+        en_stock: patch.en_stock ?? prev.en_stock,
+        prix_min:
+          patch.prix_min !== undefined ? (patch.prix_min ?? 0) : prev.prix_min,
+        prix_max:
+          patch.prix_max !== undefined ? (patch.prix_max ?? 0) : prev.prix_max,
+      }),
+    });
+
+  const resetFilters = () =>
+    navigate({
+      to: ".",
+      search: (prev) => ({
+        ...prev,
+        q: "",
+        marques: [],
+        gammes: [],
+        gouts: [],
+        volumes: [],
+        en_stock: false,
+        prix_min: 0,
+        prix_max: 0,
+      }),
+    });
+
+  const activeFilterCount =
+    filters.marques.length +
+    filters.gammes.length +
+    filters.gouts.length +
+    filters.volumes.length +
+    (filters.en_stock ? 1 : 0) +
+    (filters.prix_min != null || filters.prix_max != null ? 1 : 0);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -209,26 +281,69 @@ function BoutiquePage() {
         )}
 
         {stage === "products" && (
-          <>
-            {filteredProducts.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-                Aucun produit disponible pour le moment.
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+            <aside className="lg:w-64 lg:shrink-0">
+              <MobileFiltersToggle
+                open={filtersOpen}
+                onToggle={() => setFiltersOpen((o) => !o)}
+                count={activeFilterCount}
+              />
+              <div
+                className={`${filtersOpen ? "mt-3 block" : "hidden"} rounded-lg border border-border bg-card p-4 lg:sticky lg:top-6 lg:mt-0 lg:block`}
+              >
+                <FiltersPanelBody
+                  facets={facets}
+                  filters={filters}
+                  onChange={patchFilters}
+                  onReset={resetFilters}
+                  resultCount={filteredProducts.length}
+                />
               </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                {filteredProducts.map((p) => (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    categoryName={
-                      categories.find((c) => c.key === p.category)?.name ??
-                      p.category
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </>
+            </aside>
+
+            <div className="min-w-0 flex-1">
+              <p className="mb-3 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {filteredProducts.length} produit
+                  {filteredProducts.length > 1 ? "s" : ""}
+                </span>{" "}
+                correspondant{filteredProducts.length > 1 ? "s" : ""} à votre
+                sélection
+              </p>
+              <ActiveFilterChips
+                filters={filters}
+                onChange={patchFilters}
+                onReset={resetFilters}
+              />
+              {filteredProducts.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
+                  Aucun produit ne correspond à votre recherche.
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={resetFilters}
+                      className="rounded-full border border-border px-4 py-1.5 text-xs hover:border-accent/60 hover:text-foreground"
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+                  {filteredProducts.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      categoryName={
+                        categories.find((c) => c.key === p.category)?.name ??
+                        p.category
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </main>
       <SiteFooter />
