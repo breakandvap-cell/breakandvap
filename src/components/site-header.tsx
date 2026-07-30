@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useQuery } from "@tanstack/react-query";
 import { isAdmin as isAdminFn } from "@/lib/admin.functions";
 import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
+import { ProductSearch } from "@/components/product-search";
 import {
   Sheet,
   SheetContent,
@@ -38,6 +39,8 @@ export function SiteHeader() {
               depuis 2018
             </span>
           </Link>
+          {/* Recherche desktop */}
+          <ProductSearch className="hidden max-w-sm flex-1 md:block" />
           {/* Desktop nav */}
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
             <Link
@@ -80,6 +83,10 @@ export function SiteHeader() {
               </SheetContent>
             </Sheet>
           </div>
+        </div>
+        {/* Recherche mobile */}
+        <div className="mx-auto max-w-6xl px-4 pb-3 md:hidden">
+          <ProductSearch />
         </div>
       </header>
     </>
