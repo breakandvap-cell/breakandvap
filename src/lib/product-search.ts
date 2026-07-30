@@ -118,6 +118,69 @@ export type Facets = {
   maxPriceCents: number;
 };
 
+export const SORT_OPTIONS = [
+  { value: "pertinence", label: "Pertinence" },
+  { value: "prix_asc", label: "Prix croissant" },
+  { value: "prix_desc", label: "Prix décroissant" },
+  { value: "nouveautes", label: "Nouveautés" },
+] as const;
+
+export type SortValue = (typeof SORT_OPTIONS)[number]["value"];
+
+export function isSortValue(v: string): v is SortValue {
+  return SORT_OPTIONS.some((o) => o.value === v);
+}
+
+/** Score de pertinence : plus petit = plus pertinent. */
+function relevanceScore(p: ProductRow, query: string): number {
+  const terms = normalizeText(query).split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return 0;
+  const name = normalizeText(p.name);
+  const brand = normalizeText(p.brand);
+  const range = normalizeText(p.product_range);
+  let score = 0;
+  for (const t of terms) {
+    if (name.startsWith(t)) score += 0;
+    else if (name.includes(t)) score += 1;
+    else if (brand.includes(t) || range.includes(t)) score += 2;
+    else score += 3;
+  }
+  return score / terms.length;
+}
+
+export function sortProducts(
+  products: ProductRow[],
+  sort: SortValue,
+  query = "",
+): ProductRow[] {
+  const out = [...products];
+  if (sort === "prix_asc")
+    out.sort((a, b) => a.price_cents - b.price_cents);
+  else if (sort === "prix_desc")
+    out.sort((a, b) => b.price_cents - a.price_cents);
+  else if (sort === "nouveautes")
+    out.sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  else if (query.trim())
+    out.sort(
+      (a, b) =>
+        relevanceScore(a, query) - relevanceScore(b, query) ||
+        a.name.localeCompare(b.name, "fr"),
+    );
+  return out;
+}
+
+type FacetsUnused = {
+  brands: string[];
+  ranges: string[];
+  flavors: string[];
+  volumes: number[];
+  minPriceCents: number;
+  maxPriceCents: number;
+};
+
 /** Valeurs réellement présentes dans le sous-catalogue affiché. */
 export function buildFacets(
   products: ProductRow[],
