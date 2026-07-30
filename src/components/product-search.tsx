@@ -55,6 +55,7 @@ export function ProductSearch({
         en_stock: false,
         prix_min: 0,
         prix_max: 0,
+        tri: "pertinence",
       },
     });
   };
