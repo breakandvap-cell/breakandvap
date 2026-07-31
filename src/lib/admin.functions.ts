@@ -1626,9 +1626,20 @@ function bulkSlug(input: string): string {
     .slice(0, 80);
 }
 
-function classifyRow(row: BulkRow): { kind: "eliquide_10ml" | "eliquide_large" | "empty_bottle"; error?: string } {
+function classifyRow(row: BulkRow): {
+  kind: "eliquide_10ml" | "eliquide_large" | "empty_bottle" | "cbd_weight";
+  error?: string;
+} {
   const cat = row.category.trim().toLowerCase();
   const type = row.type.trim().toLowerCase();
+  if (cat === "cbd") {
+    // CBD vendu « au poids » : le type (fleur, résine, pré-roll…) est libre et
+    // recopié dans la description ; les paliers de prix sont complétés ensuite.
+    if (!type) {
+      return { kind: "cbd_weight", error: "Type manquant pour un produit CBD (fleur, résine, pré-roll…)." };
+    }
+    return { kind: "cbd_weight" };
+  }
   if (cat === "e_liquide") {
     if (type.includes("10ml") || type.includes("prêt") || type.includes("pret")) {
       return { kind: "eliquide_10ml" };
