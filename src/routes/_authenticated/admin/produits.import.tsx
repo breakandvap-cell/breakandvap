@@ -48,7 +48,7 @@ function detectDelimiter(sample: string): string {
 
 // Petit parseur CSV tolérant : gère les guillemets doubles et les
 // délimiteurs virgule / point-virgule / tabulation.
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const delim = detectDelimiter(text);
   const rows: string[][] = [];
   let field = "";
@@ -110,7 +110,7 @@ function parseNicotines(raw: string): number[] {
     .map((n) => Math.round(n));
 }
 
-function classify(row: ParsedRow): string | null {
+export function classify(row: ParsedRow): string | null {
   const cat = row.category.trim().toLowerCase();
   const type = row.type.trim().toLowerCase();
   if (!row.nom.trim()) return "Nom manquant.";
@@ -128,6 +128,10 @@ function classify(row: ParsedRow): string | null {
       return null;
     }
     return `Type accessoire non supporté à l'import : « ${row.type} ».`;
+  }
+  if (cat === "cbd") {
+    if (!type) return "Type manquant pour un produit CBD (fleur, résine, pré-roll…).";
+    return null;
   }
   return `Catégorie non supportée : « ${row.category} ».`;
 }
@@ -267,6 +271,12 @@ function ImportPage() {
             <strong>accessoire_vape</strong> + « Flacon vide » : flacon vide avec contenance renseignée.
           </li>
           <li>
+            <strong>cbd</strong> + un Type libre (fleur, résine, pré-roll…) : produit CBD créé en
+            <strong> vente au poids</strong>, sans paliers de prix pré-remplis. Les paliers, le taux
+            de CBD/THC et les photos se complètent ensuite dans le wizard CBD. La publication reste
+            bloquée tant que le THC dépasse 0,3 %.
+          </li>
+          <li>
             Toutes les lignes deviennent des <strong>brouillons non publiés</strong> avec un prix
             de vente à 0 € ; « Prix achat HT (info) » est ignoré.
           </li>
@@ -331,7 +341,7 @@ function ImportPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {rows.slice(0, 10).map((r) => (
+                {rows.map((r) => (
                   <tr key={r.line} className={r._error ? "bg-destructive/5" : ""}>
                     <td className="px-2 py-1">{r.line}</td>
                     <td className="px-2 py-1">{r.marque}</td>
@@ -352,12 +362,9 @@ function ImportPage() {
                 ))}
               </tbody>
             </table>
-            {rows.length > 10 && (
-              <p className="border-t px-2 py-2 text-xs text-muted-foreground">
-                Aperçu limité aux 10 premières lignes — {rows.length - 10} autres lignes seront
-                traitées.
-              </p>
-            )}
+            <p className="border-t px-2 py-2 text-xs text-muted-foreground">
+              {rows.length} ligne(s) affichée(s).
+            </p>
           </div>
 
           {errorRows.length > 0 && (
@@ -385,7 +392,7 @@ function ImportPage() {
           </p>
           {result.errors.length > 0 && (
             <ul className="mt-2 list-inside list-disc text-xs text-emerald-100/80">
-              {result.errors.slice(0, 20).map((e, i) => (
+              {result.errors.map((e, i) => (
                 <li key={i}>
                   Ligne {e.line} — {e.message}
                 </li>

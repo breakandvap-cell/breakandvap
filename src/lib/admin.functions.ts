@@ -1626,9 +1626,20 @@ function bulkSlug(input: string): string {
     .slice(0, 80);
 }
 
-function classifyRow(row: BulkRow): { kind: "eliquide_10ml" | "eliquide_large" | "empty_bottle"; error?: string } {
+function classifyRow(row: BulkRow): {
+  kind: "eliquide_10ml" | "eliquide_large" | "empty_bottle" | "cbd_weight";
+  error?: string;
+} {
   const cat = row.category.trim().toLowerCase();
   const type = row.type.trim().toLowerCase();
+  if (cat === "cbd") {
+    // CBD vendu « au poids » : le type (fleur, résine, pré-roll…) est libre et
+    // recopié dans la description ; les paliers de prix sont complétés ensuite.
+    if (!type) {
+      return { kind: "cbd_weight", error: "Type manquant pour un produit CBD (fleur, résine, pré-roll…)." };
+    }
+    return { kind: "cbd_weight" };
+  }
   if (cat === "e_liquide") {
     if (type.includes("10ml") || type.includes("prêt") || type.includes("pret")) {
       return { kind: "eliquide_10ml" };
@@ -1671,11 +1682,13 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
 
     // Regroupe les e-liquides par (marque|nom) pour fusionner les contenances.
     type Bucket = {
-      kind: "eliquide" | "empty_bottle";
+      kind: "eliquide" | "empty_bottle" | "cbd_weight";
       lines: number[];
       marque: string;
       nom: string;
       subcategory: string;
+      // CBD : type libre (fleur, résine, pré-roll…) repris en description
+      type?: string;
       // e-liquide : variantes agrégées
       variants: Array<{
         volume_ml: number;
@@ -1698,6 +1711,26 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
       const marque = row.marque.trim();
       const nom = row.nom.trim();
       const displayName = marque ? `${marque} ${nom}` : nom;
+      if (cls.kind === "cbd_weight") {
+        const key = `cbd::${bulkSlug(marque)}::${bulkSlug(nom)}::${bulkSlug(row.type)}`;
+        const prev = buckets.get(key);
+        if (prev) {
+          prev.lines.push(row.line);
+          prev.stock += row.stock;
+        } else {
+          buckets.set(key, {
+            kind: "cbd_weight",
+            lines: [row.line],
+            marque,
+            nom,
+            subcategory: row.subcategory,
+            type: row.type.trim(),
+            variants: [],
+            stock: row.stock,
+          });
+        }
+        continue;
+      }
       if (cls.kind === "empty_bottle") {
         const key = `bottle::${bulkSlug(displayName)}::${row.volume_ml}`;
         buckets.set(key, {
@@ -1786,6 +1819,40 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
           photos: [],
           volume_ml: bucket.volume_ml ?? null,
           variants: [],
+          flavors: [],
+        };
+      } else if (bucket.kind === "cbd_weight") {
+        // Vente au poids : une unique variante « 1 g » porteuse des paliers
+        // dégressifs, créée sans palier — l'admin les complète via le wizard.
+        payload = {
+          name: displayName,
+          slug,
+          category: "cbd",
+          subcategory: bucket.subcategory,
+          description: [
+            bucket.marque ? `**Marque :** ${bucket.marque}` : "",
+            bucket.type ? `**Type :** ${bucket.type}` : "",
+            "**Vente au poids** — paliers de prix à compléter.",
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+          price_cents: 0,
+          currency: "EUR",
+          stock: totalStock,
+          stock_status: stockStatus,
+          is_published: false,
+          photos: [],
+          variants: [
+            {
+              volume_ml: 1,
+              price_cents: 0,
+              stock: totalStock,
+              available_nicotine_mg: [],
+              nicotine_type: "normale",
+              is_active: true,
+              quantity_tiers: [],
+            },
+          ],
           flavors: [],
         };
       } else {
