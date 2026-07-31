@@ -129,6 +129,10 @@ function classify(row: ParsedRow): string | null {
     }
     return `Type accessoire non supporté à l'import : « ${row.type} ».`;
   }
+  if (cat === "cbd") {
+    if (!type) return "Type manquant pour un produit CBD (fleur, résine, pré-roll…).";
+    return null;
+  }
   return `Catégorie non supportée : « ${row.category} ».`;
 }
 
