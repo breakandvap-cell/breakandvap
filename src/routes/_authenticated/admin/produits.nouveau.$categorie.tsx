@@ -306,7 +306,9 @@ function stateFromExisting(
     const tiers = Array.isArray(first.quantity_tiers)
       ? (first.quantity_tiers as Array<{ min_qty?: number; price_cents?: number }>)
       : [];
-    if (tiers.length > 0) {
+    // Vente au poids : soit des paliers existent, soit c'est l'unique variante
+    // « 1 g » créée par l'import CSV (paliers encore vides).
+    if (tiers.length > 0 || (activeVariants.length === 1 && first.volume_ml === 1)) {
       return {
         ...base,
         sale_mode: "weight",
