@@ -92,6 +92,84 @@ export type Database = {
         }
         Relationships: []
       }
+      catalogue_produits_staging: {
+        Row: {
+          brand: string | null
+          cannabinoid_profile: string | null
+          category: string
+          is_publishable: boolean
+          manufacturer: string | null
+          name: string
+          nicotine_mg_ml: number | null
+          product_type: string
+          quantity: number
+          range_name: string | null
+          raw_name: string
+          resistance_ohm: number | null
+          review_reason: string | null
+          slug: string
+          source_id: number
+          source_title: string | null
+          source_url: string | null
+          subcategory: string
+          updated_at: string
+          value_ht: number | null
+          value_ttc: number | null
+          verification_status: string
+          volume_ml: number | null
+        }
+        Insert: {
+          brand?: string | null
+          cannabinoid_profile?: string | null
+          category: string
+          is_publishable?: boolean
+          manufacturer?: string | null
+          name: string
+          nicotine_mg_ml?: number | null
+          product_type: string
+          quantity?: number
+          range_name?: string | null
+          raw_name: string
+          resistance_ohm?: number | null
+          review_reason?: string | null
+          slug: string
+          source_id: number
+          source_title?: string | null
+          source_url?: string | null
+          subcategory: string
+          updated_at?: string
+          value_ht?: number | null
+          value_ttc?: number | null
+          verification_status: string
+          volume_ml?: number | null
+        }
+        Update: {
+          brand?: string | null
+          cannabinoid_profile?: string | null
+          category?: string
+          is_publishable?: boolean
+          manufacturer?: string | null
+          name?: string
+          nicotine_mg_ml?: number | null
+          product_type?: string
+          quantity?: number
+          range_name?: string | null
+          raw_name?: string
+          resistance_ohm?: number | null
+          review_reason?: string | null
+          slug?: string
+          source_id?: number
+          source_title?: string | null
+          source_url?: string | null
+          subcategory?: string
+          updated_at?: string
+          value_ht?: number | null
+          value_ttc?: number | null
+          verification_status?: string
+          volume_ml?: number | null
+        }
+        Relationships: []
+      }
       invoice_counters: {
         Row: {
           last_number: number
