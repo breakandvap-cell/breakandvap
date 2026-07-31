@@ -1821,6 +1821,40 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
           variants: [],
           flavors: [],
         };
+      } else if (bucket.kind === "cbd_weight") {
+        // Vente au poids : une unique variante « 1 g » porteuse des paliers
+        // dégressifs, créée sans palier — l'admin les complète via le wizard.
+        payload = {
+          name: displayName,
+          slug,
+          category: "cbd",
+          subcategory: bucket.subcategory,
+          description: [
+            bucket.marque ? `**Marque :** ${bucket.marque}` : "",
+            bucket.type ? `**Type :** ${bucket.type}` : "",
+            "**Vente au poids** — paliers de prix à compléter.",
+          ]
+            .filter(Boolean)
+            .join("\n\n"),
+          price_cents: 0,
+          currency: "EUR",
+          stock: totalStock,
+          stock_status: stockStatus,
+          is_published: false,
+          photos: [],
+          variants: [
+            {
+              volume_ml: 1,
+              price_cents: 0,
+              stock: totalStock,
+              available_nicotine_mg: [],
+              nicotine_type: "normale",
+              is_active: true,
+              quantity_tiers: [],
+            },
+          ],
+          flavors: [],
+        };
       } else {
         payload = {
           name: displayName,
