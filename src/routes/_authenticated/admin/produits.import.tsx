@@ -48,7 +48,7 @@ function detectDelimiter(sample: string): string {
 
 // Petit parseur CSV tolérant : gère les guillemets doubles et les
 // délimiteurs virgule / point-virgule / tabulation.
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const delim = detectDelimiter(text);
   const rows: string[][] = [];
   let field = "";
@@ -110,7 +110,7 @@ function parseNicotines(raw: string): number[] {
     .map((n) => Math.round(n));
 }
 
-function classify(row: ParsedRow): string | null {
+export function classify(row: ParsedRow): string | null {
   const cat = row.category.trim().toLowerCase();
   const type = row.type.trim().toLowerCase();
   if (!row.nom.trim()) return "Nom manquant.";
