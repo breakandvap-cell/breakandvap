@@ -1682,11 +1682,13 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
 
     // Regroupe les e-liquides par (marque|nom) pour fusionner les contenances.
     type Bucket = {
-      kind: "eliquide" | "empty_bottle";
+      kind: "eliquide" | "empty_bottle" | "cbd_weight";
       lines: number[];
       marque: string;
       nom: string;
       subcategory: string;
+      // CBD : type libre (fleur, résine, pré-roll…) repris en description
+      type?: string;
       // e-liquide : variantes agrégées
       variants: Array<{
         volume_ml: number;
@@ -1709,6 +1711,26 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
       const marque = row.marque.trim();
       const nom = row.nom.trim();
       const displayName = marque ? `${marque} ${nom}` : nom;
+      if (cls.kind === "cbd_weight") {
+        const key = `cbd::${bulkSlug(marque)}::${bulkSlug(nom)}::${bulkSlug(row.type)}`;
+        const prev = buckets.get(key);
+        if (prev) {
+          prev.lines.push(row.line);
+          prev.stock += row.stock;
+        } else {
+          buckets.set(key, {
+            kind: "cbd_weight",
+            lines: [row.line],
+            marque,
+            nom,
+            subcategory: row.subcategory,
+            type: row.type.trim(),
+            variants: [],
+            stock: row.stock,
+          });
+        }
+        continue;
+      }
       if (cls.kind === "empty_bottle") {
         const key = `bottle::${bulkSlug(displayName)}::${row.volume_ml}`;
         buckets.set(key, {
