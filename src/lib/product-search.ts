@@ -1,3 +1,43 @@
+/**
+ * Regroupe une liste de produits par gamme (product_range) + marque.
+ * Une gamme n'ayant qu'un seul produit ne crée pas de section : le produit
+ * rejoint le groupe « Autres », affiché à part.
+ */
+export type RangeGroup<T> = {
+  key: string;
+  title: string;
+  products: T[];
+};
+
+export function groupProductsByRange<
+  T extends { brand?: string | null; product_range?: string | null },
+>(products: T[]): { groups: RangeGroup<T>[]; others: T[] } {
+  const buckets = new Map<string, { title: string; products: T[] }>();
+  const others: T[] = [];
+  for (const p of products) {
+    const range = (p.product_range ?? "").trim();
+    if (!range) {
+      others.push(p);
+      continue;
+    }
+    const brand = (p.brand ?? "").trim();
+    const key = `${brand.toLowerCase()}|${range.toLowerCase()}`;
+    const title = brand ? `${range} — ${brand}` : range;
+    const bucket = buckets.get(key);
+    if (bucket) bucket.products.push(p);
+    else buckets.set(key, { title, products: [p] });
+  }
+  const groups: RangeGroup<T>[] = [];
+  for (const [key, b] of buckets) {
+    if (b.products.length < 2) {
+      others.push(...b.products);
+      continue;
+    }
+    groups.push({ key, title: b.title, products: b.products });
+  }
+  groups.sort((a, b) => a.title.localeCompare(b.title, "fr"));
+  return { groups, others };
+}
 import { parseFlavors, type ProductRow } from "@/lib/products";
 
 /** Minuscules + suppression des accents, pour une recherche tolérante. */
