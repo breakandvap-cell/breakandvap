@@ -472,30 +472,10 @@ function Wizard({
 
   const patch = (p: Partial<WizardData>) => setData((d) => ({ ...d, ...p }));
 
-  const canAdvance = (() => {
-    if (currentStep.id === "info") {
-      return data.name.trim().length >= 2 && data.description.trim().length > 0;
-    }
-    if (currentStep.id === "mode") {
-      return data.salesMode !== null;
-    }
-    if (currentStep.id === "flavors") {
-      // On autorise le passage même sans goût (produit à saveur unique).
-      return true;
-    }
-    if (currentStep.id === "formats") {
-      return isFormatsStepValid(data);
-    }
-    if (currentStep.id === "nicotine") {
-      // Au moins un type doit rester coché.
-      return (
-        data.nicotineTypes.normale ||
-        data.nicotineTypes.sel ||
-        data.nicotineTypes.ice
-      );
-    }
-    return false;
-  })();
+  // La navigation entre étapes n'est jamais bloquée : l'admin peut remplir
+  // ce qu'il a sous la main et compléter plus tard. Les exigences strictes
+  // ne s'appliquent qu'à la publication (écran de relecture).
+  const canAdvance = true;
 
   const goBack = () => {
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
