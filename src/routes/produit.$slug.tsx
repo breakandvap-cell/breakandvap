@@ -334,6 +334,8 @@ function ProductDetail() {
             ) : null}
           </div>
         </div>
+
+        <RangeShowcase product={product} />
       </main>
       <SiteFooter />
     </div>
@@ -1038,6 +1040,8 @@ function EliquideDetail({
             ) : null}
           </div>
         </div>
+
+        <RangeShowcase product={product} />
       </main>
       <SiteFooter />
       <Dialog
@@ -1183,6 +1187,64 @@ function FlavorPicker({
 // Affiche « Marque · Gamme » sous le titre du produit lorsque ces champs
 // sont renseignés en base. Purement visuel : n'ajoute rien si les deux
 // colonnes sont vides.
+function RangeShowcase({ product }: { product: ProductRow }) {
+  const range = (product.product_range ?? "").trim();
+  const { data: siblings = [] } = useQuery(
+    sameRangeProductsQueryOptions({
+      range,
+      brand: product.brand,
+      excludeId: product.id,
+    }),
+  );
+  if (!range || siblings.length === 0) return null;
+  return (
+    <section className="mt-14 border-t border-border pt-8">
+      <h2
+        className="text-2xl"
+        style={{ fontFamily: "var(--font-serif)" }}
+      >
+        Découvrez toute la gamme {range}
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {siblings.length} autre{siblings.length > 1 ? "s" : ""} référence
+        {siblings.length > 1 ? "s" : ""} de cette gamme.
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+        {siblings.map((p) => (
+          <Link
+            key={p.id}
+            to="/produit/$slug"
+            params={{ slug: p.slug }}
+            className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md"
+          >
+            <div className="aspect-square w-full overflow-hidden bg-secondary">
+              {p.photos?.[0] ? (
+                <img
+                  src={p.photos[0]}
+                  alt={p.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                  Sans visuel
+                </div>
+              )}
+            </div>
+            <div className="flex flex-1 flex-col gap-1 p-3">
+              <h3 className="line-clamp-2 text-sm leading-snug">{p.name}</h3>
+              <span className="mt-auto text-sm font-semibold">
+                {formatPrice(p.price_cents, p.currency)}
+              </span>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function BrandRangeLine({
   product,
 }: {
