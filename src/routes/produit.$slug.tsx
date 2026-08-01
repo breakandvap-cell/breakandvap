@@ -22,6 +22,7 @@ import {
   boosterTypeLabel,
   normalizeBoosterTypeKey,
   emptyBottleCandidatesQueryOptions,
+  sameRangeProductsQueryOptions,
   type EmptyBottleCandidate,
   type BoosterProduct,
   type ProductFlavor,
