@@ -1338,23 +1338,6 @@ function defaultSkuFor(productName: string, entry: MatrixEntry): string {
   return `${base}${flavor}-${entry.suffix}`;
 }
 
-function isFormatsStepValid(data: WizardData): boolean {
-  const showSmall = data.salesMode === "small_only" || data.salesMode === "both";
-  const showLarge = data.salesMode === "large_only" || data.salesMode === "both";
-  if (showSmall) {
-    if (data.smallFormat.nicotineMg.length === 0) return false;
-    if (data.smallFormat.priceCents <= 0) return false;
-  }
-  if (showLarge) {
-    if (data.largeFormats.length === 0) return false;
-    for (const r of data.largeFormats) {
-      if (!r.volumeMl || !r.bottleCapacityMl || r.bottleCapacityMl < r.volumeMl) return false;
-      if (r.priceCents <= 0) return false;
-    }
-  }
-  return true;
-}
-
 function StepFormats({
   data,
   onPatch,
