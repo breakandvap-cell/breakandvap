@@ -35,7 +35,6 @@ export function groupProductsByRange<
     }
     groups.push({ key, title: b.title, products: b.products });
   }
-  groups.sort((a, b) => a.title.localeCompare(b.title, "fr"));
   return { groups, others };
 }
 import { parseFlavors, type ProductRow } from "@/lib/products";
