@@ -516,12 +516,11 @@ function Wizard({
   }
 
   function tryAdvance() {
-    setSubmitAttempted(true);
-    if (currentErrors.length === 0) {
-      setSubmitAttempted(false);
-      setStep((s) => (s < lastStep ? s + 1 : s));
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    // Navigation jamais bloquante : les champs manquants ne sont exigés
+    // qu'au moment de la publication (écran de relecture).
+    setSubmitAttempted(false);
+    setStep((s) => (s < lastStep ? s + 1 : s));
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function goBack() {
