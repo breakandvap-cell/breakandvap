@@ -472,30 +472,54 @@ function Wizard({
 
   const patch = (p: Partial<WizardData>) => setData((d) => ({ ...d, ...p }));
 
-  const canAdvance = (() => {
-    if (currentStep.id === "info") {
-      return data.name.trim().length >= 2 && data.description.trim().length > 0;
+  // La navigation entre étapes n'est jamais bloquée : l'admin peut remplir
+  // ce qu'il a sous la main et compléter plus tard. Les exigences strictes
+  // ne s'appliquent qu'à la publication (écran de relecture).
+  const canAdvance = true;
+
+  // Enregistrement en brouillon disponible à n'importe quelle étape.
+  const navigateWizard = useNavigate();
+  const qcWizard = useQueryClient();
+  const saveWizard = useServerFn(adminUpsertProduct);
+  const { data: wizardSettings } = useQuery(siteSettingsQueryOptions());
+  const wizardCfg: BoosterConfig = wizardSettings
+    ? {
+        boosterVolumeMl: wizardSettings.boosterVolumeMl,
+        boosterConcentrationMgPerMl: wizardSettings.boosterConcentrationMgPerMl,
+      }
+    : DEFAULT_BOOSTER_CONFIG;
+  const draftMutation = useMutation({
+    mutationFn: () =>
+      saveWizard({
+        data: buildPayloadFromWizard(data, false, wizardCfg, productId),
+      }),
+    onSuccess: async (row) => {
+      toast.success("Brouillon enregistré.");
+      await qcWizard.invalidateQueries({ queryKey: ["admin", "products"] });
+      const newId = (row as { id?: string } | null)?.id;
+      if (newId && isNew) {
+        try {
+          window.sessionStorage.removeItem(`bnv:eliquide-wizard:${productId}`);
+        } catch {
+          /* ignore */
+        }
+        navigateWizard({
+          to: "/admin/produits/eliquide/$id",
+          params: { id: newId },
+        });
+      }
+    },
+    onError: (e) =>
+      toast.error((e as Error).message || "Enregistrement impossible."),
+  });
+  const saveAsDraft = () => {
+    if (data.name.trim().length < 2) {
+      toast.error("Ajoute au moins un nom pour enregistrer en brouillon.");
+      setStepIndex(0);
+      return;
     }
-    if (currentStep.id === "mode") {
-      return data.salesMode !== null;
-    }
-    if (currentStep.id === "flavors") {
-      // On autorise le passage même sans goût (produit à saveur unique).
-      return true;
-    }
-    if (currentStep.id === "formats") {
-      return isFormatsStepValid(data);
-    }
-    if (currentStep.id === "nicotine") {
-      // Au moins un type doit rester coché.
-      return (
-        data.nicotineTypes.normale ||
-        data.nicotineTypes.sel ||
-        data.nicotineTypes.ice
-      );
-    }
-    return false;
-  })();
+    draftMutation.mutate();
+  };
 
   const goBack = () => {
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
@@ -576,14 +600,29 @@ function Wizard({
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>
         {currentStep.id !== "review" ? (
-          <button
-            type="button"
-            onClick={goNext}
-            disabled={!canAdvance}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-40"
-          >
-            Continuer <ArrowRight className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={saveAsDraft}
+              disabled={draftMutation.isPending}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-3 text-sm font-medium hover:bg-secondary disabled:opacity-40"
+            >
+              {draftMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Enregistrer en brouillon
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!canAdvance}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-40"
+            >
+              Continuer <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
         ) : (
           <span className="text-xs text-muted-foreground">
             Utilise les boutons de publication ci-dessus.
@@ -1356,23 +1395,6 @@ function defaultSkuFor(productName: string, entry: MatrixEntry): string {
   const base = slugify(productName) || "PRD";
   const flavor = entry.flavor.id === "__default__" ? "" : `-${slugify(entry.flavor.name) || "GOUT"}`;
   return `${base}${flavor}-${entry.suffix}`;
-}
-
-function isFormatsStepValid(data: WizardData): boolean {
-  const showSmall = data.salesMode === "small_only" || data.salesMode === "both";
-  const showLarge = data.salesMode === "large_only" || data.salesMode === "both";
-  if (showSmall) {
-    if (data.smallFormat.nicotineMg.length === 0) return false;
-    if (data.smallFormat.priceCents <= 0) return false;
-  }
-  if (showLarge) {
-    if (data.largeFormats.length === 0) return false;
-    for (const r of data.largeFormats) {
-      if (!r.volumeMl || !r.bottleCapacityMl || r.bottleCapacityMl < r.volumeMl) return false;
-      if (r.priceCents <= 0) return false;
-    }
-  }
-  return true;
 }
 
 function StepFormats({

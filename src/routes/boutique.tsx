@@ -28,6 +28,7 @@ import {
 import {
   applyShopFilters,
   buildFacets,
+  groupProductsByRange,
   isSortValue,
   sortProducts,
   type SortValue,
@@ -165,6 +166,11 @@ function BoutiquePage() {
   );
   const setSort = (v: SortValue) =>
     navigate({ to: ".", search: (prev: ShopSearch) => ({ ...prev, tri: v }) });
+
+  const { groups: rangeGroups, others: ungroupedProducts } = useMemo(
+    () => groupProductsByRange(visibleProducts),
+    [visibleProducts],
+  );
 
   const goto = (opts: {
     categorie?: string;
@@ -348,17 +354,61 @@ function BoutiquePage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
-                  {visibleProducts.map((p) => (
-                    <ProductCard
-                      key={p.id}
-                      product={p}
-                      categoryName={
-                        categories.find((c) => c.key === p.category)?.name ??
-                        p.category
-                      }
-                    />
+                <div className="space-y-10">
+                  {rangeGroups.map((g) => (
+                    <section key={g.key}>
+                      <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-border pb-2">
+                        <h2
+                          className="text-xl sm:text-2xl"
+                          style={{ fontFamily: "var(--font-serif)" }}
+                        >
+                          {g.title}
+                        </h2>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {g.products.length} produits
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+                        {g.products.map((p) => (
+                          <ProductCard
+                            key={p.id}
+                            product={p}
+                            categoryName={
+                              categories.find((c) => c.key === p.category)
+                                ?.name ?? p.category
+                            }
+                          />
+                        ))}
+                      </div>
+                    </section>
                   ))}
+
+                  {ungroupedProducts.length > 0 && (
+                    <section>
+                      {rangeGroups.length > 0 && (
+                        <div className="mb-3 border-b border-border pb-2">
+                          <h2
+                            className="text-xl sm:text-2xl"
+                            style={{ fontFamily: "var(--font-serif)" }}
+                          >
+                            Autres produits
+                          </h2>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-3 sm:gap-6 lg:grid-cols-3">
+                        {ungroupedProducts.map((p) => (
+                          <ProductCard
+                            key={p.id}
+                            product={p}
+                            categoryName={
+                              categories.find((c) => c.key === p.category)
+                                ?.name ?? p.category
+                            }
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
             </div>

@@ -230,6 +230,37 @@ export const productsQueryOptions = (category?: ProductCategory) =>
     },
   });
 
+/**
+ * Autres produits publiés de la même gamme (product_range) et de la même
+ * marque, hors produit courant. Utilisé par la section « Découvrez toute la
+ * gamme » de la fiche produit.
+ */
+export const sameRangeProductsQueryOptions = (args: {
+  range: string | null | undefined;
+  brand: string | null | undefined;
+  excludeId: string;
+}) => {
+  const range = (args.range ?? "").trim();
+  const brand = (args.brand ?? "").trim();
+  return queryOptions({
+    queryKey: ["products", "range", brand, range, args.excludeId] as const,
+    enabled: range.length > 0,
+    queryFn: async () => {
+      let q = supabase
+        .from("products")
+        .select("*")
+        .eq("is_published", true)
+        .eq("product_range", range)
+        .neq("id", args.excludeId)
+        .order("name", { ascending: true });
+      if (brand) q = q.eq("brand", brand);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProductRow[];
+    },
+  });
+};
+
 export const productBySlugQueryOptions = (slug: string) =>
   queryOptions({
     queryKey: ["product", slug] as const,
