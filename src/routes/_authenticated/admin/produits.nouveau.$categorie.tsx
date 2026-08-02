@@ -531,6 +531,33 @@ function Wizard({
     setStep((s) => (s > 0 ? s - 1 : s));
   }
 
+  // Changement de catégorie : chaque catégorie a son propre parcours, on
+  // bascule donc vers le wizard correspondant (le produit édité est conservé).
+  function changeCategory(key: string) {
+    if (!key || key === category) return;
+    if (key === "e_liquide") {
+      navigate({
+        to: "/admin/produits/eliquide/$id",
+        params: { id: productId ?? "nouveau" },
+      });
+      return;
+    }
+    const targetSlug =
+      key === "cbd"
+        ? "cbd"
+        : key === "accessoire_vape"
+          ? "accessoire-vape"
+          : key === "accessoire_cbd"
+            ? "accessoire-cbd"
+            : null;
+    if (!targetSlug) return;
+    navigate({
+      to: "/admin/produits/nouveau/$categorie",
+      params: { categorie: targetSlug },
+      search: productId ? { edit: productId } : {},
+    });
+  }
+
   function buildPayload(publish: boolean): ProductInput {
     const finalSlug = slugify(state.name);
     const description = state.descriptionShort.trim();
