@@ -142,6 +142,7 @@ type WizardState = {
   name: string;
   brand: string;
   range: string;
+  subcategory: string;
   photos: string[];
   // Étape 2 (mode CBD) / Étape 2 classique
   sale_mode: CbdSaleMode; // uniquement utilisé pour CBD
@@ -173,6 +174,7 @@ const EMPTY_STATE: WizardState = {
   name: "",
   brand: "",
   range: "",
+  subcategory: "",
   photos: [],
   sale_mode: "weight",
   weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
@@ -280,6 +282,7 @@ function stateFromExisting(
       ((existing as { product_range?: string | null }).product_range ?? "")
         .toString()
         .trim(),
+    subcategory: (existing.subcategory ?? "").toString(),
     photos: Array.isArray(existing.photos) ? existing.photos : [],
     priceEuros: centsToEuros(existing.price_cents),
     stock: String(existing.stock ?? 0),
@@ -623,7 +626,7 @@ function Wizard({
       range: state.range.trim(),
       slug: finalSlug || slugify(`produit-${Date.now()}`),
       category,
-      subcategory: "",
+      subcategory: state.subcategory.trim(),
       description: composedDescription,
       price_cents: effectivePriceCents,
       currency: "EUR",
@@ -815,6 +818,9 @@ function validateAll(input: {
   const base: string[] = [];
   if (state.name.trim().length < 2)
     base.push("Le nom du produit est obligatoire (2 caractères min.).");
+  if (!category) base.push("Veuillez sélectionner une catégorie");
+  if (!state.subcategory.trim())
+    base.push("Veuillez sélectionner une sous-catégorie");
   if (state.photos.length === 0) base.push("Ajoute au moins une photo produit.");
 
   const meta: string[] = [];
