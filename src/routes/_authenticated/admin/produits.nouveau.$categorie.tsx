@@ -732,6 +732,7 @@ function Wizard({
             setSubmitAttempted(false);
             setStep(s);
           },
+          onCategoryKeyChange: changeCategory,
         })}
       </div>
 
@@ -1102,6 +1103,7 @@ type RenderStepArgs = {
   uploading: boolean;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onEditStep: (s: number) => void;
+  onCategoryKeyChange: (key: string) => void;
 };
 
 function renderStep(a: RenderStepArgs) {
