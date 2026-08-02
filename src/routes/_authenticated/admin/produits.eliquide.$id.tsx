@@ -8,6 +8,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { CategorySubcategoryFields } from "@/components/admin/category-subcategory-fields";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowLeft,
@@ -102,6 +103,7 @@ type WizardData = {
   name: string;
   brand: string;
   range: string;
+  subcategory: string;
   shortDescription: string;
   description: string;
   mainPhoto: string | null;
@@ -125,6 +127,7 @@ const EMPTY: WizardData = {
   name: "",
   brand: "",
   range: "",
+  subcategory: "",
   shortDescription: "",
   description: "",
   mainPhoto: null,
@@ -315,6 +318,7 @@ function wizardDataFromExisting(
     name: existing.name ?? "",
     brand: ((existing as { brand?: string | null }).brand ?? "").toString().trim() || parsed.brand,
     range: ((existing as { product_range?: string | null }).product_range ?? "").toString(),
+    subcategory: (existing.subcategory ?? "").toString(),
     shortDescription: parsed.shortDescription,
     description: parsed.description,
     mainPhoto: photos[0] ?? null,
@@ -677,6 +681,7 @@ function StepInfo({
   productId: string;
 }) {
   const upload = useServerFn(adminUploadProductPhoto);
+  const navigateStep = useNavigate();
   const [uploading, setUploading] = useState<"main" | "extra" | null>(null);
   const mainRef = useRef<HTMLInputElement | null>(null);
   const extraRef = useRef<HTMLInputElement | null>(null);
@@ -725,6 +730,32 @@ function StepInfo({
           autoFocus
         />
       </Field>
+
+      <CategorySubcategoryFields
+        categoryKey="e_liquide"
+        subcategory={data.subcategory}
+        onChange={({ categoryKey, subcategory }) => {
+          onPatch({ subcategory });
+          if (categoryKey && categoryKey !== "e_liquide") {
+            const slugByKey: Record<string, string> = {
+              cbd: "cbd",
+              accessoire_vape: "accessoire-vape",
+              accessoire_cbd: "accessoire-cbd",
+            };
+            const targetSlug = slugByKey[categoryKey];
+            if (targetSlug) {
+              navigateStep({
+                to: "/admin/produits/nouveau/$categorie",
+                params: { categorie: targetSlug },
+                search:
+                  productId && productId !== "nouveau"
+                    ? { edit: productId }
+                    : {},
+              });
+            }
+          }
+        }}
+      />
 
       <Field label="Marque" hint="Optionnel">
         <input
@@ -1893,7 +1924,7 @@ function buildPayloadFromWizard(
     range: data.range.trim(),
     slug: finalSlug,
     category: "e_liquide",
-    subcategory: "",
+    subcategory: data.subcategory.trim(),
     description: composedDescription,
     price_cents: displayPrice,
     currency: "EUR",
@@ -1931,6 +1962,8 @@ function validateWizard(
 
   if (data.name.trim().length < 2)
     errors.push({ message: "Le nom du produit est manquant.", step: "info" });
+  if (!data.subcategory.trim())
+    errors.push({ message: "Veuillez sélectionner une sous-catégorie", step: "info" });
   if (data.description.trim().length === 0)
     errors.push({ message: "La description longue est vide.", step: "info" });
   if (!data.mainPhoto)

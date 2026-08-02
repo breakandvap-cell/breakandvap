@@ -15,6 +15,7 @@ import {
   type ProductInput,
 } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
+import { CategorySubcategoryFields } from "@/components/admin/category-subcategory-fields";
 import { CATEGORY_LABELS, BOOSTER_TYPE_PRESETS, formatPrice } from "@/lib/products";
 import {
   useState,
@@ -142,6 +143,7 @@ type WizardState = {
   name: string;
   brand: string;
   range: string;
+  subcategory: string;
   photos: string[];
   // Étape 2 (mode CBD) / Étape 2 classique
   sale_mode: CbdSaleMode; // uniquement utilisé pour CBD
@@ -173,6 +175,7 @@ const EMPTY_STATE: WizardState = {
   name: "",
   brand: "",
   range: "",
+  subcategory: "",
   photos: [],
   sale_mode: "weight",
   weight_tiers: [newTier("1", ""), newTier("5", ""), newTier("10", "")],
@@ -280,6 +283,7 @@ function stateFromExisting(
       ((existing as { product_range?: string | null }).product_range ?? "")
         .toString()
         .trim(),
+    subcategory: (existing.subcategory ?? "").toString(),
     photos: Array.isArray(existing.photos) ? existing.photos : [],
     priceEuros: centsToEuros(existing.price_cents),
     stock: String(existing.stock ?? 0),
@@ -528,6 +532,33 @@ function Wizard({
     setStep((s) => (s > 0 ? s - 1 : s));
   }
 
+  // Changement de catégorie : chaque catégorie a son propre parcours, on
+  // bascule donc vers le wizard correspondant (le produit édité est conservé).
+  function changeCategory(key: string) {
+    if (!key || key === category) return;
+    if (key === "e_liquide") {
+      navigate({
+        to: "/admin/produits/eliquide/$id",
+        params: { id: productId ?? "nouveau" },
+      });
+      return;
+    }
+    const targetSlug =
+      key === "cbd"
+        ? "cbd"
+        : key === "accessoire_vape"
+          ? "accessoire-vape"
+          : key === "accessoire_cbd"
+            ? "accessoire-cbd"
+            : null;
+    if (!targetSlug) return;
+    navigate({
+      to: "/admin/produits/nouveau/$categorie",
+      params: { categorie: targetSlug },
+      search: productId ? { edit: productId } : {},
+    });
+  }
+
   function buildPayload(publish: boolean): ProductInput {
     const finalSlug = slugify(state.name);
     const description = state.descriptionShort.trim();
@@ -623,7 +654,7 @@ function Wizard({
       range: state.range.trim(),
       slug: finalSlug || slugify(`produit-${Date.now()}`),
       category,
-      subcategory: "",
+      subcategory: state.subcategory.trim(),
       description: composedDescription,
       price_cents: effectivePriceCents,
       currency: "EUR",
@@ -729,6 +760,7 @@ function Wizard({
             setSubmitAttempted(false);
             setStep(s);
           },
+          onCategoryKeyChange: changeCategory,
         })}
       </div>
 
@@ -815,6 +847,9 @@ function validateAll(input: {
   const base: string[] = [];
   if (state.name.trim().length < 2)
     base.push("Le nom du produit est obligatoire (2 caractères min.).");
+  if (!category) base.push("Veuillez sélectionner une catégorie");
+  if (!state.subcategory.trim())
+    base.push("Veuillez sélectionner une sous-catégorie");
   if (state.photos.length === 0) base.push("Ajoute au moins une photo produit.");
 
   const meta: string[] = [];
@@ -1096,6 +1131,7 @@ type RenderStepArgs = {
   uploading: boolean;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   onEditStep: (s: number) => void;
+  onCategoryKeyChange: (key: string) => void;
 };
 
 function renderStep(a: RenderStepArgs) {
@@ -1107,7 +1143,7 @@ function renderStep(a: RenderStepArgs) {
     switch (a.step) {
       case 0:
         return (
-          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+          <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
         );
       case 1:
         return <StepMode state={a.state} setState={a.setState} />;
@@ -1154,7 +1190,7 @@ function renderStep(a: RenderStepArgs) {
     switch (a.step) {
       case 0:
         return (
-          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+          <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
         );
       case 1:
         return <StepType state={a.state} setState={a.setState} />;
@@ -1205,7 +1241,7 @@ function renderStep(a: RenderStepArgs) {
     switch (a.step) {
       case 0:
         return (
-          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+          <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
         );
       case 1:
         return <StepType state={a.state} setState={a.setState} />;
@@ -1250,7 +1286,7 @@ function renderStep(a: RenderStepArgs) {
   switch (a.step) {
     case 0:
       return (
-        <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
       );
     case 1:
       return (
@@ -1884,6 +1920,7 @@ function StepBase({
   state,
   setState,
   category,
+  onCategoryKeyChange,
   photos,
   onFiles,
   onRemovePhoto,
@@ -1895,6 +1932,7 @@ function StepBase({
   state: WizardState;
   setState: (fn: (s: WizardState) => WizardState) => void;
   category: SimpleCategory;
+  onCategoryKeyChange: (key: string) => void;
   photos: string[];
   onFiles: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemovePhoto: (idx: number) => void;
@@ -1947,17 +1985,15 @@ function StepBase({
         <SimpleRangeSuggestions brand={state.brand} />
       </div>
 
-      <div>
-        <label className="text-sm font-medium">Catégorie</label>
-        <div className="mt-1 flex items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm">
-          <span className="rounded-md bg-background px-2 py-0.5 text-xs font-medium">
-            {CATEGORY_LABELS[category]}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            (verrouillée pour ce parcours)
-          </span>
-        </div>
-      </div>
+      <CategorySubcategoryFields
+        categoryKey={category}
+        subcategory={state.subcategory}
+        showErrors={showErrors}
+        onChange={({ categoryKey, subcategory }) => {
+          setState((s) => ({ ...s, subcategory }));
+          if (categoryKey !== category) onCategoryKeyChange(categoryKey);
+        }}
+      />
 
       <div>
         <label className="text-sm font-medium">Photo(s) *</label>
