@@ -323,6 +323,13 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
         ]
       }
       orders: {
@@ -458,10 +465,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "product_variants_empty_bottle_product_id_fkey"
+            columns: ["empty_bottle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "product_variants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
             referencedColumns: ["id"]
           },
         ]
@@ -489,6 +510,7 @@ export type Database = {
           photos: string[]
           price_cents: number
           product_range: string | null
+          range_name: string | null
           slug: string
           stock: number
           stock_status: Database["public"]["Enums"]["stock_status"]
@@ -520,6 +542,7 @@ export type Database = {
           photos?: string[]
           price_cents: number
           product_range?: string | null
+          range_name?: string | null
           slug: string
           stock?: number
           stock_status?: Database["public"]["Enums"]["stock_status"]
@@ -551,6 +574,7 @@ export type Database = {
           photos?: string[]
           price_cents?: number
           product_range?: string | null
+          range_name?: string | null
           slug?: string
           stock?: number
           stock_status?: Database["public"]["Enums"]["stock_status"]
@@ -569,10 +593,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "products_booster_product_id_fkey"
+            columns: ["booster_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "products_empty_bottle_product_id_fkey"
             columns: ["empty_bottle_product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_empty_bottle_product_id_fkey"
+            columns: ["empty_bottle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
             referencedColumns: ["id"]
           },
         ]
@@ -733,8 +771,29 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "site_settings_default_booster_ice_id_fkey"
+            columns: ["default_booster_ice_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "site_settings_default_booster_normale_id_fkey"
             columns: ["default_booster_normale_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_settings_default_booster_normale_id_fkey"
+            columns: ["default_booster_normale_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_settings_default_booster_sel_id_fkey"
+            columns: ["default_booster_sel_id"]
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
@@ -743,7 +802,7 @@ export type Database = {
             foreignKeyName: "site_settings_default_booster_sel_id_fkey"
             columns: ["default_booster_sel_id"]
             isOneToOne: false
-            referencedRelation: "products"
+            referencedRelation: "products_brand_range_audit"
             referencedColumns: ["id"]
           },
         ]
@@ -890,7 +949,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      products_brand_range_audit: {
+        Row: {
+          brand: string | null
+          category: Database["public"]["Enums"]["product_category"] | null
+          classement: string | null
+          id: string | null
+          name: string | null
+          range_name: string | null
+        }
+        Insert: {
+          brand?: string | null
+          category?: Database["public"]["Enums"]["product_category"] | null
+          classement?: never
+          id?: string | null
+          name?: string | null
+          range_name?: string | null
+        }
+        Update: {
+          brand?: string | null
+          category?: Database["public"]["Enums"]["product_category"] | null
+          classement?: never
+          id?: string | null
+          name?: string | null
+          range_name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       create_invoice_for_order: {
