@@ -1919,6 +1919,7 @@ function StepBase({
   state,
   setState,
   category,
+  onCategoryKeyChange,
   photos,
   onFiles,
   onRemovePhoto,
@@ -1930,6 +1931,7 @@ function StepBase({
   state: WizardState;
   setState: (fn: (s: WizardState) => WizardState) => void;
   category: SimpleCategory;
+  onCategoryKeyChange: (key: string) => void;
   photos: string[];
   onFiles: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemovePhoto: (idx: number) => void;
@@ -1982,17 +1984,15 @@ function StepBase({
         <SimpleRangeSuggestions brand={state.brand} />
       </div>
 
-      <div>
-        <label className="text-sm font-medium">Catégorie</label>
-        <div className="mt-1 flex items-center gap-2 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm">
-          <span className="rounded-md bg-background px-2 py-0.5 text-xs font-medium">
-            {CATEGORY_LABELS[category]}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            (verrouillée pour ce parcours)
-          </span>
-        </div>
-      </div>
+      <CategorySubcategoryFields
+        categoryKey={category}
+        subcategory={state.subcategory}
+        showErrors={showErrors}
+        onChange={({ categoryKey, subcategory }) => {
+          setState((s) => ({ ...s, subcategory }));
+          if (categoryKey !== category) onCategoryKeyChange(categoryKey);
+        }}
+      />
 
       <div>
         <label className="text-sm font-medium">Photo(s) *</label>
