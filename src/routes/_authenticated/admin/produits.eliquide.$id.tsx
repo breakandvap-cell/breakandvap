@@ -8,6 +8,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { CategorySubcategoryFields } from "@/components/admin/category-subcategory-fields";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowLeft,
@@ -680,6 +681,7 @@ function StepInfo({
   productId: string;
 }) {
   const upload = useServerFn(adminUploadProductPhoto);
+  const navigateStep = useNavigate();
   const [uploading, setUploading] = useState<"main" | "extra" | null>(null);
   const mainRef = useRef<HTMLInputElement | null>(null);
   const extraRef = useRef<HTMLInputElement | null>(null);
