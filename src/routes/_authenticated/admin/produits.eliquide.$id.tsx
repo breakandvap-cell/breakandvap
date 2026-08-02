@@ -729,6 +729,32 @@ function StepInfo({
         />
       </Field>
 
+      <CategorySubcategoryFields
+        categoryKey="e_liquide"
+        subcategory={data.subcategory}
+        onChange={({ categoryKey, subcategory }) => {
+          onPatch({ subcategory });
+          if (categoryKey && categoryKey !== "e_liquide") {
+            const slugByKey: Record<string, string> = {
+              cbd: "cbd",
+              accessoire_vape: "accessoire-vape",
+              accessoire_cbd: "accessoire-cbd",
+            };
+            const targetSlug = slugByKey[categoryKey];
+            if (targetSlug) {
+              navigateStep({
+                to: "/admin/produits/nouveau/$categorie",
+                params: { categorie: targetSlug },
+                search:
+                  productId && productId !== "nouveau"
+                    ? { edit: productId }
+                    : {},
+              });
+            }
+          }
+        }}
+      />
+
       <Field label="Marque" hint="Optionnel">
         <input
           className="input h-11 text-base"
