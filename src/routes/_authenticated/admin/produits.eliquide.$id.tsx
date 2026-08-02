@@ -102,6 +102,7 @@ type WizardData = {
   name: string;
   brand: string;
   range: string;
+  subcategory: string;
   shortDescription: string;
   description: string;
   mainPhoto: string | null;
@@ -125,6 +126,7 @@ const EMPTY: WizardData = {
   name: "",
   brand: "",
   range: "",
+  subcategory: "",
   shortDescription: "",
   description: "",
   mainPhoto: null,
@@ -315,6 +317,7 @@ function wizardDataFromExisting(
     name: existing.name ?? "",
     brand: ((existing as { brand?: string | null }).brand ?? "").toString().trim() || parsed.brand,
     range: ((existing as { product_range?: string | null }).product_range ?? "").toString(),
+    subcategory: (existing.subcategory ?? "").toString(),
     shortDescription: parsed.shortDescription,
     description: parsed.description,
     mainPhoto: photos[0] ?? null,
@@ -1893,7 +1896,7 @@ function buildPayloadFromWizard(
     range: data.range.trim(),
     slug: finalSlug,
     category: "e_liquide",
-    subcategory: "",
+    subcategory: data.subcategory.trim(),
     description: composedDescription,
     price_cents: displayPrice,
     currency: "EUR",
@@ -1931,6 +1934,8 @@ function validateWizard(
 
   if (data.name.trim().length < 2)
     errors.push({ message: "Le nom du produit est manquant.", step: "info" });
+  if (!data.subcategory.trim())
+    errors.push({ message: "Veuillez sélectionner une sous-catégorie", step: "info" });
   if (data.description.trim().length === 0)
     errors.push({ message: "La description longue est vide.", step: "info" });
   if (!data.mainPhoto)
