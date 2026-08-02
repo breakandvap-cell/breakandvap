@@ -1113,7 +1113,7 @@ function renderStep(a: RenderStepArgs) {
     switch (a.step) {
       case 0:
         return (
-          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+          <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
         );
       case 1:
         return <StepMode state={a.state} setState={a.setState} />;
@@ -1160,7 +1160,7 @@ function renderStep(a: RenderStepArgs) {
     switch (a.step) {
       case 0:
         return (
-          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+          <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
         );
       case 1:
         return <StepType state={a.state} setState={a.setState} />;
@@ -1211,7 +1211,7 @@ function renderStep(a: RenderStepArgs) {
     switch (a.step) {
       case 0:
         return (
-          <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+          <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
         );
       case 1:
         return <StepType state={a.state} setState={a.setState} />;
@@ -1256,7 +1256,7 @@ function renderStep(a: RenderStepArgs) {
   switch (a.step) {
     case 0:
       return (
-        <StepBase state={a.state} setState={a.setState} category={a.category} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
+        <StepBase state={a.state} setState={a.setState} category={a.category} onCategoryKeyChange={a.onCategoryKeyChange} photos={a.photos} onFiles={a.onFiles} onRemovePhoto={a.onRemovePhoto} uploading={a.uploading} fileInputRef={a.fileInputRef} showErrors={a.submitAttempted} errors={a.currentErrors} />
       );
     case 1:
       return (
