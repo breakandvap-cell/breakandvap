@@ -1971,18 +1971,16 @@ function StepBase({
 
       <div>
         <label className="text-sm font-medium">Gamme (optionnel)</label>
-        <input
-          type="text"
-          value={state.range}
-          onChange={(e) => setState((s) => ({ ...s, range: e.target.value }))}
-          placeholder="Ex : Iceberg"
-          list="simple-range-suggestions"
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-base"
-        />
+        <div className="mt-1">
+          <GammeSelect
+            brand={state.brand}
+            value={state.range}
+            onChange={(nom) => setState((s) => ({ ...s, range: nom }))}
+          />
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">
           Famille de produits d'une marque (regroupement commercial).
         </p>
-        <SimpleRangeSuggestions brand={state.brand} />
       </div>
 
       <CategorySubcategoryFields
