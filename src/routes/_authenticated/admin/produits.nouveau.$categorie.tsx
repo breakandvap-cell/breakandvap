@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
 import { CategorySubcategoryFields } from "@/components/admin/category-subcategory-fields";
+import { GammeSelect } from "@/components/admin/gamme-select";
 import { CATEGORY_LABELS, BOOSTER_TYPE_PRESETS, formatPrice } from "@/lib/products";
 import {
   useState,
