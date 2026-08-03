@@ -400,6 +400,33 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
     return upsertProductCore(context, data);
   });
 
+/**
+ * Rattache le produit à une gamme (table `gammes`) déduite du couple
+ * marque + nom de gamme. La gamme est créée à la volée si elle n'existe pas
+ * encore. Retourne null quand marque ou gamme ne sont pas renseignées.
+ */
+async function resolveGammeId(
+  db: { from: (t: string) => any },
+  marque: string,
+  nom: string,
+): Promise<string | null> {
+  if (!marque || !nom) return null;
+  const { data: existing } = await db
+    .from("gammes")
+    .select("id")
+    .ilike("marque", marque)
+    .ilike("nom", nom)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+  const { data: created, error } = await db
+    .from("gammes")
+    .insert({ nom, marque })
+    .select("id")
+    .single();
+  if (error) return null;
+  return (created?.id as string) ?? null;
+}
+
 async function upsertProductCore(
   context: AdminContext,
   data: ProductInput,
