@@ -9,6 +9,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CategorySubcategoryFields } from "@/components/admin/category-subcategory-fields";
+import { GammeSelect } from "@/components/admin/gamme-select";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowLeft,
