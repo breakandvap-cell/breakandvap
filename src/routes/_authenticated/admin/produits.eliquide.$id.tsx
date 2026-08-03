@@ -771,14 +771,11 @@ function StepInfo({
         label="Gamme"
         hint="Optionnel — famille de produits d'une marque (ex. « Iceberg »)"
       >
-        <input
-          className="input h-11 text-base"
+        <GammeSelect
+          brand={data.brand}
           value={data.range}
-          onChange={(e) => onPatch({ range: e.target.value })}
-          placeholder="Ex. Iceberg"
-          list="wizard-range-suggestions"
+          onChange={(nom) => onPatch({ range: nom })}
         />
-        <BrandRangeSuggestions brand={data.brand} />
       </Field>
 
       <Field label="Description courte" hint="Une phrase — sert d'accroche en boutique">
