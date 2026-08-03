@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { computeProductStatus, StatusBadge } from "@/lib/product-status";
+import { AdminProductSearch } from "@/components/admin/admin-product-search";
 
 type ProductFilters = {
   category?: "" | "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd";
@@ -141,6 +142,10 @@ function ProductsList() {
           </ul>
         </div>
       )}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <AdminProductSearch className="w-full sm:max-w-sm" />
+      </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="flex items-center gap-2">
