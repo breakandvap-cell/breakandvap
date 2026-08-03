@@ -404,6 +404,7 @@ async function upsertProductCore(
   context: AdminContext,
   data: ProductInput,
 ): Promise<{ id: string }> {
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // ---- Garde-fou : empêche de casser silencieusement un booster référencé ----
     // Si le produit est actuellement marqué comme booster de nicotine et qu'un
@@ -464,7 +465,7 @@ async function upsertProductCore(
       brand: (data.brand ?? "").trim() || null,
       product_range: (data.range ?? "").trim() || null,
       gamme_id: await resolveGammeId(
-        context.supabase,
+        supabaseAdmin,
         (data.brand ?? "").trim(),
         (data.range ?? "").trim(),
       ),
