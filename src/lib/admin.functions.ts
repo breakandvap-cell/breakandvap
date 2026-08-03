@@ -400,10 +400,38 @@ export const adminUpsertProduct = createServerFn({ method: "POST" })
     return upsertProductCore(context, data);
   });
 
+/**
+ * Rattache le produit à une gamme (table `gammes`) déduite du couple
+ * marque + nom de gamme. La gamme est créée à la volée si elle n'existe pas
+ * encore. Retourne null quand marque ou gamme ne sont pas renseignées.
+ */
+async function resolveGammeId(
+  db: { from: (t: string) => any },
+  marque: string,
+  nom: string,
+): Promise<string | null> {
+  if (!marque || !nom) return null;
+  const { data: existing } = await db
+    .from("gammes")
+    .select("id")
+    .ilike("marque", marque)
+    .ilike("nom", nom)
+    .maybeSingle();
+  if (existing?.id) return existing.id as string;
+  const { data: created, error } = await db
+    .from("gammes")
+    .insert({ nom, marque })
+    .select("id")
+    .single();
+  if (error) return null;
+  return (created?.id as string) ?? null;
+}
+
 async function upsertProductCore(
   context: AdminContext,
   data: ProductInput,
 ): Promise<{ id: string }> {
+
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // ---- Garde-fou : empêche de casser silencieusement un booster référencé ----
     // Si le produit est actuellement marqué comme booster de nicotine et qu'un
@@ -463,6 +491,11 @@ async function upsertProductCore(
       subcategory: data.subcategory || null,
       brand: (data.brand ?? "").trim() || null,
       product_range: (data.range ?? "").trim() || null,
+      gamme_id: await resolveGammeId(
+        supabaseAdmin,
+        (data.brand ?? "").trim(),
+        (data.range ?? "").trim(),
+      ),
       description: data.description || null,
       price_cents: data.price_cents,
       currency: data.currency || "EUR",

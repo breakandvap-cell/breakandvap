@@ -170,6 +170,30 @@ export type Database = {
         }
         Relationships: []
       }
+      gammes: {
+        Row: {
+          created_at: string
+          id: string
+          marque: string
+          nom: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marque: string
+          nom: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marque?: string
+          nom?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_counters: {
         Row: {
           last_number: number
@@ -495,11 +519,14 @@ export type Database = {
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent: number | null
           coa_url: string | null
+          country_of_origin: string | null
           created_at: string
           currency: string
           description: string | null
           empty_bottle_product_id: string | null
+          flavor_type: string | null
           flavors: Json
+          gamme_id: string | null
           health_warnings: string | null
           id: string
           is_nicotine_booster: boolean
@@ -507,6 +534,7 @@ export type Database = {
           low_stock_notified_at: string | null
           name: string
           nicotine_mg: number | null
+          pg_vg_ratio: string | null
           photos: string[]
           price_cents: number
           product_range: string | null
@@ -527,11 +555,14 @@ export type Database = {
           category: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
+          country_of_origin?: string | null
           created_at?: string
           currency?: string
           description?: string | null
           empty_bottle_product_id?: string | null
+          flavor_type?: string | null
           flavors?: Json
+          gamme_id?: string | null
           health_warnings?: string | null
           id?: string
           is_nicotine_booster?: boolean
@@ -539,6 +570,7 @@ export type Database = {
           low_stock_notified_at?: string | null
           name: string
           nicotine_mg?: number | null
+          pg_vg_ratio?: string | null
           photos?: string[]
           price_cents: number
           product_range?: string | null
@@ -559,11 +591,14 @@ export type Database = {
           category?: Database["public"]["Enums"]["product_category"]
           cbd_percent?: number | null
           coa_url?: string | null
+          country_of_origin?: string | null
           created_at?: string
           currency?: string
           description?: string | null
           empty_bottle_product_id?: string | null
+          flavor_type?: string | null
           flavors?: Json
+          gamme_id?: string | null
           health_warnings?: string | null
           id?: string
           is_nicotine_booster?: boolean
@@ -571,6 +606,7 @@ export type Database = {
           low_stock_notified_at?: string | null
           name?: string
           nicotine_mg?: number | null
+          pg_vg_ratio?: string | null
           photos?: string[]
           price_cents?: number
           product_range?: string | null
@@ -611,6 +647,13 @@ export type Database = {
             columns: ["empty_bottle_product_id"]
             isOneToOne: false
             referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_gamme_id_fkey"
+            columns: ["gamme_id"]
+            isOneToOne: false
+            referencedRelation: "gammes"
             referencedColumns: ["id"]
           },
         ]
@@ -1048,6 +1091,53 @@ export type Database = {
         Args: { _id: string; _qty: number }
         Returns: number
       }
+      search_products: {
+        Args: { search_term: string }
+        Returns: {
+          booster_product_id: string | null
+          booster_type: string | null
+          brand: string | null
+          category: Database["public"]["Enums"]["product_category"]
+          cbd_percent: number | null
+          coa_url: string | null
+          country_of_origin: string | null
+          created_at: string
+          currency: string
+          description: string | null
+          empty_bottle_product_id: string | null
+          flavor_type: string | null
+          flavors: Json
+          gamme_id: string | null
+          health_warnings: string | null
+          id: string
+          is_nicotine_booster: boolean
+          is_published: boolean
+          low_stock_notified_at: string | null
+          name: string
+          nicotine_mg: number | null
+          pg_vg_ratio: string | null
+          photos: string[]
+          price_cents: number
+          product_range: string | null
+          range_name: string | null
+          slug: string
+          stock: number
+          stock_status: Database["public"]["Enums"]["stock_status"]
+          subcategory: string | null
+          thc_percent: number | null
+          updated_at: string
+          updated_by: string | null
+          volume_ml: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "products"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       age_verification_status:

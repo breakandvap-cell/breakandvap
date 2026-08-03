@@ -9,6 +9,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CategorySubcategoryFields } from "@/components/admin/category-subcategory-fields";
+import { GammeSelect } from "@/components/admin/gamme-select";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowLeft,
@@ -771,14 +772,11 @@ function StepInfo({
         label="Gamme"
         hint="Optionnel — famille de produits d'une marque (ex. « Iceberg »)"
       >
-        <input
-          className="input h-11 text-base"
+        <GammeSelect
+          brand={data.brand}
           value={data.range}
-          onChange={(e) => onPatch({ range: e.target.value })}
-          placeholder="Ex. Iceberg"
-          list="wizard-range-suggestions"
+          onChange={(nom) => onPatch({ range: nom })}
         />
-        <BrandRangeSuggestions brand={data.brand} />
       </Field>
 
       <Field label="Description courte" hint="Une phrase — sert d'accroche en boutique">

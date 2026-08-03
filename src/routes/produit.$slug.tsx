@@ -23,6 +23,7 @@ import {
   normalizeBoosterTypeKey,
   emptyBottleCandidatesQueryOptions,
   sameRangeProductsQueryOptions,
+  sameGammeProductsQueryOptions,
   type EmptyBottleCandidate,
   type BoosterProduct,
   type ProductFlavor,
@@ -1189,21 +1190,27 @@ function FlavorPicker({
 // colonnes sont vides.
 function RangeShowcase({ product }: { product: ProductRow }) {
   const range = (product.product_range ?? "").trim();
-  const { data: siblings = [] } = useQuery(
+  const gammeId = (product as { gamme_id?: string | null }).gamme_id ?? null;
+  const { data: byGamme = [] } = useQuery(
+    sameGammeProductsQueryOptions({ gammeId, excludeId: product.id }),
+  );
+  const { data: byRange = [] } = useQuery(
     sameRangeProductsQueryOptions({
-      range,
+      range: gammeId ? "" : range,
       brand: product.brand,
       excludeId: product.id,
     }),
   );
-  if (!range || siblings.length === 0) return null;
+  const siblings = gammeId ? byGamme : byRange;
+  const title = range || "cette gamme";
+  if ((!gammeId && !range) || siblings.length === 0) return null;
   return (
     <section className="mt-14 border-t border-border pt-8">
       <h2
         className="text-2xl"
         style={{ fontFamily: "var(--font-serif)" }}
       >
-        Découvrez toute la gamme {range}
+        Découvrez la gamme {title}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {siblings.length} autre{siblings.length > 1 ? "s" : ""} référence
