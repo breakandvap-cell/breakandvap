@@ -302,21 +302,6 @@ export const sameGammeProductsQueryOptions = (args: {
   });
 };
 
-const _unusedProductBySlug = (slug: string) =>
-  queryOptions({
-    queryKey: ["product", slug] as const,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("slug", slug)
-        .eq("is_published", true)
-        .maybeSingle();
-      if (error) throw new Error(error.message);
-      return (data ?? null) as ProductRow | null;
-    },
-  });
-
 export const productVariantsQueryOptions = (productId: string | undefined) =>
   queryOptions({
     queryKey: ["product-variants", productId ?? "none"] as const,
