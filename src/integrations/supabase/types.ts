@@ -170,6 +170,30 @@ export type Database = {
         }
         Relationships: []
       }
+      gammes: {
+        Row: {
+          created_at: string
+          id: string
+          marque: string
+          nom: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          marque: string
+          nom: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          marque?: string
+          nom?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       invoice_counters: {
         Row: {
           last_number: number
@@ -502,6 +526,7 @@ export type Database = {
           empty_bottle_product_id: string | null
           flavor_type: string | null
           flavors: Json
+          gamme_id: string | null
           health_warnings: string | null
           id: string
           is_nicotine_booster: boolean
@@ -537,6 +562,7 @@ export type Database = {
           empty_bottle_product_id?: string | null
           flavor_type?: string | null
           flavors?: Json
+          gamme_id?: string | null
           health_warnings?: string | null
           id?: string
           is_nicotine_booster?: boolean
@@ -572,6 +598,7 @@ export type Database = {
           empty_bottle_product_id?: string | null
           flavor_type?: string | null
           flavors?: Json
+          gamme_id?: string | null
           health_warnings?: string | null
           id?: string
           is_nicotine_booster?: boolean
@@ -620,6 +647,13 @@ export type Database = {
             columns: ["empty_bottle_product_id"]
             isOneToOne: false
             referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_gamme_id_fkey"
+            columns: ["gamme_id"]
+            isOneToOne: false
+            referencedRelation: "gammes"
             referencedColumns: ["id"]
           },
         ]
@@ -1073,6 +1107,7 @@ export type Database = {
           empty_bottle_product_id: string | null
           flavor_type: string | null
           flavors: Json
+          gamme_id: string | null
           health_warnings: string | null
           id: string
           is_nicotine_booster: boolean
