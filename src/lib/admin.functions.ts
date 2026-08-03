@@ -463,6 +463,11 @@ async function upsertProductCore(
       subcategory: data.subcategory || null,
       brand: (data.brand ?? "").trim() || null,
       product_range: (data.range ?? "").trim() || null,
+      gamme_id: await resolveGammeId(
+        context.supabase,
+        (data.brand ?? "").trim(),
+        (data.range ?? "").trim(),
+      ),
       description: data.description || null,
       price_cents: data.price_cents,
       currency: data.currency || "EUR",
