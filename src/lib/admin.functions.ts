@@ -1994,7 +1994,11 @@ export const adminSetProductsBrandRange = createServerFn({ method: "POST" })
     }>) {
       const nextBrand = brand || (row.brand ?? "").trim();
       const nextRange = range || (row.product_range ?? "").trim();
-      const patch: Record<string, unknown> = {};
+      const patch: {
+        brand?: string;
+        product_range?: string;
+        gamme_id: string | null;
+      } = { gamme_id: null };
       if (brand) patch.brand = nextBrand;
       if (range) patch.product_range = nextRange;
       patch.gamme_id = await resolveGammeId(supabaseAdmin, nextBrand, nextRange);
