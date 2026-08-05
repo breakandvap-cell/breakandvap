@@ -36,6 +36,7 @@ function AdminNav() {
     to:
       | "/admin"
       | "/admin/produits"
+      | "/admin/produits/a-completer"
       | "/admin/commandes"
       | "/admin/clients"
       | "/admin/factures"
@@ -49,6 +50,7 @@ function AdminNav() {
   }> = [
     { to: "/admin", label: "Tableau de bord", exact: true },
     { to: "/admin/produits", label: "Produits" },
+    { to: "/admin/produits/a-completer", label: "Produits à compléter" },
     { to: "/admin/categories", label: "Catégories" },
     { to: "/admin/references-techniques", label: "Références techniques" },
     { to: "/admin/reception-marchandise", label: "Réception marchandise" },
