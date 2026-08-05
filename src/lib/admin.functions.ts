@@ -1934,3 +1934,83 @@ export const adminBulkImportProducts = createServerFn({ method: "POST" })
 
     return { created, ignored: errors.length, errors };
   });
+
+// ---------------------------------------------------------------------------
+// Produits à compléter : marque et/ou gamme manquantes.
+// ---------------------------------------------------------------------------
+
+export const adminListIncompleteProducts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({ search: z.string().trim().max(80).optional().or(z.literal("")) })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("products")
+      .select(
+        "id, name, category, subcategory, photos, brand, product_range, gamme_id",
+      )
+      .or("brand.is.null,gamme_id.is.null")
+      .order("name", { ascending: true });
+    if (data.search) q = q.ilike("name", `%${data.search}%`);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
+export const adminSetProductsBrandRange = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        ids: z.array(z.string().uuid()).min(1).max(500),
+        brand: z.string().trim().max(60).optional().or(z.literal("")),
+        range: z.string().trim().max(60).optional().or(z.literal("")),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const brand = (data.brand ?? "").trim();
+    const range = (data.range ?? "").trim();
+    if (!brand && !range) return { updated: 0 };
+
+    const { data: rows, error: readErr } = await supabaseAdmin
+      .from("products")
+      .select("id, brand, product_range")
+      .in("id", data.ids);
+    if (readErr) throw new Error(readErr.message);
+
+    let updated = 0;
+    for (const row of (rows ?? []) as Array<{
+      id: string;
+      brand: string | null;
+      product_range: string | null;
+    }>) {
+      const nextBrand = brand || (row.brand ?? "").trim();
+      const nextRange = range || (row.product_range ?? "").trim();
+      const patch: Record<string, unknown> = {};
+      if (brand) patch.brand = nextBrand;
+      if (range) patch.product_range = nextRange;
+      patch.gamme_id = await resolveGammeId(supabaseAdmin, nextBrand, nextRange);
+      const { error } = await supabaseAdmin
+        .from("products")
+        .update(patch)
+        .eq("id", row.id);
+      if (error) throw new Error(error.message);
+      updated++;
+    }
+
+    await logAction(context.userId, "product.bulk_brand_range", "product", null, {
+      count: updated,
+      brand: brand || null,
+      range: range || null,
+    });
+
+    return { updated };
+  });
