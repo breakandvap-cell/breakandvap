@@ -42,6 +42,7 @@ import { Route as AuthenticatedAdminProduitsIndexRouteImport } from './routes/_a
 import { Route as AuthenticatedAdminCommandesIndexRouteImport } from './routes/_authenticated/admin/commandes.index'
 import { Route as ApiPublicHooksLowStockAlertRouteImport } from './routes/api/public/hooks/low-stock-alert'
 import { Route as AuthenticatedAdminProduitsImportRouteImport } from './routes/_authenticated/admin/produits.import'
+import { Route as AuthenticatedAdminProduitsACompleterRouteImport } from './routes/_authenticated/admin/produits.a-completer'
 import { Route as AuthenticatedAdminProduitsIdRouteImport } from './routes/_authenticated/admin/produits.$id'
 import { Route as AuthenticatedAdminCommandesIdRouteImport } from './routes/_authenticated/admin/commandes.$id'
 import { Route as AuthenticatedAdminClientsIdRouteImport } from './routes/_authenticated/admin/clients.$id'
@@ -226,6 +227,12 @@ const AuthenticatedAdminProduitsImportRoute =
     path: '/produits/import',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminProduitsACompleterRoute =
+  AuthenticatedAdminProduitsACompleterRouteImport.update({
+    id: '/produits/a-completer',
+    path: '/produits/a-completer',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminProduitsIdRoute =
   AuthenticatedAdminProduitsIdRouteImport.update({
     id: '/produits/$id',
@@ -295,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
   '/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
+  '/admin/produits/a-completer': typeof AuthenticatedAdminProduitsACompleterRoute
   '/admin/produits/import': typeof AuthenticatedAdminProduitsImportRoute
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
@@ -334,6 +342,7 @@ export interface FileRoutesByTo {
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
   '/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
+  '/admin/produits/a-completer': typeof AuthenticatedAdminProduitsACompleterRoute
   '/admin/produits/import': typeof AuthenticatedAdminProduitsImportRoute
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes': typeof AuthenticatedAdminCommandesIndexRoute
@@ -376,6 +385,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/_authenticated/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
   '/_authenticated/admin/produits/$id': typeof AuthenticatedAdminProduitsIdRoute
+  '/_authenticated/admin/produits/a-completer': typeof AuthenticatedAdminProduitsACompleterRoute
   '/_authenticated/admin/produits/import': typeof AuthenticatedAdminProduitsImportRoute
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/_authenticated/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
@@ -418,6 +428,7 @@ export interface FileRouteTypes {
     | '/admin/clients/$id'
     | '/admin/commandes/$id'
     | '/admin/produits/$id'
+    | '/admin/produits/a-completer'
     | '/admin/produits/import'
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes/'
@@ -457,6 +468,7 @@ export interface FileRouteTypes {
     | '/admin/clients/$id'
     | '/admin/commandes/$id'
     | '/admin/produits/$id'
+    | '/admin/produits/a-completer'
     | '/admin/produits/import'
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes'
@@ -498,6 +510,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clients/$id'
     | '/_authenticated/admin/commandes/$id'
     | '/_authenticated/admin/produits/$id'
+    | '/_authenticated/admin/produits/a-completer'
     | '/_authenticated/admin/produits/import'
     | '/api/public/hooks/low-stock-alert'
     | '/_authenticated/admin/commandes/'
@@ -761,6 +774,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProduitsImportRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/produits/a-completer': {
+      id: '/_authenticated/admin/produits/a-completer'
+      path: '/produits/a-completer'
+      fullPath: '/admin/produits/a-completer'
+      preLoaderRoute: typeof AuthenticatedAdminProduitsACompleterRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/produits/$id': {
       id: '/_authenticated/admin/produits/$id'
       path: '/produits/$id'
@@ -831,6 +851,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCommandesIdRoute: typeof AuthenticatedAdminCommandesIdRoute
   AuthenticatedAdminProduitsIdRoute: typeof AuthenticatedAdminProduitsIdRoute
+  AuthenticatedAdminProduitsACompleterRoute: typeof AuthenticatedAdminProduitsACompleterRoute
   AuthenticatedAdminProduitsImportRoute: typeof AuthenticatedAdminProduitsImportRoute
   AuthenticatedAdminCommandesIndexRoute: typeof AuthenticatedAdminCommandesIndexRoute
   AuthenticatedAdminProduitsIndexRoute: typeof AuthenticatedAdminProduitsIndexRoute
@@ -853,6 +874,8 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
     AuthenticatedAdminCommandesIdRoute: AuthenticatedAdminCommandesIdRoute,
     AuthenticatedAdminProduitsIdRoute: AuthenticatedAdminProduitsIdRoute,
+    AuthenticatedAdminProduitsACompleterRoute:
+      AuthenticatedAdminProduitsACompleterRoute,
     AuthenticatedAdminProduitsImportRoute:
       AuthenticatedAdminProduitsImportRoute,
     AuthenticatedAdminCommandesIndexRoute:
@@ -920,13 +943,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
