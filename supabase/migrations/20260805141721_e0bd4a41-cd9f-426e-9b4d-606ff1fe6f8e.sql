@@ -1,0 +1,1 @@
+ALTER FUNCTION public.generate_variant_sku() SET search_path = public;
