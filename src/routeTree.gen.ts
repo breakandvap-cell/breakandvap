@@ -16,6 +16,7 @@ import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LivraisonRetoursRouteImport } from './routes/livraison-retours'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ConnexionAdminRouteImport } from './routes/connexion-admin'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CgvRouteImport } from './routes/cgv'
@@ -83,6 +84,11 @@ const CookiesRoute = CookiesRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionAdminRoute = ConnexionAdminRouteImport.update({
+  id: '/connexion-admin',
+  path: '/connexion-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
@@ -278,6 +284,7 @@ export interface FileRoutesByFullPath {
   '/cgv': typeof CgvRoute
   '/checkout': typeof CheckoutRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion-admin': typeof ConnexionAdminRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/livraison-retours': typeof LivraisonRetoursRoute
@@ -319,6 +326,7 @@ export interface FileRoutesByTo {
   '/cgv': typeof CgvRoute
   '/checkout': typeof CheckoutRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion-admin': typeof ConnexionAdminRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/livraison-retours': typeof LivraisonRetoursRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/cgv': typeof CgvRoute
   '/checkout': typeof CheckoutRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion-admin': typeof ConnexionAdminRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/livraison-retours': typeof LivraisonRetoursRoute
@@ -404,6 +413,7 @@ export interface FileRouteTypes {
     | '/cgv'
     | '/checkout'
     | '/confidentialite'
+    | '/connexion-admin'
     | '/contact'
     | '/cookies'
     | '/livraison-retours'
@@ -445,6 +455,7 @@ export interface FileRouteTypes {
     | '/cgv'
     | '/checkout'
     | '/confidentialite'
+    | '/connexion-admin'
     | '/contact'
     | '/cookies'
     | '/livraison-retours'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/cgv'
     | '/checkout'
     | '/confidentialite'
+    | '/connexion-admin'
     | '/contact'
     | '/cookies'
     | '/livraison-retours'
@@ -529,6 +541,7 @@ export interface RootRouteChildren {
   CgvRoute: typeof CgvRoute
   CheckoutRoute: typeof CheckoutRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
+  ConnexionAdminRoute: typeof ConnexionAdminRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   LivraisonRetoursRoute: typeof LivraisonRetoursRoute
@@ -590,6 +603,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion-admin': {
+      id: '/connexion-admin'
+      path: '/connexion-admin'
+      fullPath: '/connexion-admin'
+      preLoaderRoute: typeof ConnexionAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confidentialite': {
@@ -929,6 +949,7 @@ const rootRouteChildren: RootRouteChildren = {
   CgvRoute: CgvRoute,
   CheckoutRoute: CheckoutRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
+  ConnexionAdminRoute: ConnexionAdminRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   LivraisonRetoursRoute: LivraisonRetoursRoute,
@@ -943,13 +964,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
