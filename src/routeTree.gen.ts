@@ -33,6 +33,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_authenticated/compte.commandes'
 import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
 import { Route as AuthenticatedAdminTemoignagesRouteImport } from './routes/_authenticated/admin/temoignages'
+import { Route as AuthenticatedAdminSecuriteRouteImport } from './routes/_authenticated/admin/securite'
 import { Route as AuthenticatedAdminReferencesTechniquesRouteImport } from './routes/_authenticated/admin/references-techniques'
 import { Route as AuthenticatedAdminReceptionMarchandiseRouteImport } from './routes/_authenticated/admin/reception-marchandise'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/admin/parametres'
@@ -173,6 +174,12 @@ const AuthenticatedAdminTemoignagesRoute =
     path: '/temoignages',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminSecuriteRoute =
+  AuthenticatedAdminSecuriteRouteImport.update({
+    id: '/securite',
+    path: '/securite',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminReferencesTechniquesRoute =
   AuthenticatedAdminReferencesTechniquesRouteImport.update({
     id: '/references-techniques',
@@ -302,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
+  '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
@@ -343,6 +351,7 @@ export interface FileRoutesByTo {
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
+  '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
@@ -387,6 +396,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/_authenticated/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/_authenticated/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
+  '/_authenticated/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/_authenticated/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRoute
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/reception-marchandise'
     | '/admin/references-techniques'
+    | '/admin/securite'
     | '/admin/temoignages'
     | '/compte/adresses'
     | '/compte/commandes'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/reception-marchandise'
     | '/admin/references-techniques'
+    | '/admin/securite'
     | '/admin/temoignages'
     | '/compte/adresses'
     | '/compte/commandes'
@@ -515,6 +527,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/parametres'
     | '/_authenticated/admin/reception-marchandise'
     | '/_authenticated/admin/references-techniques'
+    | '/_authenticated/admin/securite'
     | '/_authenticated/admin/temoignages'
     | '/_authenticated/compte/adresses'
     | '/_authenticated/compte/commandes'
@@ -724,6 +737,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminTemoignagesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/securite': {
+      id: '/_authenticated/admin/securite'
+      path: '/securite'
+      fullPath: '/admin/securite'
+      preLoaderRoute: typeof AuthenticatedAdminSecuriteRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/references-techniques': {
       id: '/_authenticated/admin/references-techniques'
       path: '/references-techniques'
@@ -867,6 +887,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
   AuthenticatedAdminReceptionMarchandiseRoute: typeof AuthenticatedAdminReceptionMarchandiseRoute
   AuthenticatedAdminReferencesTechniquesRoute: typeof AuthenticatedAdminReferencesTechniquesRoute
+  AuthenticatedAdminSecuriteRoute: typeof AuthenticatedAdminSecuriteRoute
   AuthenticatedAdminTemoignagesRoute: typeof AuthenticatedAdminTemoignagesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCommandesIdRoute: typeof AuthenticatedAdminCommandesIdRoute
@@ -890,6 +911,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminReceptionMarchandiseRoute,
     AuthenticatedAdminReferencesTechniquesRoute:
       AuthenticatedAdminReferencesTechniquesRoute,
+    AuthenticatedAdminSecuriteRoute: AuthenticatedAdminSecuriteRoute,
     AuthenticatedAdminTemoignagesRoute: AuthenticatedAdminTemoignagesRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
     AuthenticatedAdminCommandesIdRoute: AuthenticatedAdminCommandesIdRoute,
