@@ -113,12 +113,8 @@ const inputSchema = z.object({
 
 type AdminContext = { supabase: any; userId: string };
 async function assertAdmin(context: AdminContext) {
-  const { data, error } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Accès refusé.");
+  const { assertAdminSession } = await import("@/lib/admin-security.server");
+  await assertAdminSession(context as never);
 }
 
 export const adminUpdateBoosterConfig = createServerFn({ method: "POST" })
