@@ -1,31 +1,67 @@
-import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tanstack/react-router";
-import { isAdmin, claimAdminIfNone } from "@/lib/admin.functions";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { claimAdminIfNone } from "@/lib/admin.functions";
+import { adminAccessStatus } from "@/lib/admin-security.functions";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { useAuth } from "@/lib/auth-context";
+import { useIdleTimeout } from "@/lib/use-idle-timeout";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   ssr: false,
   loader: async () => {
-    const res = await isAdmin();
-    if (!res.isAdmin) {
-      // Not admin — try graceful redirect to /compte with a claim option
-      return { isAdmin: false as const };
-    }
-    return { isAdmin: true as const };
+    const res = await adminAccessStatus();
+    return { isAdmin: res.isAdmin, needsMfa: res.needsMfa, mfaEnabled: res.mfaEnabled };
   },
   component: AdminLayout,
 });
 
 function AdminLayout() {
-  const { isAdmin: ok } = Route.useLoaderData();
+  const { isAdmin: ok, needsMfa, mfaEnabled } = Route.useLoaderData();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  // Verrouillage automatique de l'espace gérant après inactivité.
+  useIdleTimeout(30, async () => {
+    await signOut();
+    toast.info("Session gérant verrouillée après 30 minutes d'inactivité.");
+    navigate({ to: "/connexion-admin", replace: true });
+  });
+
   if (!ok) return <NotAdmin />;
+  if (needsMfa) return <NeedsMfa />;
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AdminNav />
       <main className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+        {!mfaEnabled ? (
+          <div className="mb-4 rounded-md border border-border bg-secondary/50 px-4 py-3 text-sm">
+            La double authentification n'est pas activée sur ce compte gérant.{" "}
+            <Link to="/admin/securite" className="underline">
+              L'activer maintenant
+            </Link>
+          </div>
+        ) : null}
         <Outlet />
       </main>
+    </div>
+  );
+}
+
+function NeedsMfa() {
+  return (
+    <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <h1 className="text-2xl font-semibold">Double authentification requise</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Votre session n'a pas été validée par un code d'authentification. Reconnectez-vous
+        via la connexion sécurisée gérant.
+      </p>
+      <Link
+        to="/connexion-admin"
+        className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
+      >
+        Connexion sécurisée
+      </Link>
     </div>
   );
 }
@@ -44,7 +80,8 @@ function AdminNav() {
       | "/admin/references-techniques"
       | "/admin/reception-marchandise"
       | "/admin/temoignages"
-      | "/admin/parametres";
+      | "/admin/parametres"
+      | "/admin/securite";
     label: string;
     exact?: boolean;
   }> = [
@@ -59,6 +96,7 @@ function AdminNav() {
     { to: "/admin/factures", label: "Factures" },
     { to: "/admin/temoignages", label: "Témoignages" },
     { to: "/admin/parametres", label: "Paramètres" },
+    { to: "/admin/securite", label: "Sécurité" },
   ];
   return (
     <div className="border-b border-border bg-card">

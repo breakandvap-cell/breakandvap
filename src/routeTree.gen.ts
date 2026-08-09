@@ -16,6 +16,7 @@ import { Route as MentionsLegalesRouteImport } from './routes/mentions-legales'
 import { Route as LivraisonRetoursRouteImport } from './routes/livraison-retours'
 import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as ConnexionAdminRouteImport } from './routes/connexion-admin'
 import { Route as ConfidentialiteRouteImport } from './routes/confidentialite'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CgvRouteImport } from './routes/cgv'
@@ -32,6 +33,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedCompteCommandesRouteImport } from './routes/_authenticated/compte.commandes'
 import { Route as AuthenticatedCompteAdressesRouteImport } from './routes/_authenticated/compte.adresses'
 import { Route as AuthenticatedAdminTemoignagesRouteImport } from './routes/_authenticated/admin/temoignages'
+import { Route as AuthenticatedAdminSecuriteRouteImport } from './routes/_authenticated/admin/securite'
 import { Route as AuthenticatedAdminReferencesTechniquesRouteImport } from './routes/_authenticated/admin/references-techniques'
 import { Route as AuthenticatedAdminReceptionMarchandiseRouteImport } from './routes/_authenticated/admin/reception-marchandise'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/admin/parametres'
@@ -83,6 +85,11 @@ const CookiesRoute = CookiesRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionAdminRoute = ConnexionAdminRouteImport.update({
+  id: '/connexion-admin',
+  path: '/connexion-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConfidentialiteRoute = ConfidentialiteRouteImport.update({
@@ -165,6 +172,12 @@ const AuthenticatedAdminTemoignagesRoute =
   AuthenticatedAdminTemoignagesRouteImport.update({
     id: '/temoignages',
     path: '/temoignages',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
+const AuthenticatedAdminSecuriteRoute =
+  AuthenticatedAdminSecuriteRouteImport.update({
+    id: '/securite',
+    path: '/securite',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
 const AuthenticatedAdminReferencesTechniquesRoute =
@@ -278,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/cgv': typeof CgvRoute
   '/checkout': typeof CheckoutRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion-admin': typeof ConnexionAdminRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/livraison-retours': typeof LivraisonRetoursRoute
@@ -295,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
+  '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
@@ -319,6 +334,7 @@ export interface FileRoutesByTo {
   '/cgv': typeof CgvRoute
   '/checkout': typeof CheckoutRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion-admin': typeof ConnexionAdminRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/livraison-retours': typeof LivraisonRetoursRoute
@@ -335,6 +351,7 @@ export interface FileRoutesByTo {
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
+  '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
@@ -361,6 +378,7 @@ export interface FileRoutesById {
   '/cgv': typeof CgvRoute
   '/checkout': typeof CheckoutRoute
   '/confidentialite': typeof ConfidentialiteRoute
+  '/connexion-admin': typeof ConnexionAdminRoute
   '/contact': typeof ContactRoute
   '/cookies': typeof CookiesRoute
   '/livraison-retours': typeof LivraisonRetoursRoute
@@ -378,6 +396,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/parametres': typeof AuthenticatedAdminParametresRoute
   '/_authenticated/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/_authenticated/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
+  '/_authenticated/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/_authenticated/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
   '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRoute
@@ -404,6 +423,7 @@ export interface FileRouteTypes {
     | '/cgv'
     | '/checkout'
     | '/confidentialite'
+    | '/connexion-admin'
     | '/contact'
     | '/cookies'
     | '/livraison-retours'
@@ -421,6 +441,7 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/reception-marchandise'
     | '/admin/references-techniques'
+    | '/admin/securite'
     | '/admin/temoignages'
     | '/compte/adresses'
     | '/compte/commandes'
@@ -445,6 +466,7 @@ export interface FileRouteTypes {
     | '/cgv'
     | '/checkout'
     | '/confidentialite'
+    | '/connexion-admin'
     | '/contact'
     | '/cookies'
     | '/livraison-retours'
@@ -461,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/parametres'
     | '/admin/reception-marchandise'
     | '/admin/references-techniques'
+    | '/admin/securite'
     | '/admin/temoignages'
     | '/compte/adresses'
     | '/compte/commandes'
@@ -486,6 +509,7 @@ export interface FileRouteTypes {
     | '/cgv'
     | '/checkout'
     | '/confidentialite'
+    | '/connexion-admin'
     | '/contact'
     | '/cookies'
     | '/livraison-retours'
@@ -503,6 +527,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/parametres'
     | '/_authenticated/admin/reception-marchandise'
     | '/_authenticated/admin/references-techniques'
+    | '/_authenticated/admin/securite'
     | '/_authenticated/admin/temoignages'
     | '/_authenticated/compte/adresses'
     | '/_authenticated/compte/commandes'
@@ -529,6 +554,7 @@ export interface RootRouteChildren {
   CgvRoute: typeof CgvRoute
   CheckoutRoute: typeof CheckoutRoute
   ConfidentialiteRoute: typeof ConfidentialiteRoute
+  ConnexionAdminRoute: typeof ConnexionAdminRoute
   ContactRoute: typeof ContactRoute
   CookiesRoute: typeof CookiesRoute
   LivraisonRetoursRoute: typeof LivraisonRetoursRoute
@@ -590,6 +616,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion-admin': {
+      id: '/connexion-admin'
+      path: '/connexion-admin'
+      fullPath: '/connexion-admin'
+      preLoaderRoute: typeof ConnexionAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/confidentialite': {
@@ -702,6 +735,13 @@ declare module '@tanstack/react-router' {
       path: '/temoignages'
       fullPath: '/admin/temoignages'
       preLoaderRoute: typeof AuthenticatedAdminTemoignagesRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
+    '/_authenticated/admin/securite': {
+      id: '/_authenticated/admin/securite'
+      path: '/securite'
+      fullPath: '/admin/securite'
+      preLoaderRoute: typeof AuthenticatedAdminSecuriteRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
     '/_authenticated/admin/references-techniques': {
@@ -847,6 +887,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
   AuthenticatedAdminReceptionMarchandiseRoute: typeof AuthenticatedAdminReceptionMarchandiseRoute
   AuthenticatedAdminReferencesTechniquesRoute: typeof AuthenticatedAdminReferencesTechniquesRoute
+  AuthenticatedAdminSecuriteRoute: typeof AuthenticatedAdminSecuriteRoute
   AuthenticatedAdminTemoignagesRoute: typeof AuthenticatedAdminTemoignagesRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminCommandesIdRoute: typeof AuthenticatedAdminCommandesIdRoute
@@ -870,6 +911,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
       AuthenticatedAdminReceptionMarchandiseRoute,
     AuthenticatedAdminReferencesTechniquesRoute:
       AuthenticatedAdminReferencesTechniquesRoute,
+    AuthenticatedAdminSecuriteRoute: AuthenticatedAdminSecuriteRoute,
     AuthenticatedAdminTemoignagesRoute: AuthenticatedAdminTemoignagesRoute,
     AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
     AuthenticatedAdminCommandesIdRoute: AuthenticatedAdminCommandesIdRoute,
@@ -929,6 +971,7 @@ const rootRouteChildren: RootRouteChildren = {
   CgvRoute: CgvRoute,
   CheckoutRoute: CheckoutRoute,
   ConfidentialiteRoute: ConfidentialiteRoute,
+  ConnexionAdminRoute: ConnexionAdminRoute,
   ContactRoute: ContactRoute,
   CookiesRoute: CookiesRoute,
   LivraisonRetoursRoute: LivraisonRetoursRoute,
