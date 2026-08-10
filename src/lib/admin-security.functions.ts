@@ -14,7 +14,15 @@ export const adminAccessStatus = createServerFn({ method: "GET" })
     const isAdmin = Boolean(data);
     const aal = (context.claims as { aal?: string })?.aal ?? "aal1";
     if (!isAdmin) {
-      return { isAdmin: false, mfaEnabled: false, aal, needsMfa: false, factors: [] };
+      return {
+        isAdmin: false,
+        mfaEnabled: false,
+        aal,
+        needsMfa: false,
+        recoveryActive: false,
+        backupCodes: { total: 0, remaining: 0, generatedAt: null as string | null },
+        factors: [],
+      };
     }
     const { listVerifiedFactors } = await import("@/lib/admin-security.server");
     const verified = await listVerifiedFactors(context.userId);
@@ -54,10 +62,10 @@ export const adminRegenerateBackupCodes = createServerFn({ method: "POST" })
 
 /** Utilise un code de secours pour débloquer l'espace gérant (1 h). */
 export const adminRedeemBackupCode = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((data: { code: string }) =>
     z.object({ code: z.string().trim().min(4).max(20) }).parse(data),
   )
-  .middleware([requireSupabaseAuth])
   .handler(async ({ data, context }) => {
     const { consumeBackupCode } = await import("@/lib/admin-security.server");
     const { data: isAdminData, error } = await context.supabase.rpc("has_role", {
