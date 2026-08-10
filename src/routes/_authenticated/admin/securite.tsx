@@ -265,6 +265,11 @@ function SecurityPage() {
             <dt className="text-muted-foreground">Compte :</dt>
             <dd>{user?.email}</dd>
           </div>
+        <dl className="mt-3 space-y-1 text-sm">
+          <div className="flex gap-2">
+            <dt className="text-muted-foreground">Compte :</dt>
+            <dd>{user?.email}</dd>
+          </div>
           <div className="flex gap-2">
             <dt className="text-muted-foreground">Niveau de sécurité :</dt>
             <dd>{aal === "aal2" ? "Double authentification vérifiée" : "Mot de passe seul"}</dd>
