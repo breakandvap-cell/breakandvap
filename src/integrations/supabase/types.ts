@@ -92,6 +92,57 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_backup_codes: {
+        Row: {
+          code_hash: string
+          created_at: string
+          id: string
+          updated_at: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      admin_mfa_grants: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       catalogue_produits_staging: {
         Row: {
           brand: string | null

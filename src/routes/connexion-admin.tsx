@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { adminRedeemBackupCode } from "@/lib/admin-security.functions";
 
 export const Route = createFileRoute("/connexion-admin")({
   head: () => ({
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/connexion-admin")({
   component: AdminLoginPage,
 });
 
-type Step = "credentials" | "totp";
+type Step = "credentials" | "totp" | "backup";
 
 function AdminLoginPage() {
   const navigate = useNavigate();
@@ -111,6 +112,25 @@ function AdminLoginPage() {
     setPassword("");
   };
 
+  const onBackupCode = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const res = await adminRedeemBackupCode({ data: { code } });
+      if (!res.ok) throw new Error("Code de secours invalide ou déjà utilisé.");
+      toast.success("Accès de secours ouvert pour 1 heure", {
+        description: "Réactivez une application d'authentification depuis Admin → Sécurité.",
+      });
+      navigate({ to: "/admin/securite", replace: true });
+    } catch (err) {
+      toast.error("Récupération impossible", {
+        description: err instanceof Error ? translate(err.message) : undefined,
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
@@ -162,7 +182,7 @@ function AdminLoginPage() {
               {busy ? "Veuillez patienter…" : "Continuer"}
             </button>
           </form>
-        ) : (
+        ) : step === "totp" ? (
           <form onSubmit={onTotp} className="mt-8 space-y-4">
             <p className="text-sm text-muted-foreground">
               Saisissez le code à 6 chiffres affiché par votre application
@@ -197,6 +217,56 @@ function AdminLoginPage() {
                 className="rounded-md border border-border bg-card px-4 py-3 text-sm hover:bg-secondary"
               >
                 Annuler
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCode("");
+                setStep("backup");
+              }}
+              className="text-xs text-muted-foreground underline hover:text-foreground"
+            >
+              J'ai perdu mon authentificateur — utiliser un code de secours
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={onBackupCode} className="mt-8 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Saisissez l'un de vos codes de secours (format ABCD-1234). Chaque code
+              n'est utilisable qu'une seule fois et ouvre l'espace gérant pendant 1 heure.
+            </p>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                Code de secours
+              </span>
+              <input
+                required
+                autoComplete="one-time-code"
+                maxLength={20}
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="ABCD-1234"
+                className="input font-mono tracking-[0.2em]"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={busy}
+                className="flex-1 rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+              >
+                {busy ? "Vérification…" : "Récupérer l'accès"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCode("");
+                  setStep("totp");
+                }}
+                className="rounded-md border border-border bg-card px-4 py-3 text-sm hover:bg-secondary"
+              >
+                Retour
               </button>
             </div>
           </form>
