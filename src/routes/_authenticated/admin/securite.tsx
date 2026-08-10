@@ -4,6 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  adminAccessStatus,
+  adminRegenerateBackupCodes,
+} from "@/lib/admin-security.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/securite")({
   head: () => ({
@@ -36,6 +41,15 @@ function SecurityPage() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [aal, setAal] = useState<string>("aal1");
+  const [newCodes, setNewCodes] = useState<string[] | null>(null);
+  const [codesBusy, setCodesBusy] = useState(false);
+  const status = useServerFn(adminAccessStatus);
+  const regenerate = useServerFn(adminRegenerateBackupCodes);
+
+  const statusQuery = useQuery({
+    queryKey: ["admin-access-status"],
+    queryFn: () => status(),
+  });
 
   const factorsQuery = useQuery({
     queryKey: ["mfa-factors"],
@@ -112,6 +126,45 @@ function SecurityPage() {
   };
 
   const factors = factorsQuery.data ?? [];
+  const backup = statusQuery.data?.backupCodes;
+
+  const generateCodes = async () => {
+    setCodesBusy(true);
+    try {
+      const res = await regenerate();
+      setNewCodes(res.codes);
+      toast.success("Nouveaux codes de secours générés");
+      statusQuery.refetch();
+    } catch (e) {
+      toast.error("Génération impossible", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setCodesBusy(false);
+    }
+  };
+
+  const copyCodes = async () => {
+    if (!newCodes) return;
+    await navigator.clipboard.writeText(newCodes.join("\n"));
+    toast.success("Codes copiés");
+  };
+
+  const downloadCodes = () => {
+    if (!newCodes) return;
+    const blob = new Blob(
+      [
+        `Codes de secours — Espace gérant Break and Vap\nCompte : ${user?.email ?? ""}\nGénérés le ${new Date().toLocaleString("fr-FR")}\n\n${newCodes.join("\n")}\n\nChaque code ne peut être utilisé qu'une seule fois.\n`,
+      ],
+      { type: "text/plain;charset=utf-8" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "codes-secours-break-and-vap.txt";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-8">
