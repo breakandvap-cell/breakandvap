@@ -30,6 +30,7 @@ import {
   sumBreakdowns,
 } from "@/lib/order-item-format";
 import { INVOICE_VAT_RATE } from "@/lib/invoice-config";
+import { OrderPickingList } from "@/components/admin/order-picking-list";
 
 const opts = (id: string) =>
   queryOptions({
@@ -455,8 +456,10 @@ function OrderDetail() {
         </section>
       </div>
 
+      <OrderPickingList orderId={order.id} items={items} />
+
       <section>
-        <h2 className="mb-3 text-lg font-semibold">Articles</h2>
+        <h2 className="mb-3 text-lg font-semibold">Articles (détail comptable)</h2>
         <div className="overflow-x-auto rounded-md border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
