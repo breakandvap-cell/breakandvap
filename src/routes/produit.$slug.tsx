@@ -61,19 +61,70 @@ export const Route = createFileRoute("/produit/$slug")({
         context.queryClient.ensureQueryData(siteSettingsQueryOptions()),
       ]);
     }
-    return null;
+    return {
+      name: product.name,
+      description: product.description,
+      category: product.category,
+      photo: product.photos?.[0] ?? null,
+      priceCents: product.price_cents,
+      currency: product.currency,
+      stockStatus: product.stock_status,
+      brand: product.brand,
+    };
   },
   head: ({ params, loaderData }) => {
-    const title = loaderData
-      ? `Produit — ${params.slug} | Break and Vap`
-      : "Produit — Break and Vap";
+    const url = `https://breakandvap.lovable.app/produit/${params.slug}`;
+    if (!loaderData) {
+      return {
+        meta: [{ title: "Produit — Break and Vap" }],
+        links: [{ rel: "canonical", href: url }],
+      };
+    }
+    const categoryLabel = CATEGORY_LABELS[loaderData.category] ?? "Produit";
+    const title = `${loaderData.name} — ${categoryLabel} | Break and Vap`;
+    const rawDescription = (loaderData.description ?? "").replace(/\s+/g, " ").trim();
+    const description = rawDescription
+      ? rawDescription.slice(0, 155)
+      : `${loaderData.name} — ${categoryLabel}${loaderData.brand ? ` ${loaderData.brand}` : ""} disponible chez Break and Vap : composition, taux et disponibilité en ligne.`;
     return {
       meta: [
         { title },
+        { name: "description", content: description },
+        { property: "og:title", content: `${loaderData.name} — Break and Vap` },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "product" },
+        { property: "og:url", content: url },
+        ...(loaderData.photo
+          ? [
+              { property: "og:image", content: loaderData.photo },
+              { name: "twitter:image", content: loaderData.photo },
+            ]
+          : []),
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [
         {
-          name: "description",
-          content:
-            "Fiche produit détaillée : composition, taux, avertissements sanitaires et disponibilité.",
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: loaderData.name,
+            description,
+            ...(loaderData.photo ? { image: loaderData.photo } : {}),
+            ...(loaderData.brand
+              ? { brand: { "@type": "Brand", name: loaderData.brand } }
+              : {}),
+            offers: {
+              "@type": "Offer",
+              url,
+              price: (loaderData.priceCents / 100).toFixed(2),
+              priceCurrency: loaderData.currency ?? "EUR",
+              availability:
+                loaderData.stockStatus === "out_of_stock"
+                  ? "https://schema.org/OutOfStock"
+                  : "https://schema.org/InStock",
+            },
+          }),
         },
       ],
     };
