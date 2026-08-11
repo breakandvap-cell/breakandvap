@@ -17,8 +17,41 @@ export const Route = createFileRoute("/a-propos")({
           "Boutique française CBD et vape née en 2018, deux points de vente en Bourgogne.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/a-propos" },
-      { rel: "canonical", href: "/a-propos" } as never,
+      { property: "og:url", content: "https://breakandvap.lovable.app/a-propos" },
+    ],
+    links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/a-propos" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "LocalBusiness",
+              name: "Break and Vap — Le Creusot",
+              url: "https://breakandvap.lovable.app/a-propos",
+              address: {
+                "@type": "PostalAddress",
+                addressLocality: "Le Creusot",
+                postalCode: "71200",
+                addressCountry: "FR",
+              },
+            },
+            {
+              "@type": "LocalBusiness",
+              name: "Break and Vap — Montceau-les-Mines",
+              url: "https://breakandvap.lovable.app/a-propos",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: "5 Boulevard de Lattre de Tassigny",
+                addressLocality: "Montceau-les-Mines",
+                postalCode: "71300",
+                addressCountry: "FR",
+              },
+            },
+          ],
+        }),
+      },
     ],
   }),
   component: About,
