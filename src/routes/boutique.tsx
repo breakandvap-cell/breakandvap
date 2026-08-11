@@ -55,13 +55,24 @@ const searchSchema = z.object({
 
 export const Route = createFileRoute("/boutique")({
   validateSearch: zodValidator(searchSchema),
-  loader: ({ context }) => {
+  loader: async ({ context }) => {
     context.queryClient.ensureQueryData(shopCategoriesQueryOptions());
     context.queryClient.ensureQueryData(shopSubcategoriesQueryOptions());
-    context.queryClient.ensureQueryData(productsQueryOptions());
     context.queryClient.ensureQueryData(allVariantVolumesQueryOptions());
+    const products = await context.queryClient.ensureQueryData(productsQueryOptions());
+    return {
+      items: products.slice(0, 60).map((p) => ({
+        name: p.name,
+        slug: p.slug,
+        photo: p.photos?.[0] ?? null,
+        priceCents: p.price_cents,
+        currency: p.currency ?? "EUR",
+        outOfStock: p.stock_status === "out_of_stock",
+        brand: p.brand,
+      })),
+    };
   },
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
       { title: "Boutique — CBD, e-liquides & accessoires | Break and Vap" },
       {
@@ -82,6 +93,14 @@ export const Route = createFileRoute("/boutique")({
       { property: "og:url", content: "https://breakandvap.lovable.app/boutique" },
     ],
     links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/boutique" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(
+          buildShopCollectionJsonLd(loaderData?.items ?? []),
+        ),
+      },
+    ],
   }),
   component: BoutiquePage,
   errorComponent: ({ error }) => (
