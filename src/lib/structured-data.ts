@@ -154,6 +154,71 @@ function validateWebSite(node: Node, errors: JsonLdIssue[]) {
   }
 }
 
+/** Valide un ItemList (liste de produits d'une page catalogue). */
+function validateItemList(node: Node, errors: JsonLdIssue[], warnings: JsonLdIssue[], prefix = "") {
+  const p = (s: string) => `${prefix}${s}`;
+  const elements = node.itemListElement;
+  if (!Array.isArray(elements) || elements.length === 0) {
+    errors.push({ path: p("itemListElement"), message: "« itemListElement » (tableau non vide) est requis." });
+    return;
+  }
+  if (node.numberOfItems !== undefined && Number(node.numberOfItems) !== elements.length) {
+    warnings.push({
+      path: p("numberOfItems"),
+      message: "« numberOfItems » devrait correspondre au nombre d'éléments listés.",
+    });
+  }
+  elements.forEach((raw, i) => {
+    const base = p(`itemListElement[${i}]`);
+    if (!raw || typeof raw !== "object") {
+      errors.push({ path: base, message: "Chaque élément doit être un objet ListItem." });
+      return;
+    }
+    const el = raw as Node;
+    if (el["@type"] !== "ListItem") {
+      errors.push({ path: `${base}.@type`, message: "@type doit être ListItem." });
+    }
+    if (typeof el.position !== "number" || el.position < 1) {
+      errors.push({ path: `${base}.position`, message: "« position » (entier ≥ 1) est requis." });
+    }
+    const item = el.item as Node | undefined;
+    if (item && typeof item === "object") {
+      if (item["@type"] === "Product") {
+        validateProduct(item, errors, warnings);
+      } else if (!isNonEmptyString(item.name)) {
+        errors.push({ path: `${base}.item.name`, message: "« name » est requis." });
+      }
+      if (!isAbsoluteUrl(item.url)) {
+        errors.push({ path: `${base}.item.url`, message: "« url » absolue requise." });
+      }
+    } else if (!isAbsoluteUrl(el.url)) {
+      errors.push({ path: `${base}.item`, message: "« item » (ou « url » absolue) est requis." });
+    }
+  });
+}
+
+/** Valide une CollectionPage (page de listing) et son ItemList imbriqué. */
+function validateCollectionPage(node: Node, errors: JsonLdIssue[], warnings: JsonLdIssue[]) {
+  if (!isNonEmptyString(node.name)) {
+    errors.push({ path: "name", message: "Le champ « name » est requis." });
+  }
+  if (!isAbsoluteUrl(node.url)) {
+    errors.push({ path: "url", message: "« url » absolue requise." });
+  }
+  if (!isNonEmptyString(node.description)) {
+    warnings.push({ path: "description", message: "« description » recommandé." });
+  }
+  const main = node.mainEntity as Node | undefined;
+  if (!main || typeof main !== "object") {
+    errors.push({ path: "mainEntity", message: "« mainEntity » (ItemList) est requis." });
+    return;
+  }
+  if (main["@type"] !== "ItemList") {
+    errors.push({ path: "mainEntity.@type", message: "@type doit être ItemList." });
+  }
+  validateItemList(main, errors, warnings, "mainEntity.");
+}
+
 /** Valide un nœud JSON-LD isolé selon son @type. */
 export function validateNode(node: Node): JsonLdReport {
   const errors: JsonLdIssue[] = [];
@@ -172,6 +237,12 @@ export function validateNode(node: Node): JsonLdReport {
       break;
     case "WebSite":
       validateWebSite(node, errors);
+      break;
+    case "ItemList":
+      validateItemList(node, errors, warnings);
+      break;
+    case "CollectionPage":
+ވ      validateCollectionPage(node, errors, warnings);
       break;
     default:
       warnings.push({ path: "@type", message: `Type « ${type || "inconnu"} » non vérifié.` });
