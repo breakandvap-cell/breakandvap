@@ -94,14 +94,22 @@ export const Route = createFileRoute("/boutique")({
       { property: "og:url", content: "https://breakandvap.lovable.app/boutique" },
     ],
     links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/boutique" }],
-    scripts: loaderData?.items?.length
-      ? [
-          {
-            type: "application/ld+json",
-            children: JSON.stringify(buildShopCollectionJsonLd(loaderData.items)),
-          },
-        ]
-      : [],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(
+          buildBreadcrumbJsonLd([HOME_CRUMB, { name: "Boutique", path: "/boutique" }]),
+        ),
+      },
+      ...(loaderData?.items?.length
+        ? [
+            {
+              type: "application/ld+json",
+              children: JSON.stringify(buildShopCollectionJsonLd(loaderData.items)),
+            },
+          ]
+        : []),
+    ],
   }),
   component: BoutiquePage,
   errorComponent: ({ error }) => (
