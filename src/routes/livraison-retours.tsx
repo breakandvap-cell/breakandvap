@@ -11,7 +11,10 @@ export const Route = createFileRoute("/livraison-retours")({
           "Modalités de livraison, délais et conditions de retour des commandes Break and Vap.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/livraison-retours" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/livraison-retours" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://breakandvap.lovable.app/livraison-retours" },
     ],
   }),
   component: Shipping,

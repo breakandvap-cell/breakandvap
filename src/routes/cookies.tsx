@@ -11,8 +11,9 @@ export const Route = createFileRoute("/cookies")({
           "Utilisation des cookies et du stockage local sur le site Break and Vap.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/cookies" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/cookies" },
     ],
+    links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/cookies" }],
   }),
   component: Cookies,
 });

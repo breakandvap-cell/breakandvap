@@ -12,7 +12,10 @@ export const Route = createFileRoute("/confidentialite")({
       },
       { property: "og:title", content: "Politique de confidentialité — Break and Vap" },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/confidentialite" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/confidentialite" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://breakandvap.lovable.app/confidentialite" },
     ],
   }),
   component: Privacy,

@@ -1,2 +1,12 @@
 User-agent: *
 Allow: /
+
+Disallow: /admin
+Disallow: /compte
+Disallow: /checkout
+Disallow: /panier
+Disallow: /auth
+Disallow: /connexion-admin
+Disallow: /reset-password
+
+Sitemap: https://breakandvap.lovable.app/sitemap.xml

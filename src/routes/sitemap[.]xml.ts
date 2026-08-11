@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 
-const BASE_URL = "";
+const BASE_URL = "https://breakandvap.lovable.app";
 
 interface SitemapEntry {
   path: string;
@@ -24,6 +24,33 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/confidentialite", changefreq: "yearly" as never, priority: "0.3" },
           { path: "/cookies", changefreq: "yearly" as never, priority: "0.3" },
         ];
+
+        // Fiches produits publiées (mêmes filtres que le loader de /produit/$slug).
+        try {
+          const supabaseUrl = import.meta.env["VITE_SUPABASE_URL"] as string;
+          const supabaseKey = import.meta.env[
+            "VITE_SUPABASE_PUBLISHABLE_KEY"
+          ] as string;
+          if (supabaseUrl && supabaseKey) {
+            const res = await fetch(
+              `${supabaseUrl}/rest/v1/products?select=slug&is_published=eq.true`,
+              { headers: { apikey: supabaseKey, Accept: "application/json" } },
+            );
+            if (res.ok) {
+              const rows = (await res.json()) as Array<{ slug: string }>;
+              for (const row of rows) {
+                if (!row?.slug) continue;
+                entries.push({
+                  path: `/produit/${encodeURIComponent(row.slug)}`,
+                  changefreq: "weekly",
+                  priority: "0.8",
+                });
+              }
+            }
+          }
+        } catch {
+          // Le sitemap reste valide même si le catalogue est indisponible.
+        }
 
         const urls = entries.map((e) =>
           [
