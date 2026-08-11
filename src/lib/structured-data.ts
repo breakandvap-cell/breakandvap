@@ -184,7 +184,10 @@ function validateItemList(node: Node, errors: JsonLdIssue[], warnings: JsonLdIss
     const item = el.item as Node | undefined;
     if (item && typeof item === "object") {
       if (item["@type"] === "Product") {
-        validateProduct(item, errors, warnings);
+        // Dans une liste, la description par produit n'est pas attendue.
+        const nestedWarnings: JsonLdIssue[] = [];
+        validateProduct(item, errors, nestedWarnings);
+        warnings.push(...nestedWarnings.filter((w) => w.path !== "description"));
       } else if (!isNonEmptyString(item.name)) {
         errors.push({ path: `${base}.item.name`, message: "« name » est requis." });
       }
