@@ -12,8 +12,9 @@ export const Route = createFileRoute("/cgv")({
       },
       { property: "og:title", content: "CGV — Break and Vap" },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/cgv" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/cgv" },
     ],
+    links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/cgv" }],
   }),
   component: CGV,
 });
