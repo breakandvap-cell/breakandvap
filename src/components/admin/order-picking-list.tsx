@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Printer } from "lucide-react";
 import { formatNicotineMg } from "@/lib/site-settings.functions";
 import { productRef } from "@/lib/order-item-format";
+import { getPickingSheetPdf } from "@/lib/picking.functions";
 
 export type PickingItem = {
   id: string;
@@ -43,6 +47,35 @@ export function OrderPickingList({
 }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [hydrated, setHydrated] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
+  const fetchPdf = useServerFn(getPickingSheetPdf);
+
+  const downloadSheet = async () => {
+    setPdfBusy(true);
+    try {
+      const { filename, base64 } = await fetchPdf({ data: { orderId } });
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(
+        new Blob([bytes], { type: "application/pdf" }),
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    } catch (e) {
+      toast.error("Fiche de picking indisponible", {
+        description: e instanceof Error ? e.message : undefined,
+      });
+    } finally {
+      setPdfBusy(false);
+    }
+  };
 
   useEffect(() => {
     setChecked(readState(orderId));
@@ -69,6 +102,15 @@ export function OrderPickingList({
           <span className="text-sm text-muted-foreground">
             {done} / {items.length} préparé{done > 1 ? "s" : ""}
           </span>
+          <button
+            type="button"
+            onClick={downloadSheet}
+            disabled={pdfBusy}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            {pdfBusy ? "Préparation…" : "Fiche de picking (PDF)"}
+          </button>
           <button
             type="button"
             onClick={() => setChecked({})}
