@@ -1,0 +1,20 @@
+# Break and Vap
+
+> Boutique française de CBD, e-liquides et accessoires de vape, née en 2018, avec deux boutiques physiques au Creusot et à Montceau-les-Mines (Bourgogne). Vente strictement réservée aux personnes majeures.
+
+Break and Vap (SAS) sélectionne et expédie des e-liquides, des produits à base de CBD et des accessoires de vape. Les fiches produits précisent les taux de CBD, THC et nicotine ainsi que les avertissements sanitaires.
+
+## Pages
+
+- [Accueil](/): Présentation de la boutique et avis clients.
+- [Boutique](/boutique): Catalogue complet CBD, e-liquides, accessoires vape et accessoires CBD, avec recherche et filtres.
+- [À propos](/a-propos): Histoire de l'entreprise, sélection et engagements.
+- [Contact](/contact): Coordonnées des boutiques et contact e-mail.
+- [Livraison et retours](/livraison-retours): Délais, modalités d'expédition et conditions de retour.
+
+## Optional
+
+- [CGV](/cgv): Conditions générales de vente.
+- [Mentions légales](/mentions-legales): Éditeur et hébergeur du site.
+- [Confidentialité](/confidentialite): Traitement des données personnelles.
+- [Cookies](/cookies): Stockage local utilisé par le site.
