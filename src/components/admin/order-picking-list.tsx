@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Printer } from "lucide-react";
@@ -18,25 +18,9 @@ export type PickingItem = {
   photo_url?: string | null;
 };
 
-const storageKey = (orderId: string) => `bnv_picking_${orderId}`;
-
-function readState(orderId: string): Record<string, boolean> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = window.localStorage.getItem(storageKey(orderId));
-    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
-    return parsed && typeof parsed === "object"
-      ? (parsed as Record<string, boolean>)
-      : {};
-  } catch {
-    return {};
-  }
-}
-
 /**
  * Liste de picking : une ligne par article, pensée pour la préparation
- * physique du colis. L'état des cases est propre à chaque commande et
- * conservé localement (survit au rafraîchissement de la page).
+ * physique du colis. Affichage simple sans suivi d'état.
  */
 export function OrderPickingList({
   orderId,
@@ -45,8 +29,6 @@ export function OrderPickingList({
   orderId: string;
   items: PickingItem[];
 }) {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [hydrated, setHydrated] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
   const fetchPdf = useServerFn(getPickingSheetPdf);
 
@@ -77,68 +59,23 @@ export function OrderPickingList({
     }
   };
 
-  useEffect(() => {
-    setChecked(readState(orderId));
-    setHydrated(true);
-  }, [orderId]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(storageKey(orderId), JSON.stringify(checked));
-    } catch {
-      /* quota / mode privé : la progression reste en mémoire */
-    }
-  }, [checked, hydrated, orderId]);
-
-  const done = items.filter((i) => checked[i.id]).length;
-  const allDone = items.length > 0 && done === items.length;
-
   return (
     <section>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold">Préparation du colis</h2>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            {done} / {items.length} préparé{done > 1 ? "s" : ""}
-          </span>
-          <button
-            type="button"
-            onClick={downloadSheet}
-            disabled={pdfBusy}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium hover:bg-secondary disabled:opacity-60"
-          >
-            <Printer className="h-3.5 w-3.5" />
-            {pdfBusy ? "Préparation…" : "Fiche de picking (PDF)"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setChecked({})}
-            className="rounded-md border px-2.5 py-1 text-xs hover:bg-muted"
-          >
-            Réinitialiser
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={downloadSheet}
+          disabled={pdfBusy}
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1 text-xs font-medium hover:bg-secondary disabled:opacity-60"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          {pdfBusy ? "Préparation…" : "Fiche de picking (PDF)"}
+        </button>
       </div>
-
-      {allDone ? (
-        <div className="mb-3 rounded-md border border-emerald-500 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-          ✅ Commande prête à expédier — tous les articles ont été préparés.
-        </div>
-      ) : (
-        <div className="mb-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-primary transition-all"
-            style={{
-              width: `${items.length ? (done / items.length) * 100 : 0}%`,
-            }}
-          />
-        </div>
-      )}
 
       <ul className="space-y-2">
         {items.map((it) => {
-          const isDone = Boolean(checked[it.id]);
           const ref = (it.variant_sku ?? "") || productRef(it.product_name, it.volume_ml);
           const specs = [
             it.volume_ml ? `${it.volume_ml} ml` : null,
@@ -149,60 +86,38 @@ export function OrderPickingList({
               : null,
           ].filter(Boolean) as string[];
           return (
-            <li key={it.id}>
-              <label
-                className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors sm:gap-4 ${
-                  isDone ? "border-emerald-500 bg-emerald-50/60" : "bg-card hover:bg-muted/40"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={isDone}
-                  onChange={(e) =>
-                    setChecked((prev) => ({ ...prev, [it.id]: e.target.checked }))
-                  }
-                  className="h-6 w-6 shrink-0 accent-emerald-600"
-                  aria-label={`Marquer ${it.product_name} comme préparé`}
+            <li
+              key={it.id}
+              className="flex items-center gap-3 rounded-lg border bg-card p-3 sm:gap-4"
+            >
+              {it.photo_url ? (
+                <img
+                  src={it.photo_url}
+                  alt=""
+                  loading="lazy"
+                  className="h-16 w-16 shrink-0 rounded-md border object-cover"
                 />
-                {it.photo_url ? (
-                  <img
-                    src={it.photo_url}
-                    alt=""
-                    loading="lazy"
-                    className="h-16 w-16 shrink-0 rounded-md border object-cover"
-                  />
-                ) : (
-                  <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px] text-muted-foreground">
-                    Photo
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p
-                    className={`truncate text-base font-semibold ${
-                      isDone ? "line-through opacity-70" : ""
-                    }`}
-                  >
-                    {it.product_name}
-                  </p>
-                  {specs.length > 0 && (
-                    <p className="mt-0.5 text-sm text-muted-foreground">
-                      {specs.join(" · ")}
-                    </p>
-                  )}
-                  <p className="mt-1 font-mono text-xs text-muted-foreground">
-                    Réf. {ref}
-                  </p>
+              ) : (
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border bg-muted text-[10px] text-muted-foreground">
+                  Photo
                 </div>
-                <span
-                  className={`shrink-0 rounded-md px-3 py-1.5 text-xl font-bold tabular-nums sm:text-2xl ${
-                    isDone
-                      ? "bg-emerald-600 text-white"
-                      : "bg-primary/10 text-primary"
-                  }`}
-                >
-                  ×{it.quantity}
-                </span>
-              </label>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-semibold">
+                  {it.product_name}
+                </p>
+                {specs.length > 0 && (
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {specs.join(" · ")}
+                  </p>
+                )}
+                <p className="mt-1 font-mono text-xs text-muted-foreground">
+                  Réf. {ref}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-md bg-primary/10 px-3 py-1.5 text-xl font-bold tabular-nums text-primary sm:text-2xl">
+                ×{it.quantity}
+              </span>
             </li>
           );
         })}
