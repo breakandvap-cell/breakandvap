@@ -16,8 +16,9 @@ export const Route = createFileRoute("/contact")({
         content: "Nous joindre par e-mail ou en boutique.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/contact" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/contact" },
     ],
+    links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/contact" }],
   }),
   component: Contact,
 });
