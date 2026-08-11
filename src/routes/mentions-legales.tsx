@@ -12,7 +12,10 @@ export const Route = createFileRoute("/mentions-legales")({
       },
       { property: "og:title", content: "Mentions légales — Break and Vap" },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "/mentions-legales" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/mentions-legales" },
+    ],
+    links: [
+      { rel: "canonical", href: "https://breakandvap.lovable.app/mentions-legales" },
     ],
   }),
   component: Legal,
