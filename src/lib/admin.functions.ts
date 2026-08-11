@@ -911,7 +911,29 @@ export const adminGetOrder = createServerFn({ method: "GET" })
     if (ord.error) throw new Error(ord.error.message);
     if (its.error) throw new Error(its.error.message);
     if (!ord.data) throw new Error("Commande introuvable.");
-    return { order: ord.data, items: its.data ?? [] };
+    // Photos produit (miniatures) pour la préparation physique du colis.
+    const items = its.data ?? [];
+    const productIds = Array.from(
+      new Set(items.map((i) => i.product_id).filter((v): v is string => !!v)),
+    );
+    const photoById = new Map<string, string | null>();
+    if (productIds.length > 0) {
+      const { data: prods } = await supabaseAdmin
+        .from("products")
+        .select("id, photos")
+        .in("id", productIds);
+      for (const p of prods ?? []) {
+        const photos = (p.photos ?? []) as string[];
+        photoById.set(p.id, photos[0] ?? null);
+      }
+    }
+    return {
+      order: ord.data,
+      items: items.map((i) => ({
+        ...i,
+        photo_url: i.product_id ? (photoById.get(i.product_id) ?? null) : null,
+      })),
+    };
   });
 
 export const adminUpdateOrder = createServerFn({ method: "POST" })
