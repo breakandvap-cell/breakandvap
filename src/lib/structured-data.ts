@@ -242,7 +242,7 @@ export function validateNode(node: Node): JsonLdReport {
       validateItemList(node, errors, warnings);
       break;
     case "CollectionPage":
-ވ      validateCollectionPage(node, errors, warnings);
+      validateCollectionPage(node, errors, warnings);
       break;
     default:
       warnings.push({ path: "@type", message: `Type « ${type || "inconnu"} » non vérifié.` });
