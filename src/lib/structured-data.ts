@@ -201,6 +201,47 @@ function validateItemList(node: Node, errors: JsonLdIssue[], warnings: JsonLdIss
 }
 
 /** Valide une CollectionPage (page de listing) et son ItemList imbriqué. */
+function validateBreadcrumbList(node: Node, errors: JsonLdIssue[], warnings: JsonLdIssue[]) {
+  const elements = node.itemListElement;
+  if (!Array.isArray(elements) || elements.length === 0) {
+    errors.push({ path: "itemListElement", message: "« itemListElement » (tableau non vide) est requis." });
+    return;
+  }
+  elements.forEach((raw, i) => {
+    const base = `itemListElement[${i}]`;
+    if (!raw || typeof raw !== "object") {
+      errors.push({ path: base, message: "Chaque élément doit être un objet ListItem." });
+      return;
+    }
+    const el = raw as Node;
+    if (el["@type"] !== "ListItem") {
+      errors.push({ path: `${base}.@type`, message: "@type doit être ListItem." });
+    }
+    if (el.position !== i + 1) {
+      errors.push({ path: `${base}.position`, message: "« position » doit suivre l'ordre du fil d'Ariane (1, 2, 3…)." });
+    }
+    const item = el.item;
+    const name = isNonEmptyString(el.name)
+      ? el.name
+      : item && typeof item === "object"
+        ? (item as Node).name
+        : undefined;
+    if (!isNonEmptyString(name)) {
+      errors.push({ path: `${base}.name`, message: "« name » est requis." });
+    }
+    const url =
+      item && typeof item === "object" ? (item as Node)["@id"] ?? (item as Node).url : item;
+    const isLast = i === elements.length - 1;
+    if (url === undefined) {
+      if (!isLast) errors.push({ path: `${base}.item`, message: "« item » (URL absolue) est requis." });
+      else warnings.push({ path: `${base}.item`, message: "Le dernier élément peut omettre « item »." });
+    } else if (!isAbsoluteUrl(url)) {
+      errors.push({ path: `${base}.item`, message: "« item » doit être une URL absolue." });
+    }
+  });
+}
+
+/** Valide une CollectionPage (page de listing) et son ItemList imbriqué. */
 function validateCollectionPage(node: Node, errors: JsonLdIssue[], warnings: JsonLdIssue[]) {
   if (!isNonEmptyString(node.name)) {
     errors.push({ path: "name", message: "Le champ « name » est requis." });
@@ -243,6 +284,9 @@ export function validateNode(node: Node): JsonLdReport {
       break;
     case "ItemList":
       validateItemList(node, errors, warnings);
+      break;
+    case "BreadcrumbList":
+      validateBreadcrumbList(node, errors, warnings);
       break;
     case "CollectionPage":
       validateCollectionPage(node, errors, warnings);

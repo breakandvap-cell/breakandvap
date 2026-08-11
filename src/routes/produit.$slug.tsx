@@ -37,6 +37,7 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 import {
   Dialog,
   DialogContent,
@@ -103,6 +104,17 @@ export const Route = createFileRoute("/produit/$slug")({
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify(
+            buildBreadcrumbJsonLd([
+              HOME_CRUMB,
+              { name: "Boutique", path: "/boutique" },
+              { name: categoryLabel, path: `/boutique?categorie=${loaderData.category}` },
+              { name: loaderData.name, path: `/produit/${params.slug}` },
+            ]),
+          ),
+        },
         {
           type: "application/ld+json",
           children: JSON.stringify({
