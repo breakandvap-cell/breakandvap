@@ -37,6 +37,7 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 import {
   Dialog,
   DialogContent,
