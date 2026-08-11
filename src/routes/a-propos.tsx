@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 
 export const Route = createFileRoute("/a-propos")({
   head: () => ({
@@ -21,6 +22,12 @@ export const Route = createFileRoute("/a-propos")({
     ],
     links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/a-propos" }],
     scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(
+          buildBreadcrumbJsonLd([HOME_CRUMB, { name: "À propos", path: "/a-propos" }]),
+        ),
+      },
       {
         type: "application/ld+json",
         children: JSON.stringify({
