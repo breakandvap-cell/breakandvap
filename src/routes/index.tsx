@@ -6,6 +6,52 @@ import { getSatisfactionAggregate } from "@/lib/google-reviews.functions";
 import { featuredTestimonialsQueryOptions } from "@/lib/testimonials.functions";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Break and Vap — CBD, e-liquides & accessoires de vape" },
+      {
+        name: "description",
+        content:
+          "Boutique française CBD & vapotage depuis 2018. E-liquides, produits CBD et accessoires livrés depuis Le Creusot et Montceau-les-Mines.",
+      },
+      { property: "og:title", content: "Break and Vap — CBD & vapotage" },
+      {
+        property: "og:description",
+        content:
+          "L'expertise de nos boutiques de Bourgogne, en ligne : e-liquides, CBD et accessoires de vape.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebSite",
+              name: "Break and Vap",
+              url: "https://breakandvap.lovable.app/",
+            },
+            {
+              "@type": "Organization",
+              name: "SAS Break and Vap",
+              url: "https://breakandvap.lovable.app/",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: "5 Boulevard de Lattre de Tassigny",
+                addressLocality: "Montceau-les-Mines",
+                postalCode: "71300",
+                addressCountry: "FR",
+              },
+            },
+          ],
+        }),
+      },
+    ],
+  }),
   component: Index,
 });
 
