@@ -17,6 +17,7 @@ import {
   type ShopSubcategory,
 } from "@/lib/categories.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { buildShopCollectionJsonLd } from "@/lib/shop-structured-data";
 import { CategoryTileFx } from "@/components/category-tile-fx";
 import {
   ActiveFilterChips,
@@ -93,14 +94,14 @@ export const Route = createFileRoute("/boutique")({
       { property: "og:url", content: "https://breakandvap.lovable.app/boutique" },
     ],
     links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/boutique" }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify(
-          buildShopCollectionJsonLd(loaderData?.items ?? []),
-        ),
-      },
-    ],
+    scripts: loaderData?.items?.length
+      ? [
+          {
+            type: "application/ld+json",
+            children: JSON.stringify(buildShopCollectionJsonLd(loaderData.items)),
+          },
+        ]
+      : [],
   }),
   component: BoutiquePage,
   errorComponent: ({ error }) => (
