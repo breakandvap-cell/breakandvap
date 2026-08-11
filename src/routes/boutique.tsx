@@ -69,7 +69,19 @@ export const Route = createFileRoute("/boutique")({
         content:
           "Découvrez notre catalogue CBD, e-liquides et accessoires de vape. Fiches conformes, stocks à jour, expédition depuis la Bourgogne.",
       },
+      {
+        property: "og:title",
+        content: "Boutique CBD, e-liquides & accessoires — Break and Vap",
+      },
+      {
+        property: "og:description",
+        content:
+          "Plus de 130 références CBD, e-liquides et accessoires de vape, sélectionnées par nos boutiques du Creusot et de Montceau-les-Mines.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://breakandvap.lovable.app/boutique" },
     ],
+    links: [{ rel: "canonical", href: "https://breakandvap.lovable.app/boutique" }],
   }),
   component: BoutiquePage,
   errorComponent: ({ error }) => (
