@@ -106,6 +106,17 @@ export const Route = createFileRoute("/produit/$slug")({
       scripts: [
         {
           type: "application/ld+json",
+          children: JSON.stringify(
+            buildBreadcrumbJsonLd([
+              HOME_CRUMB,
+              { name: "Boutique", path: "/boutique" },
+              { name: categoryLabel, path: `/boutique?categorie=${loaderData.category}` },
+              { name: loaderData.name, path: `/produit/${params.slug}` },
+            ]),
+          ),
+        },
+        {
+          type: "application/ld+json",
           children: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "Product",
