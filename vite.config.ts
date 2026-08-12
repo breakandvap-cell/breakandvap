@@ -35,5 +35,19 @@ export default defineConfig({
   },
   vite: {
     plugins: [singletonGuard()],
+    resolve: {
+      // Le preset Lovable déduplique déjà react/react-dom/react-query ;
+      // on y ajoute les paquets du router pour interdire toute instance parallèle.
+      dedupe: [
+        "@tanstack/react-router",
+        "@tanstack/react-start",
+        "@tanstack/router-core",
+        "@tanstack/history",
+      ],
+    },
+    optimizeDeps: {
+      // Pré-bundler le router avec React évite qu'il charge une copie brute de React en dev.
+      include: ["@tanstack/react-router", "@tanstack/react-store"],
+    },
   },
 });
