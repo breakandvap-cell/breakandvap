@@ -80,6 +80,7 @@ function AdminNav() {
       | "/admin/references-techniques"
       | "/admin/reception-marchandise"
       | "/admin/temoignages"
+      | "/admin/promotions"
       | "/admin/parametres"
       | "/admin/securite";
     label: string;
@@ -95,6 +96,7 @@ function AdminNav() {
     { to: "/admin/clients", label: "Clients" },
     { to: "/admin/factures", label: "Factures" },
     { to: "/admin/temoignages", label: "Témoignages" },
+    { to: "/admin/promotions", label: "Promotions" },
     { to: "/admin/parametres", label: "Paramètres" },
     { to: "/admin/securite", label: "Sécurité" },
   ];
