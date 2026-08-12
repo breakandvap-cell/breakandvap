@@ -11,6 +11,11 @@ import { formatNicotineMg } from "@/lib/site-settings.functions";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { AppErrorBoundary } from "@/components/error-boundary";
+import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
+import { bestPromotionFor } from "@/lib/promotions-pricing";
+import { spinWheel, wheelPrizesQueryOptions, type PendingSpin } from "@/lib/wheel.functions";
+import { FortuneWheel } from "@/components/fortune-wheel";
+import { formatPrizeLabel, useWheelState } from "@/components/welcome-wheel";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -32,6 +37,74 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const createOrderFn = useServerFn(createOrder);
   const { user } = useAuth();
+
+  // ---- Promotions : prix remisés (recalculés côté serveur à la commande) ---
+  const { data: promotions } = useQuery(activePromotionsQueryOptions());
+  const productIds = Array.from(new Set(cart.items.map((i) => i.productId))).sort();
+  const { data: categoryById } = useQuery({
+    queryKey: ["cart-product-categories", productIds.join(",")] as const,
+    enabled: productIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, category")
+        .in("id", productIds);
+      if (error) throw new Error(error.message);
+      return Object.fromEntries(
+        (data ?? []).map((p) => [p.id as string, p.category as string]),
+      ) as Record<string, string>;
+    },
+  });
+
+  const lines = cart.items.map((it) => {
+    const promo = bestPromotionFor(
+      promotions,
+      { productId: it.productId, category: categoryById?.[it.productId] ?? "" },
+      it.priceCents,
+    );
+    const unit = promo?.finalCents ?? it.priceCents;
+    return { item: it, unit, original: it.priceCents, promo };
+  });
+  const promoSubtotalCents = lines.reduce((s, l) => s + l.unit * l.item.quantity, 0);
+  const promoDiscountCents = cart.subtotalCents - promoSubtotalCents;
+
+  // ---- Roue de la fortune -------------------------------------------------
+  const { data: wheelState } = useWheelState();
+  const spinFn = useServerFn(spinWheel);
+  const { data: generalPrizes } = useQuery({
+    ...wheelPrizesQueryOptions("general"),
+    enabled: !!wheelState?.generalAvailable,
+  });
+  const [spinResult, setSpinResult] = useState<PendingSpin | null>(null);
+  const spinMutation = useMutation({
+    mutationFn: () =>
+      spinFn({
+        data: {
+          wheel_type: "general" as const,
+          cart_subtotal_cents: promoSubtotalCents,
+        },
+      }),
+    onSuccess: (r) => setSpinResult(r),
+    onError: (e: Error) =>
+      toast.error("Tirage impossible", { description: e.message }),
+  });
+
+  // Gain applicable : le tirage du jour, sinon le meilleur gain en attente.
+  const pendingBest = (wheelState?.pending ?? [])
+    .slice()
+    .sort((a, b) => b.discount_amount_cents - a.discount_amount_cents)[0];
+  const appliedSpin = spinResult ?? pendingBest ?? null;
+  const wheelDiscountCents = appliedSpin
+    ? Math.min(
+        promoSubtotalCents,
+        appliedSpin.discount_amount_cents > 0
+          ? appliedSpin.discount_amount_cents
+          : appliedSpin.discount_type === "percentage"
+            ? Math.round((promoSubtotalCents * appliedSpin.discount_value) / 100)
+            : Math.round(appliedSpin.discount_value * 100),
+      )
+    : 0;
+  const totalCents = Math.max(0, promoSubtotalCents - wheelDiscountCents);
 
   const { data: savedAddresses = [] } = useQuery({
     queryKey: ["my-addresses", user?.id ?? "anon"],
@@ -162,6 +235,7 @@ function CheckoutPage() {
             ? i.boostersCount
             : undefined,
       })),
+      wheelSpinId: appliedSpin?.id,
     });
   };
 
