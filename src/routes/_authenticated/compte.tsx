@@ -74,7 +74,7 @@ function AccountLayout() {
             Tableau de bord
           </TabLink>
           <TabLink to="/compte/commandes" icon={<Package className="h-4 w-4" />}>
-            Commandes
+            Mes commandes
           </TabLink>
           <TabLink to="/compte/adresses" icon={<MapPin className="h-4 w-4" />}>
             Adresses
