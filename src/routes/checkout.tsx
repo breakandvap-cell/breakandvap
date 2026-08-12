@@ -10,6 +10,7 @@ import { formatPrice } from "@/lib/products";
 import { formatNicotineMg } from "@/lib/site-settings.functions";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -19,7 +20,11 @@ export const Route = createFileRoute("/checkout")({
       { name: "robots", content: "noindex" },
     ],
   }),
-  component: CheckoutPage,
+  component: () => (
+    <AppErrorBoundary boundary="checkout">
+      <CheckoutPage />
+    </AppErrorBoundary>
+  ),
 });
 
 function CheckoutPage() {

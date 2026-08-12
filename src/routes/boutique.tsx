@@ -28,6 +28,7 @@ import {
   type FilterPatch,
 } from "@/components/shop-filters";
 import {
+import { AppErrorBoundary } from "@/components/error-boundary";
   applyShopFilters,
   buildFacets,
   groupProductsByRange,
@@ -112,7 +113,11 @@ export const Route = createFileRoute("/boutique")({
         : []),
     ],
   }),
-  component: BoutiquePage,
+  component: () => (
+    <AppErrorBoundary boundary="boutique">
+      <BoutiquePage />
+    </AppErrorBoundary>
+  ),
   errorComponent: ({ error }) => (
     <div className="p-8 text-sm text-destructive">
       Impossible de charger le catalogue : {error.message}
