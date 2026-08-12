@@ -48,7 +48,8 @@ function OrderDetailPage() {
   if (!data) return null;
 
   const shipping = (data.shipping_address ?? {}) as Shipping;
-  const hasInvoice = (data.invoices ?? []).length > 0;
+  const invoices = data.invoices;
+  const hasInvoice = Array.isArray(invoices) ? invoices.length > 0 : !!invoices;
 
   return (
     <div className="space-y-6">
