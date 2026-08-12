@@ -1,16 +1,23 @@
 /**
- * Regroupe une liste de produits par gamme (product_range) + marque.
- * Une gamme n'ayant qu'un seul produit ne crée pas de section : le produit
- * rejoint le groupe « Autres », affiché à part.
+ * Regroupe une liste de produits par gamme (gamme_id + product_range) puis,
+ * à défaut de gamme, par marque. Un produit sans gamme ni marque rejoint le
+ * groupe « Autres produits ». Une gamme n'ayant qu'un seul produit ne crée
+ * pas de section : le produit rejoint « Autres produits ».
  */
 export type RangeGroup<T> = {
   key: string;
   title: string;
   products: T[];
+  /** Nature du regroupement : par gamme ou par marque. */
+  kind: "range" | "brand";
 };
 
 export function groupProductsByRange<
-  T extends { brand?: string | null; product_range?: string | null },
+  T extends {
+    brand?: string | null;
+    product_range?: string | null;
+    gamme_id?: string | null;
+  },
 >(products: T[]): { groups: RangeGroup<T>[]; others: T[] } {
   const buckets = new Map<
     string,
@@ -20,7 +27,8 @@ export function groupProductsByRange<
   for (const p of products) {
     const range = (p.product_range ?? "").trim();
     const brand = (p.brand ?? "").trim();
-    if (!range) {
+    const hasGamme = Boolean(p.gamme_id) || range.length > 0;
+    if (!hasGamme) {
       // Pas de gamme : on regroupe sous le nom de la marque quand elle est
       // renseignée, sinon le produit rejoint « Autres produits ».
       if (!brand) {
@@ -33,8 +41,9 @@ export function groupProductsByRange<
       else buckets.set(bKey, { title: brand, products: [p], kind: "brand" });
       continue;
     }
-    const key = `range|${brand.toLowerCase()}|${range.toLowerCase()}`;
-    const title = brand ? `${range} — ${brand}` : range;
+    const label = range || brand;
+    const key = `range|${p.gamme_id ?? ""}|${brand.toLowerCase()}|${range.toLowerCase()}`;
+    const title = brand && range ? `${range} — ${brand}` : label;
     const bucket = buckets.get(key);
     if (bucket) bucket.products.push(p);
     else buckets.set(key, { title, products: [p], kind: "range" });
@@ -45,7 +54,7 @@ export function groupProductsByRange<
       others.push(...b.products);
       continue;
     }
-    groups.push({ key, title: b.title, products: b.products });
+    groups.push({ key, title: b.title, products: b.products, kind: b.kind });
   }
   return { groups, others };
 }
