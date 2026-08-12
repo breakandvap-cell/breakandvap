@@ -450,6 +450,51 @@ export const createOrder = createServerFn({ method: "POST" })
     };
 
     // ---------------------------------------------------------------------
+    // Gain de roue de la fortune : validé et chiffré côté serveur uniquement.
+    // ---------------------------------------------------------------------
+    const subtotalCents = totalCents;
+    let wheelDiscountCents = 0;
+    let appliedSpinId: string | null = null;
+    if (data.wheelSpinId) {
+      if (!userId) throw new Error("Connectez-vous pour utiliser votre gain.");
+      const { data: spin } = await supabaseAdmin
+        .from("wheel_spins")
+        .select(
+          "id, user_id, status, expires_at, discount_amount_cents, prize_id, wheel_prizes(discount_type, discount_value)",
+        )
+        .eq("id", data.wheelSpinId)
+        .maybeSingle();
+      const row = spin as unknown as
+        | {
+            id: string;
+            user_id: string;
+            status: string;
+            expires_at: string;
+            discount_amount_cents: number | null;
+            wheel_prizes: { discount_type: string; discount_value: number } | null;
+          }
+        | null;
+      if (
+        !row ||
+        row.user_id !== userId ||
+        row.status !== "pending" ||
+        new Date(row.expires_at).getTime() < Date.now()
+      ) {
+        throw new Error("Ce gain n'est plus valable.");
+      }
+      let amount = row.discount_amount_cents ?? 0;
+      if (amount <= 0 && row.wheel_prizes) {
+        amount =
+          row.wheel_prizes.discount_type === "percentage"
+            ? Math.round((subtotalCents * Number(row.wheel_prizes.discount_value)) / 100)
+            : Math.round(Number(row.wheel_prizes.discount_value) * 100);
+      }
+      wheelDiscountCents = Math.max(0, Math.min(subtotalCents, amount));
+      appliedSpinId = row.id;
+      totalCents = subtotalCents - wheelDiscountCents;
+    }
+
+    // ---------------------------------------------------------------------
     // Décrément ATOMIQUE des stocks (anti-survente).
     // On applique chaque décrément via des RPC SQL qui n'écrivent que si le
     // stock disponible est suffisant. Si l'un des décréments échoue, on
