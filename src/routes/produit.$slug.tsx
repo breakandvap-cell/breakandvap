@@ -24,6 +24,7 @@ import {
   emptyBottleCandidatesQueryOptions,
   sameRangeProductsQueryOptions,
   sameGammeProductsQueryOptions,
+  sameBrandProductsQueryOptions,
   type EmptyBottleCandidate,
   type BoosterProduct,
   type ProductFlavor,
@@ -1253,6 +1254,7 @@ function FlavorPicker({
 // colonnes sont vides.
 function RangeShowcase({ product }: { product: ProductRow }) {
   const range = (product.product_range ?? "").trim();
+  const brand = (product.brand ?? "").trim();
   const gammeId = (product as { gamme_id?: string | null }).gamme_id ?? null;
   const { data: byGamme = [] } = useQuery(
     sameGammeProductsQueryOptions({ gammeId, excludeId: product.id }),
@@ -1264,20 +1266,29 @@ function RangeShowcase({ product }: { product: ProductRow }) {
       excludeId: product.id,
     }),
   );
-  const siblings = gammeId ? byGamme : byRange;
-  const title = range || "cette gamme";
-  if ((!gammeId && !range) || siblings.length === 0) return null;
+  // Fallback marque : produit sans gamme ni product_range.
+  const useBrand = !gammeId && !range && brand.length > 0;
+  const { data: byBrand = [] } = useQuery(
+    sameBrandProductsQueryOptions({
+      brand: useBrand ? brand : "",
+      excludeId: product.id,
+    }),
+  );
+  const siblings = gammeId ? byGamme : useBrand ? byBrand : byRange;
+  const title = useBrand ? brand : range || "cette gamme";
+  const kindLabel = useBrand ? "marque" : "gamme";
+  if ((!gammeId && !range && !useBrand) || siblings.length === 0) return null;
   return (
     <section className="mt-14 border-t border-border pt-8">
       <h2
         className="text-2xl"
         style={{ fontFamily: "var(--font-serif)" }}
       >
-        Découvrez la gamme {title}
+        Découvrez la {kindLabel} {title}
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {siblings.length} autre{siblings.length > 1 ? "s" : ""} référence
-        {siblings.length > 1 ? "s" : ""} de cette gamme.
+        {siblings.length > 1 ? "s" : ""} de cette {kindLabel}.
       </p>
       <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
         {siblings.map((p) => (

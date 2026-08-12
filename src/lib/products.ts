@@ -277,6 +277,32 @@ export const productBySlugQueryOptions = (slug: string) =>
   });
 
 /**
+ * Autres produits publiés de la même marque (utilisé quand le produit n'a
+ * ni gamme rattachée ni `product_range`).
+ */
+export const sameBrandProductsQueryOptions = (args: {
+  brand: string | null | undefined;
+  excludeId: string;
+}) => {
+  const brand = (args.brand ?? "").trim();
+  return queryOptions({
+    queryKey: ["products", "brand", brand, args.excludeId] as const,
+    enabled: brand.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("is_published", true)
+        .eq("brand", brand)
+        .neq("id", args.excludeId)
+        .order("name", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProductRow[];
+    },
+  });
+};
+
+/**
  * Autres produits publiés rattachés à la même gamme (table `gammes`).
  * Prioritaire sur le regroupement historique par texte `product_range`.
  */
