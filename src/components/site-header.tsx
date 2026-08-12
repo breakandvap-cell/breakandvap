@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { isAdmin as isAdminFn } from "@/lib/admin.functions";
 import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
 import { ProductSearch } from "@/components/product-search";
+import { ManageCookiesLink } from "@/components/cookie-consent-banner";
 import {
   Sheet,
   SheetContent,
@@ -271,6 +272,9 @@ export function SiteFooter() {
               <li><Link to="/cgv" className="hover:text-foreground">CGV</Link></li>
               <li><Link to="/confidentialite" className="hover:text-foreground">Confidentialité</Link></li>
               <li><Link to="/cookies" className="hover:text-foreground">Cookies</Link></li>
+              <li>
+                <ManageCookiesLink className="text-left hover:text-foreground" />
+              </li>
             </ul>
           </div>
         </div>
