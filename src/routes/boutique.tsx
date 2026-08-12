@@ -399,12 +399,17 @@ function BoutiquePage() {
                   {rangeGroups.map((g) => (
                     <section key={g.key}>
                       <div className="mb-3 flex items-baseline justify-between gap-3 border-b border-border pb-2">
-                        <h2
-                          className="text-xl sm:text-2xl"
-                          style={{ fontFamily: "var(--font-serif)" }}
-                        >
-                          {g.title}
-                        </h2>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+                            {g.kind === "brand" ? "Marque" : "Gamme"}
+                          </p>
+                          <h2
+                            className="text-xl sm:text-2xl"
+                            style={{ fontFamily: "var(--font-serif)" }}
+                          >
+                            {g.title}
+                          </h2>
+                        </div>
                         <span className="shrink-0 text-xs text-muted-foreground">
                           {g.products.length} produits
                         </span>
