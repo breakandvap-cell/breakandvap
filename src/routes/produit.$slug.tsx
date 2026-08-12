@@ -1266,8 +1266,8 @@ function RangeShowcase({ product }: { product: ProductRow }) {
       excludeId: product.id,
     }),
   );
-  // Fallback marque : produit sans gamme ni product_range.
-  const useBrand = !gammeId && !range && brand.length > 0;
+  // Fallback marque : dès que le produit n'a pas de gamme rattachée.
+  const useBrand = !gammeId && brand.length > 0;
   const { data: byBrand = [] } = useQuery(
     sameBrandProductsQueryOptions({
       brand: useBrand ? brand : "",
