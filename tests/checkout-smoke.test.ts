@@ -69,11 +69,14 @@ beforeAll(async () => {
     return;
   }
 
-  // Repère une fiche produit réelle depuis la boutique pour la tester.
+  // Repère une fiche produit réelle (sitemap, puis boutique) pour la tester.
   try {
-    const { html } = await fetchPage("/boutique");
-    const match = html.match(/href="(\/produit\/[a-z0-9-]+)"/i);
-    productPath = match?.[1] ?? null;
+    const { html: sitemap } = await fetchPage("/sitemap.xml");
+    productPath = sitemap.match(/\/produit\/[a-z0-9-]+/i)?.[0] ?? null;
+    if (!productPath) {
+      const { html } = await fetchPage("/boutique");
+      productPath = html.match(/href="(\/produit\/[a-z0-9-]+)"/i)?.[1] ?? null;
+    }
   } catch {
     productPath = null;
   }
