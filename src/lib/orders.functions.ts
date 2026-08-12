@@ -75,7 +75,9 @@ export const createOrder = createServerFn({ method: "POST" })
     const ids = data.items.map((i) => i.productId);
     const { data: products, error: prodErr } = await supabaseAdmin
       .from("products")
-      .select("id, name, price_cents, currency, stock, stock_status, is_published, flavors")
+      .select(
+        "id, name, price_cents, currency, stock, stock_status, is_published, flavors, category",
+      )
       .in("id", ids);
     if (prodErr) {
       console.error("[checkout] products fetch failed:", prodErr);
