@@ -348,6 +348,44 @@ export const productVariantsQueryOptions = (productId: string | undefined) =>
 // Cherche les variantes des e-liquides listés, pour afficher un « à partir de »
 
 /** Volumes (ml) disponibles par produit, pour les filtres boutique. */
+export type VariantPriceSummary = {
+  /** Prix le plus bas parmi les variantes actives ayant du stock (> 0). */
+  minPriceCents: number | null;
+  /** Nombre de variantes actives (toutes contenances confondues). */
+  variantCount: number;
+};
+
+/** Prix « à partir de » par produit, calculé sur les variantes en stock. */
+export const variantPriceSummaryQueryOptions = () =>
+  queryOptions({
+    queryKey: ["product-variant-price-summary"] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("product_variants")
+        .select("product_id, volume_ml, price_cents, stock")
+        .eq("is_active", true);
+      if (error) throw new Error(error.message);
+      const volumes: Record<string, Set<number>> = {};
+      const map: Record<string, VariantPriceSummary> = {};
+      for (const v of data ?? []) {
+        const entry = (map[v.product_id] ||= {
+          minPriceCents: null,
+          variantCount: 0,
+        });
+        (volumes[v.product_id] ||= new Set()).add(v.volume_ml);
+        if (v.stock > 0) {
+          if (entry.minPriceCents == null || v.price_cents < entry.minPriceCents) {
+            entry.minPriceCents = v.price_cents;
+          }
+        }
+      }
+      for (const [id, set] of Object.entries(volumes)) {
+        map[id]!.variantCount = set.size;
+      }
+      return map;
+    },
+  });
+
 export const allVariantVolumesQueryOptions = () =>
   queryOptions({
     queryKey: ["product-variant-volumes"] as const,

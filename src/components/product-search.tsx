@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Search, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { formatPrice, productsQueryOptions } from "@/lib/products";
+import {
+  formatPrice,
+  productsQueryOptions,
+  variantPriceSummaryQueryOptions,
+} from "@/lib/products";
 import { matchesSearch } from "@/lib/product-search";
 
 const MAX_RESULTS = 8;
@@ -21,6 +25,7 @@ export function ProductSearch({
   const boxRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const { data: products } = useQuery(productsQueryOptions());
+  const { data: priceSummary } = useQuery(variantPriceSummaryQueryOptions());
 
   const trimmed = query.trim();
   const results = useMemo(() => {
@@ -105,7 +110,11 @@ export function ProductSearch({
           ) : (
             <>
               <ul className="max-h-[60vh] divide-y divide-border overflow-y-auto">
-                {results.slice(0, MAX_RESULTS).map((p) => (
+                {results.slice(0, MAX_RESULTS).map((p) => {
+                  const s = priceSummary?.[p.id];
+                  const showFrom =
+                    (s?.variantCount ?? 0) > 1 && s?.minPriceCents != null;
+                  return (
                   <li key={p.id}>
                     <Link
                       to="/produit/$slug"
@@ -134,11 +143,20 @@ export function ProductSearch({
                         </p>
                       </div>
                       <span className="shrink-0 text-sm font-semibold">
-                        {formatPrice(p.price_cents, p.currency)}
+                        {showFrom && (
+                          <span className="mr-1 text-[10px] font-normal text-muted-foreground">
+                            dès
+                          </span>
+                        )}
+                        {formatPrice(
+                          showFrom ? s!.minPriceCents! : p.price_cents,
+                          p.currency,
+                        )}
                       </span>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
               <button
                 type="button"

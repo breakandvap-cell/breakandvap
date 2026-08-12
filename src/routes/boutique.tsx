@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import {
   STOCK_LABELS,
   allVariantVolumesQueryOptions,
+  variantPriceSummaryQueryOptions,
   formatPrice,
   productsQueryOptions,
   type ProductRow,
@@ -643,6 +644,10 @@ function ProductCard({
 }) {
   const stock = STOCK_LABELS[product.stock_status];
   const photo = product.photos?.[0];
+  const { data: priceSummary } = useQuery(variantPriceSummaryQueryOptions());
+  const summary = priceSummary?.[product.id];
+  const showFrom = (summary?.variantCount ?? 0) > 1 && summary?.minPriceCents != null;
+  const displayCents = showFrom ? summary!.minPriceCents! : product.price_cents;
 
   return (
     <Link
@@ -680,7 +685,12 @@ function ProductCard({
         </h3>
         <div className="mt-auto flex items-center justify-between gap-2 pt-1 sm:pt-2">
           <span className="text-base font-semibold sm:text-lg">
-            {formatPrice(product.price_cents, product.currency)}
+            {showFrom && (
+              <span className="mr-1 text-[11px] font-normal text-muted-foreground">
+                à partir de
+              </span>
+            )}
+            {formatPrice(displayCents, product.currency)}
           </span>
           <span className="hidden text-xs text-muted-foreground group-hover:text-foreground sm:inline">
             Voir →
