@@ -5,11 +5,35 @@
 //     React/TanStack dedupe, error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import type { Plugin } from "vite";
+// @ts-expect-error - script Node en JS pur, sans types
+import { assertSingletons } from "./scripts/check-singletons.mjs";
+
+/**
+ * Échoue le build si React ou TanStack Router sont installés en double
+ * (cause classique de "resolveDispatcher().use is null" / écran blanc).
+ */
+function singletonGuard(): Plugin {
+  let ran = false;
+  return {
+    name: "lovable-singleton-guard",
+    apply: "build",
+    buildStart() {
+      if (ran) return; // le build tourne en plusieurs environnements (client/ssr)
+      ran = true;
+      const report = assertSingletons(process.cwd()) as string[];
+      this.info?.("Singletons OK — " + report.join(" | "));
+    },
+  };
+}
 
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+  },
+  vite: {
+    plugins: [singletonGuard()],
   },
 });
