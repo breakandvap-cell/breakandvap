@@ -38,6 +38,8 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
+import { bestPromotionFor } from "@/lib/promotions-pricing";
 import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 import {
   Dialog,
