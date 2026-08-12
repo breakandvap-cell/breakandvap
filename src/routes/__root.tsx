@@ -18,6 +18,8 @@ import { AuthProvider } from "../lib/auth-context";
 import { SiteAmbient } from "../components/site-ambient";
 import { CookieConsentProvider } from "../lib/cookie-consent";
 import { CookieConsentBanner } from "../components/cookie-consent-banner";
+import { AppErrorBoundary } from "../components/error-boundary";
+import { logClientError } from "../lib/client-error-log.functions";
 
 function NotFoundComponent() {
   return (
@@ -46,16 +48,25 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    void logClientError({
+      data: {
+        message: error.message,
+        stack: error.stack ?? undefined,
+        boundary: "tanstack_root_error_component",
+        route: typeof window !== "undefined" ? window.location.pathname : undefined,
+      },
+    }).catch(() => {});
   }, [error]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
+          Une erreur est survenue
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Un incident technique nous empêche d'afficher cette page. Merci de réessayer
+          dans un instant.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
@@ -65,13 +76,13 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             }}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Try again
+            Recharger la page
           </button>
           <a
             href="/"
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
-            Go home
+            Retour à l'accueil
           </a>
         </div>
       </div>
@@ -138,14 +149,17 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <AppErrorBoundary boundary="app_root">
+      <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
           <CookieConsentProvider>
             <AgeGate>
               <SiteAmbient />
               {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-              <Outlet />
+              <AppErrorBoundary boundary="app_page">
+                <Outlet />
+              </AppErrorBoundary>
               {/* Le bandeau cookies vit dans l'arbre de l'AgeGate : il reste
                   masqué tant que la vérification d'âge n'est pas validée. */}
               <CookieConsentBanner />
@@ -154,6 +168,7 @@ function RootComponent() {
           </CookieConsentProvider>
         </CartProvider>
       </AuthProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }

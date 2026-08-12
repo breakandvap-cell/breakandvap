@@ -36,6 +36,7 @@ import {
   type SortValue,
   type ShopFilters,
 } from "@/lib/product-search";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 type ShopSearch = z.infer<typeof searchSchema>;
 
@@ -112,7 +113,11 @@ export const Route = createFileRoute("/boutique")({
         : []),
     ],
   }),
-  component: BoutiquePage,
+  component: () => (
+    <AppErrorBoundary boundary="boutique">
+      <BoutiquePage />
+    </AppErrorBoundary>
+  ),
   errorComponent: ({ error }) => (
     <div className="p-8 text-sm text-destructive">
       Impossible de charger le catalogue : {error.message}
