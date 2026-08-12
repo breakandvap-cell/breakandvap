@@ -386,6 +386,11 @@ export const createOrder = createServerFn({ method: "POST" })
             boosterUnitPrice = booster.price_cents;
           }
         }
+        unitPrice = applyBestPromotion(
+          activePromotions,
+          { productId: p.id, category: p.category },
+          unitPrice,
+        );
         totalCents += unitPrice * line.quantity;
         const nameSuffix = nic > 0 ? `, ${nic} mg` : "";
         const flavorSuffix = flavorLabel ? `, ${flavorLabel}` : "";
@@ -410,12 +415,17 @@ export const createOrder = createServerFn({ method: "POST" })
         if (p.stock_status === "out_of_stock" || p.stock < line.quantity) {
           throw new Error(`Stock insuffisant pour "${p.name}".`);
         }
-        totalCents += p.price_cents * line.quantity;
+        const promoUnitPrice = applyBestPromotion(
+          activePromotions,
+          { productId: p.id, category: p.category },
+          p.price_cents,
+        );
+        totalCents += promoUnitPrice * line.quantity;
         itemsToInsert.push({
           product_id: p.id,
           product_name: flavorLabel ? `${p.name} — ${flavorLabel}` : p.name,
           quantity: line.quantity,
-          unit_price_cents: p.price_cents,
+          unit_price_cents: promoUnitPrice,
           base_price_cents: p.price_cents,
           boosters_count: 0,
           booster_unit_price_cents: null,
