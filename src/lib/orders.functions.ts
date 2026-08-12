@@ -603,6 +603,18 @@ export const createOrder = createServerFn({ method: "POST" })
       throw new Error("Impossible de créer la commande, réessayez.");
     }
 
+    if (appliedSpinId) {
+      await supabaseAdmin
+        .from("wheel_spins")
+        .update({
+          status: "used",
+          order_id: order.id,
+          discount_amount_cents: wheelDiscountCents,
+        })
+        .eq("id", appliedSpinId)
+        .eq("status", "pending");
+    }
+
     // Génération automatique de la facture (numéro séquentiel + PDF + stockage).
     // Best-effort : ne bloque pas la commande si la facture échoue.
     try {
