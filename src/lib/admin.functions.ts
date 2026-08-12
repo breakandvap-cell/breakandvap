@@ -973,6 +973,15 @@ export const adminUpdateOrder = createServerFn({ method: "POST" })
       to: data.status,
       tracking_number: data.tracking_number || null,
     });
+    // Email d'expédition — best-effort, uniquement à la bascule vers « expédiée ».
+    if (data.status === "expediee" && current.status !== "expediee") {
+      try {
+        const { sendOrderShippedEmail } = await import("@/lib/order-emails.server");
+        await sendOrderShippedEmail(data.id, data.tracking_number || null);
+      } catch (e) {
+        console.warn("[email] shipping notice failed", e);
+      }
+    }
     return { ok: true };
   });
 
