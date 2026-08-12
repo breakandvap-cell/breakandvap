@@ -28,7 +28,6 @@ import {
   type FilterPatch,
 } from "@/components/shop-filters";
 import {
-import { AppErrorBoundary } from "@/components/error-boundary";
   applyShopFilters,
   buildFacets,
   groupProductsByRange,
@@ -37,6 +36,7 @@ import { AppErrorBoundary } from "@/components/error-boundary";
   type SortValue,
   type ShopFilters,
 } from "@/lib/product-search";
+import { AppErrorBoundary } from "@/components/error-boundary";
 
 type ShopSearch = z.infer<typeof searchSchema>;
 
