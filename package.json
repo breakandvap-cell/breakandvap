@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "bun test tests"
+    "test": "bun test tests",
+    "check:singletons": "node scripts/check-singletons.mjs"
   },
   "dependencies": {
     "@cantoo/pdf-lib": "^2.7.4",
