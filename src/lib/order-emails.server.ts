@@ -92,6 +92,27 @@ export async function sendOrderDeliveredEmail(orderId: string): Promise<void> {
   });
 }
 
+/** Email d'expédition : envoyé quand la commande passe en « expédiée ». */
+export async function sendOrderShippedEmail(
+  orderId: string,
+  trackingNumber: string | null,
+): Promise<void> {
+  const ctx = await loadOrderContext(orderId);
+  if (!ctx) return;
+  const send = await loadSender();
+  if (!send) return;
+  await send("order-shipped", ctx.recipient, {
+    templateData: {
+      orderNumber: ctx.order.order_number,
+      trackingNumber: trackingNumber ?? null,
+      trackingUrl: trackingNumber
+        ? `https://www.laposte.fr/outils/suivre-vos-envois?code=${encodeURIComponent(trackingNumber)}`
+        : null,
+    },
+    idempotencyKey: `order-shipped-${ctx.order.id}`,
+  });
+}
+
 export async function sendOrderCancelledEmail(
   orderId: string,
   reason: string | null,
