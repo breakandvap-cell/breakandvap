@@ -37,6 +37,8 @@ const orderInputSchema = z.object({
     )
     .min(1)
     .max(30),
+  /** Gain de roue de la fortune à appliquer (validé côté serveur). */
+  wheelSpinId: z.string().uuid().optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof orderInputSchema>;
