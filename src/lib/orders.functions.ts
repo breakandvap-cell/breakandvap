@@ -253,6 +253,12 @@ export const createOrder = createServerFn({ method: "POST" })
 
     let currency = "EUR";
     let totalCents = 0;
+    // Promotions actives : le prix remisé est TOUJOURS recalculé ici, jamais
+    // fourni par le client.
+    const { loadActivePromotions, applyBestPromotion } = await import(
+      "@/lib/promo-pricing.server"
+    );
+    const activePromotions = await loadActivePromotions(supabaseAdmin);
     const itemsToInsert: {
       product_id: string;
       product_name: string;
