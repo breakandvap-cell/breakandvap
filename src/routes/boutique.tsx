@@ -645,9 +645,15 @@ function ProductCard({
   const stock = STOCK_LABELS[product.stock_status];
   const photo = product.photos?.[0];
   const { data: priceSummary } = useQuery(variantPriceSummaryQueryOptions());
+  const { data: promotions } = useQuery(activePromotionsQueryOptions());
   const summary = priceSummary?.[product.id];
   const showFrom = (summary?.variantCount ?? 0) > 1 && summary?.minPriceCents != null;
   const displayCents = showFrom ? summary!.minPriceCents! : product.price_cents;
+  const promo = bestPromotionFor(
+    promotions,
+    { productId: product.id, category: product.category },
+    displayCents,
+  );
 
   return (
     <Link
@@ -690,7 +696,18 @@ function ProductCard({
                 à partir de
               </span>
             )}
-            {formatPrice(displayCents, product.currency)}
+            {promo ? (
+              <>
+                <span className="mr-1 text-xs font-normal text-muted-foreground line-through">
+                  {formatPrice(promo.originalCents, product.currency)}
+                </span>
+                <span className="text-destructive">
+                  {formatPrice(promo.finalCents, product.currency)}
+                </span>
+              </>
+            ) : (
+              formatPrice(displayCents, product.currency)
+            )}
           </span>
           <span className="hidden text-xs text-muted-foreground group-hover:text-foreground sm:inline">
             Voir →
