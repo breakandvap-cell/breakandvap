@@ -742,6 +742,48 @@ export type Database = {
         }
         Relationships: []
       }
+      promotions: {
+        Row: {
+          created_at: string
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          end_date: string | null
+          id: string
+          is_active: boolean
+          name: string
+          scope: Database["public"]["Enums"]["promotion_scope"]
+          scope_id: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          scope?: Database["public"]["Enums"]["promotion_scope"]
+          scope_id?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          discount_type?: Database["public"]["Enums"]["discount_type"]
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          scope?: Database["public"]["Enums"]["promotion_scope"]
+          scope_id?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shop_categories: {
         Row: {
           created_at: string
@@ -833,8 +875,10 @@ export type Database = {
           default_booster_ice_id: string | null
           default_booster_normale_id: string | null
           default_booster_sel_id: string | null
+          general_wheel_enabled: boolean
           singleton: boolean
           updated_at: string
+          welcome_wheel_enabled: boolean
         }
         Insert: {
           booster_concentration_mg_per_ml?: number
@@ -843,8 +887,10 @@ export type Database = {
           default_booster_ice_id?: string | null
           default_booster_normale_id?: string | null
           default_booster_sel_id?: string | null
+          general_wheel_enabled?: boolean
           singleton?: boolean
           updated_at?: string
+          welcome_wheel_enabled?: boolean
         }
         Update: {
           booster_concentration_mg_per_ml?: number
@@ -853,8 +899,10 @@ export type Database = {
           default_booster_ice_id?: string | null
           default_booster_normale_id?: string | null
           default_booster_sel_id?: string | null
+          general_wheel_enabled?: boolean
           singleton?: boolean
           updated_at?: string
+          welcome_wheel_enabled?: boolean
         }
         Relationships: [
           {
@@ -1041,6 +1089,96 @@ export type Database = {
         }
         Relationships: []
       }
+      wheel_prizes: {
+        Row: {
+          created_at: string
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          id: string
+          is_active: boolean
+          label: string
+          updated_at: string
+          weight: number
+          wheel_type: Database["public"]["Enums"]["wheel_type"]
+        }
+        Insert: {
+          created_at?: string
+          discount_type: Database["public"]["Enums"]["discount_type"]
+          discount_value: number
+          id?: string
+          is_active?: boolean
+          label: string
+          updated_at?: string
+          weight?: number
+          wheel_type: Database["public"]["Enums"]["wheel_type"]
+        }
+        Update: {
+          created_at?: string
+          discount_type?: Database["public"]["Enums"]["discount_type"]
+          discount_value?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          updated_at?: string
+          weight?: number
+          wheel_type?: Database["public"]["Enums"]["wheel_type"]
+        }
+        Relationships: []
+      }
+      wheel_spins: {
+        Row: {
+          created_at: string
+          discount_amount_cents: number
+          expires_at: string
+          id: string
+          order_id: string | null
+          prize_id: string | null
+          status: Database["public"]["Enums"]["wheel_spin_status"]
+          updated_at: string
+          user_id: string
+          wheel_type: Database["public"]["Enums"]["wheel_type"]
+        }
+        Insert: {
+          created_at?: string
+          discount_amount_cents?: number
+          expires_at?: string
+          id?: string
+          order_id?: string | null
+          prize_id?: string | null
+          status?: Database["public"]["Enums"]["wheel_spin_status"]
+          updated_at?: string
+          user_id: string
+          wheel_type: Database["public"]["Enums"]["wheel_type"]
+        }
+        Update: {
+          created_at?: string
+          discount_amount_cents?: number
+          expires_at?: string
+          id?: string
+          order_id?: string | null
+          prize_id?: string | null
+          status?: Database["public"]["Enums"]["wheel_spin_status"]
+          updated_at?: string
+          user_id?: string
+          wheel_type?: Database["public"]["Enums"]["wheel_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wheel_spins_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wheel_spins_prize_id_fkey"
+            columns: ["prize_id"]
+            isOneToOne: false
+            referencedRelation: "wheel_prizes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       products_brand_range_audit: {
@@ -1197,6 +1335,7 @@ export type Database = {
         | "verifie"
         | "refuse"
       app_role: "client" | "admin"
+      discount_type: "percentage" | "fixed_amount"
       order_status: "a_preparer" | "expediee" | "livree" | "annulee"
       product_category:
         | "cbd"
@@ -1204,7 +1343,10 @@ export type Database = {
         | "accessoire"
         | "accessoire_vape"
         | "accessoire_cbd"
+      promotion_scope: "site" | "category" | "product"
       stock_status: "in_stock" | "low_stock" | "out_of_stock"
+      wheel_spin_status: "pending" | "used" | "expired"
+      wheel_type: "welcome" | "general"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1339,6 +1481,7 @@ export const Constants = {
         "refuse",
       ],
       app_role: ["client", "admin"],
+      discount_type: ["percentage", "fixed_amount"],
       order_status: ["a_preparer", "expediee", "livree", "annulee"],
       product_category: [
         "cbd",
@@ -1347,7 +1490,10 @@ export const Constants = {
         "accessoire_vape",
         "accessoire_cbd",
       ],
+      promotion_scope: ["site", "category", "product"],
       stock_status: ["in_stock", "low_stock", "out_of_stock"],
+      wheel_spin_status: ["pending", "used", "expired"],
+      wheel_type: ["welcome", "general"],
     },
   },
 } as const
