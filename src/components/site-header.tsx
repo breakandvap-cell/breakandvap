@@ -271,6 +271,9 @@ export function SiteFooter() {
               <li><Link to="/cgv" className="hover:text-foreground">CGV</Link></li>
               <li><Link to="/confidentialite" className="hover:text-foreground">Confidentialité</Link></li>
               <li><Link to="/cookies" className="hover:text-foreground">Cookies</Link></li>
+              <li>
+                <ManageCookiesLink className="text-left hover:text-foreground" />
+              </li>
             </ul>
           </div>
         </div>
