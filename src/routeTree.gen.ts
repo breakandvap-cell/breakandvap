@@ -40,6 +40,7 @@ import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminFacturesRouteImport } from './routes/_authenticated/admin/factures'
 import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authenticated/admin/clients'
 import { Route as AuthenticatedAdminCategoriesRouteImport } from './routes/_authenticated/admin/categories'
+import { Route as AuthenticatedCompteCommandesIndexRouteImport } from './routes/_authenticated/compte.commandes.index'
 import { Route as AuthenticatedAdminProduitsIndexRouteImport } from './routes/_authenticated/admin/produits.index'
 import { Route as AuthenticatedAdminCommandesIndexRouteImport } from './routes/_authenticated/admin/commandes.index'
 import { Route as ApiPublicHooksLowStockAlertRouteImport } from './routes/api/public/hooks/low-stock-alert'
@@ -216,6 +217,12 @@ const AuthenticatedAdminCategoriesRoute =
     path: '/categories',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedCompteCommandesIndexRoute =
+  AuthenticatedCompteCommandesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedCompteCommandesRoute,
+  } as any)
 const AuthenticatedAdminProduitsIndexRoute =
   AuthenticatedAdminProduitsIndexRouteImport.update({
     id: '/produits/',
@@ -312,7 +319,7 @@ export interface FileRoutesByFullPath {
   '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
-  '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
+  '/compte/commandes': typeof AuthenticatedCompteCommandesRouteWithChildren
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
@@ -322,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
+  '/compte/commandes/': typeof AuthenticatedCompteCommandesIndexRoute
   '/admin/produits/eliquide/$id': typeof AuthenticatedAdminProduitsEliquideIdRoute
   '/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
   '/admin/produits/nouveau/': typeof AuthenticatedAdminProduitsNouveauIndexRoute
@@ -354,7 +362,6 @@ export interface FileRoutesByTo {
   '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/compte/adresses': typeof AuthenticatedCompteAdressesRoute
-  '/compte/commandes': typeof AuthenticatedCompteCommandesRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
@@ -364,6 +371,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/admin/commandes': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits': typeof AuthenticatedAdminProduitsIndexRoute
+  '/compte/commandes': typeof AuthenticatedCompteCommandesIndexRoute
   '/admin/produits/eliquide/$id': typeof AuthenticatedAdminProduitsEliquideIdRoute
   '/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
   '/admin/produits/nouveau': typeof AuthenticatedAdminProduitsNouveauIndexRoute
@@ -399,7 +407,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/securite': typeof AuthenticatedAdminSecuriteRoute
   '/_authenticated/admin/temoignages': typeof AuthenticatedAdminTemoignagesRoute
   '/_authenticated/compte/adresses': typeof AuthenticatedCompteAdressesRoute
-  '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRoute
+  '/_authenticated/compte/commandes': typeof AuthenticatedCompteCommandesRouteWithChildren
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/clients/$id': typeof AuthenticatedAdminClientsIdRoute
   '/_authenticated/admin/commandes/$id': typeof AuthenticatedAdminCommandesIdRoute
@@ -409,6 +417,7 @@ export interface FileRoutesById {
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
   '/_authenticated/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/_authenticated/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
+  '/_authenticated/compte/commandes/': typeof AuthenticatedCompteCommandesIndexRoute
   '/_authenticated/admin/produits/eliquide/$id': typeof AuthenticatedAdminProduitsEliquideIdRoute
   '/_authenticated/admin/produits/nouveau/$categorie': typeof AuthenticatedAdminProduitsNouveauCategorieRoute
   '/_authenticated/admin/produits/nouveau/': typeof AuthenticatedAdminProduitsNouveauIndexRoute
@@ -454,6 +463,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes/'
     | '/admin/produits/'
+    | '/compte/commandes/'
     | '/admin/produits/eliquide/$id'
     | '/admin/produits/nouveau/$categorie'
     | '/admin/produits/nouveau/'
@@ -486,7 +496,6 @@ export interface FileRouteTypes {
     | '/admin/securite'
     | '/admin/temoignages'
     | '/compte/adresses'
-    | '/compte/commandes'
     | '/admin'
     | '/admin/clients/$id'
     | '/admin/commandes/$id'
@@ -496,6 +505,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/admin/commandes'
     | '/admin/produits'
+    | '/compte/commandes'
     | '/admin/produits/eliquide/$id'
     | '/admin/produits/nouveau/$categorie'
     | '/admin/produits/nouveau'
@@ -540,6 +550,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/low-stock-alert'
     | '/_authenticated/admin/commandes/'
     | '/_authenticated/admin/produits/'
+    | '/_authenticated/compte/commandes/'
     | '/_authenticated/admin/produits/eliquide/$id'
     | '/_authenticated/admin/produits/nouveau/$categorie'
     | '/_authenticated/admin/produits/nouveau/'
@@ -786,6 +797,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCategoriesRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/compte/commandes/': {
+      id: '/_authenticated/compte/commandes/'
+      path: '/'
+      fullPath: '/compte/commandes/'
+      preLoaderRoute: typeof AuthenticatedCompteCommandesIndexRouteImport
+      parentRoute: typeof AuthenticatedCompteCommandesRoute
+    }
     '/_authenticated/admin/produits/': {
       id: '/_authenticated/admin/produits/'
       path: '/produits'
@@ -936,14 +954,30 @@ const AuthenticatedAdminRouteRouteWithChildren =
     AuthenticatedAdminRouteRouteChildren,
   )
 
+interface AuthenticatedCompteCommandesRouteChildren {
+  AuthenticatedCompteCommandesIndexRoute: typeof AuthenticatedCompteCommandesIndexRoute
+}
+
+const AuthenticatedCompteCommandesRouteChildren: AuthenticatedCompteCommandesRouteChildren =
+  {
+    AuthenticatedCompteCommandesIndexRoute:
+      AuthenticatedCompteCommandesIndexRoute,
+  }
+
+const AuthenticatedCompteCommandesRouteWithChildren =
+  AuthenticatedCompteCommandesRoute._addFileChildren(
+    AuthenticatedCompteCommandesRouteChildren,
+  )
+
 interface AuthenticatedCompteRouteChildren {
   AuthenticatedCompteAdressesRoute: typeof AuthenticatedCompteAdressesRoute
-  AuthenticatedCompteCommandesRoute: typeof AuthenticatedCompteCommandesRoute
+  AuthenticatedCompteCommandesRoute: typeof AuthenticatedCompteCommandesRouteWithChildren
 }
 
 const AuthenticatedCompteRouteChildren: AuthenticatedCompteRouteChildren = {
   AuthenticatedCompteAdressesRoute: AuthenticatedCompteAdressesRoute,
-  AuthenticatedCompteCommandesRoute: AuthenticatedCompteCommandesRoute,
+  AuthenticatedCompteCommandesRoute:
+    AuthenticatedCompteCommandesRouteWithChildren,
 }
 
 const AuthenticatedCompteRouteWithChildren =
