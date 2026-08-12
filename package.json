@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "bun test tests",
+    "test:smoke": "bun test tests/checkout-smoke.test.ts",
     "check:singletons": "node scripts/check-singletons.mjs"
   },
   "dependencies": {
