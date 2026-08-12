@@ -12,24 +12,36 @@ export type RangeGroup<T> = {
 export function groupProductsByRange<
   T extends { brand?: string | null; product_range?: string | null },
 >(products: T[]): { groups: RangeGroup<T>[]; others: T[] } {
-  const buckets = new Map<string, { title: string; products: T[] }>();
+  const buckets = new Map<
+    string,
+    { title: string; products: T[]; kind: "range" | "brand" }
+  >();
   const others: T[] = [];
   for (const p of products) {
     const range = (p.product_range ?? "").trim();
+    const brand = (p.brand ?? "").trim();
     if (!range) {
-      others.push(p);
+      // Pas de gamme : on regroupe sous le nom de la marque quand elle est
+      // renseignée, sinon le produit rejoint « Autres produits ».
+      if (!brand) {
+        others.push(p);
+        continue;
+      }
+      const bKey = `brand|${brand.toLowerCase()}`;
+      const bBucket = buckets.get(bKey);
+      if (bBucket) bBucket.products.push(p);
+      else buckets.set(bKey, { title: brand, products: [p], kind: "brand" });
       continue;
     }
-    const brand = (p.brand ?? "").trim();
-    const key = `${brand.toLowerCase()}|${range.toLowerCase()}`;
+    const key = `range|${brand.toLowerCase()}|${range.toLowerCase()}`;
     const title = brand ? `${range} — ${brand}` : range;
     const bucket = buckets.get(key);
     if (bucket) bucket.products.push(p);
-    else buckets.set(key, { title, products: [p] });
+    else buckets.set(key, { title, products: [p], kind: "range" });
   }
   const groups: RangeGroup<T>[] = [];
   for (const [key, b] of buckets) {
-    if (b.products.length < 2) {
+    if (b.kind === "range" && b.products.length < 2) {
       others.push(...b.products);
       continue;
     }
