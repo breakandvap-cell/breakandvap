@@ -11,6 +11,11 @@ import { formatNicotineMg } from "@/lib/site-settings.functions";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { AppErrorBoundary } from "@/components/error-boundary";
+import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
+import { bestPromotionFor } from "@/lib/promotions-pricing";
+import { spinWheel, wheelPrizesQueryOptions, type PendingSpin } from "@/lib/wheel.functions";
+import { FortuneWheel } from "@/components/fortune-wheel";
+import { formatPrizeLabel, useWheelState } from "@/components/welcome-wheel";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -32,6 +37,74 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const createOrderFn = useServerFn(createOrder);
   const { user } = useAuth();
+
+  // ---- Promotions : prix remisés (recalculés côté serveur à la commande) ---
+  const { data: promotions } = useQuery(activePromotionsQueryOptions());
+  const productIds = Array.from(new Set(cart.items.map((i) => i.productId))).sort();
+  const { data: categoryById } = useQuery({
+    queryKey: ["cart-product-categories", productIds.join(",")] as const,
+    enabled: productIds.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, category")
+        .in("id", productIds);
+      if (error) throw new Error(error.message);
+      return Object.fromEntries(
+        (data ?? []).map((p) => [p.id as string, p.category as string]),
+      ) as Record<string, string>;
+    },
+  });
+
+  const lines = cart.items.map((it) => {
+    const promo = bestPromotionFor(
+      promotions,
+      { productId: it.productId, category: categoryById?.[it.productId] ?? "" },
+      it.priceCents,
+    );
+    const unit = promo?.finalCents ?? it.priceCents;
+    return { item: it, unit, original: it.priceCents, promo };
+  });
+  const promoSubtotalCents = lines.reduce((s, l) => s + l.unit * l.item.quantity, 0);
+  const promoDiscountCents = cart.subtotalCents - promoSubtotalCents;
+
+  // ---- Roue de la fortune -------------------------------------------------
+  const { data: wheelState } = useWheelState();
+  const spinFn = useServerFn(spinWheel);
+  const { data: generalPrizes } = useQuery({
+    ...wheelPrizesQueryOptions("general"),
+    enabled: !!wheelState?.generalAvailable,
+  });
+  const [spinResult, setSpinResult] = useState<PendingSpin | null>(null);
+  const spinMutation = useMutation({
+    mutationFn: () =>
+      spinFn({
+        data: {
+          wheel_type: "general" as const,
+          cart_subtotal_cents: promoSubtotalCents,
+        },
+      }),
+    onSuccess: (r) => setSpinResult(r),
+    onError: (e: Error) =>
+      toast.error("Tirage impossible", { description: e.message }),
+  });
+
+  // Gain applicable : le tirage du jour, sinon le meilleur gain en attente.
+  const pendingBest = (wheelState?.pending ?? [])
+    .slice()
+    .sort((a, b) => b.discount_amount_cents - a.discount_amount_cents)[0];
+  const appliedSpin = spinResult ?? pendingBest ?? null;
+  const wheelDiscountCents = appliedSpin
+    ? Math.min(
+        promoSubtotalCents,
+        appliedSpin.discount_amount_cents > 0
+          ? appliedSpin.discount_amount_cents
+          : appliedSpin.discount_type === "percentage"
+            ? Math.round((promoSubtotalCents * appliedSpin.discount_value) / 100)
+            : Math.round(appliedSpin.discount_value * 100),
+      )
+    : 0;
+  const totalCents = Math.max(0, promoSubtotalCents - wheelDiscountCents);
 
   const { data: savedAddresses = [] } = useQuery({
     queryKey: ["my-addresses", user?.id ?? "anon"],
@@ -162,6 +235,7 @@ function CheckoutPage() {
             ? i.boostersCount
             : undefined,
       })),
+      wheelSpinId: appliedSpin?.id,
     });
   };
 
@@ -365,7 +439,7 @@ function CheckoutPage() {
           <aside className="h-fit rounded-lg border border-border bg-card p-4 sm:p-6 lg:sticky lg:top-4">
             <h2 className="text-lg font-semibold">Votre commande</h2>
             <ul className="mt-4 space-y-3 text-sm">
-              {cart.items.map((it) => (
+              {lines.map(({ item: it, unit, original, promo }) => (
                 <li key={it.key} className="flex justify-between gap-4">
                   <span className="min-w-0">
                     <span className="block truncate">{it.name}</span>
@@ -387,15 +461,80 @@ function CheckoutPage() {
                     ) : null}
                   </span>
                   <span className="whitespace-nowrap font-medium">
-                    {formatPrice(it.priceCents * it.quantity)}
+                    {promo ? (
+                      <>
+                        <span className="mr-1 text-xs font-normal text-muted-foreground line-through">
+                          {formatPrice(original * it.quantity)}
+                        </span>
+                        <span className="text-destructive">
+                          {formatPrice(unit * it.quantity)}
+                        </span>
+                      </>
+                    ) : (
+                      formatPrice(unit * it.quantity)
+                    )}
                   </span>
                 </li>
               ))}
             </ul>
-            <div className="mt-6 flex items-baseline justify-between border-t border-border pt-4">
+
+            {wheelState?.generalAvailable && (generalPrizes ?? []).length > 0 && (
+              <div className="mt-6 rounded-md border border-dashed border-border p-4">
+                <h3 className="text-sm font-semibold">Tentez votre chance</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Un tour de roue offert avant de payer. Le gain est figé sur ce
+                  panier.
+                </p>
+                <div className="mt-3">
+                  <FortuneWheel
+                    segments={(generalPrizes ?? []).map((p) => ({
+                      id: p.id,
+                      label: p.label,
+                    }))}
+                    winningId={spinResult?.prize_id ?? null}
+                    spinning={spinMutation.isPending}
+                  />
+                </div>
+                {spinResult ? (
+                  <p className="mt-3 text-center text-xs">
+                    Gain : <strong>{spinResult.label}</strong> (
+                    {formatPrizeLabel(spinResult)})
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => spinMutation.mutate()}
+                    disabled={spinMutation.isPending}
+                    className="mt-3 w-full rounded-md border border-border px-3 py-2 text-xs font-medium hover:bg-accent/10 disabled:opacity-60"
+                  >
+                    {spinMutation.isPending ? "Tirage…" : "Faire tourner la roue"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {promoDiscountCents > 0 && (
+              <div className="mt-6 flex items-baseline justify-between text-sm">
+                <span className="text-muted-foreground">Promotion</span>
+                <span className="font-medium text-destructive">
+                  −{formatPrice(promoDiscountCents)}
+                </span>
+              </div>
+            )}
+            {wheelDiscountCents > 0 && appliedSpin && (
+              <div className="mt-2 flex items-baseline justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Gain roue — {appliedSpin.label}
+                </span>
+                <span className="font-medium text-destructive">
+                  −{formatPrice(wheelDiscountCents)}
+                </span>
+              </div>
+            )}
+            <div className="mt-4 flex items-baseline justify-between border-t border-border pt-4">
               <span className="text-sm text-muted-foreground">Total</span>
               <span className="text-xl font-semibold">
-                {formatPrice(cart.subtotalCents)}
+                {formatPrice(totalCents)}
               </span>
             </div>
             <button

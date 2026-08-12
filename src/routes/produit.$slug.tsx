@@ -38,6 +38,8 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
+import { bestPromotionFor } from "@/lib/promotions-pricing";
 import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 import {
   Dialog,
@@ -262,7 +264,7 @@ function ProductDetail() {
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="text-2xl font-semibold sm:text-3xl">
-                {formatPrice(product.price_cents, product.currency)}
+                <PromoPrice product={product} priceCents={product.price_cents} />
               </span>
               <span
                 className={
@@ -706,14 +708,17 @@ function EliquideDetail({
 
             <div className="mt-4 flex items-baseline gap-3">
               <span className="text-3xl font-semibold">
-                {variant && displayPrice !== null
-                  ? formatPrice(displayPrice, product.currency)
-                  : availableVolumes.length > 0
-                  ? `à partir de ${formatPrice(
-                      Math.min(...availableVolumes.map((v) => v.price_cents)),
-                      product.currency,
-                    )}`
-                  : formatPrice(product.price_cents, product.currency)}
+                {variant && displayPrice !== null ? (
+                  <PromoPrice product={product} priceCents={displayPrice} />
+                ) : availableVolumes.length > 0 ? (
+                  <PromoPrice
+                    product={product}
+                    priceCents={Math.min(...availableVolumes.map((v) => v.price_cents))}
+                    prefix="à partir de "
+                  />
+                ) : (
+                  <PromoPrice product={product} priceCents={product.price_cents} />
+                )}
               </span>
               {variant && !isReadyToUse && boostersCount > 0 && boosterPrice !== null && (
                 <span className="text-xs text-muted-foreground">
@@ -1338,5 +1343,45 @@ function BrandRangeLine({
     <p className="mt-1 text-xs uppercase tracking-[0.25em] text-muted-foreground">
       {[brand, range].filter(Boolean).join(" · ")}
     </p>
+  );
+}
+
+/** Prix affiché avec application de la meilleure promotion active. */
+function PromoPrice({
+  product,
+  priceCents,
+  prefix,
+}: {
+  product: ProductRow;
+  priceCents: number;
+  prefix?: string;
+}) {
+  const { data: promotions } = useQuery(activePromotionsQueryOptions());
+  const promo = bestPromotionFor(
+    promotions,
+    { productId: product.id, category: product.category },
+    priceCents,
+  );
+  if (!promo) {
+    return (
+      <>
+        {prefix}
+        {formatPrice(priceCents, product.currency)}
+      </>
+    );
+  }
+  return (
+    <>
+      {prefix}
+      <span className="mr-2 text-base font-normal text-muted-foreground line-through">
+        {formatPrice(promo.originalCents, product.currency)}
+      </span>
+      <span className="text-destructive">
+        {formatPrice(promo.finalCents, product.currency)}
+      </span>
+      <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive align-middle">
+        Promo
+      </span>
+    </>
   );
 }

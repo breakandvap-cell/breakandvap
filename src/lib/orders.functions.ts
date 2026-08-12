@@ -37,6 +37,8 @@ const orderInputSchema = z.object({
     )
     .min(1)
     .max(30),
+  /** Gain de roue de la fortune à appliquer (validé côté serveur). */
+  wheelSpinId: z.string().uuid().optional(),
 });
 
 export type CreateOrderInput = z.infer<typeof orderInputSchema>;
@@ -73,7 +75,9 @@ export const createOrder = createServerFn({ method: "POST" })
     const ids = data.items.map((i) => i.productId);
     const { data: products, error: prodErr } = await supabaseAdmin
       .from("products")
-      .select("id, name, price_cents, currency, stock, stock_status, is_published, flavors")
+      .select(
+        "id, name, price_cents, currency, stock, stock_status, is_published, flavors, category",
+      )
       .in("id", ids);
     if (prodErr) {
       console.error("[checkout] products fetch failed:", prodErr);
@@ -251,6 +255,12 @@ export const createOrder = createServerFn({ method: "POST" })
 
     let currency = "EUR";
     let totalCents = 0;
+    // Promotions actives : le prix remisé est TOUJOURS recalculé ici, jamais
+    // fourni par le client.
+    const { loadActivePromotions, applyBestPromotion } = await import(
+      "@/lib/promo-pricing.server"
+    );
+    const activePromotions = await loadActivePromotions(supabaseAdmin);
     const itemsToInsert: {
       product_id: string;
       product_name: string;
@@ -378,6 +388,11 @@ export const createOrder = createServerFn({ method: "POST" })
             boosterUnitPrice = booster.price_cents;
           }
         }
+        unitPrice = applyBestPromotion(
+          activePromotions,
+          { productId: p.id, category: p.category },
+          unitPrice,
+        );
         totalCents += unitPrice * line.quantity;
         const nameSuffix = nic > 0 ? `, ${nic} mg` : "";
         const flavorSuffix = flavorLabel ? `, ${flavorLabel}` : "";
@@ -402,12 +417,17 @@ export const createOrder = createServerFn({ method: "POST" })
         if (p.stock_status === "out_of_stock" || p.stock < line.quantity) {
           throw new Error(`Stock insuffisant pour "${p.name}".`);
         }
-        totalCents += p.price_cents * line.quantity;
+        const promoUnitPrice = applyBestPromotion(
+          activePromotions,
+          { productId: p.id, category: p.category },
+          p.price_cents,
+        );
+        totalCents += promoUnitPrice * line.quantity;
         itemsToInsert.push({
           product_id: p.id,
           product_name: flavorLabel ? `${p.name} — ${flavorLabel}` : p.name,
           quantity: line.quantity,
-          unit_price_cents: p.price_cents,
+          unit_price_cents: promoUnitPrice,
           base_price_cents: p.price_cents,
           boosters_count: 0,
           booster_unit_price_cents: null,
@@ -428,6 +448,51 @@ export const createOrder = createServerFn({ method: "POST" })
       city: data.shipping.city,
       country: data.shipping.country || "France",
     };
+
+    // ---------------------------------------------------------------------
+    // Gain de roue de la fortune : validé et chiffré côté serveur uniquement.
+    // ---------------------------------------------------------------------
+    const subtotalCents = totalCents;
+    let wheelDiscountCents = 0;
+    let appliedSpinId: string | null = null;
+    if (data.wheelSpinId) {
+      if (!userId) throw new Error("Connectez-vous pour utiliser votre gain.");
+      const { data: spin } = await supabaseAdmin
+        .from("wheel_spins")
+        .select(
+          "id, user_id, status, expires_at, discount_amount_cents, prize_id, wheel_prizes(discount_type, discount_value)",
+        )
+        .eq("id", data.wheelSpinId)
+        .maybeSingle();
+      const row = spin as unknown as
+        | {
+            id: string;
+            user_id: string;
+            status: string;
+            expires_at: string;
+            discount_amount_cents: number | null;
+            wheel_prizes: { discount_type: string; discount_value: number } | null;
+          }
+        | null;
+      if (
+        !row ||
+        row.user_id !== userId ||
+        row.status !== "pending" ||
+        new Date(row.expires_at).getTime() < Date.now()
+      ) {
+        throw new Error("Ce gain n'est plus valable.");
+      }
+      let amount = row.discount_amount_cents ?? 0;
+      if (amount <= 0 && row.wheel_prizes) {
+        amount =
+          row.wheel_prizes.discount_type === "percentage"
+            ? Math.round((subtotalCents * Number(row.wheel_prizes.discount_value)) / 100)
+            : Math.round(Number(row.wheel_prizes.discount_value) * 100);
+      }
+      wheelDiscountCents = Math.max(0, Math.min(subtotalCents, amount));
+      appliedSpinId = row.id;
+      totalCents = subtotalCents - wheelDiscountCents;
+    }
 
     // ---------------------------------------------------------------------
     // Décrément ATOMIQUE des stocks (anti-survente).
@@ -536,6 +601,18 @@ export const createOrder = createServerFn({ method: "POST" })
       await rollbackAll();
       console.error("[checkout] order_items insert failed:", itemsErr);
       throw new Error("Impossible de créer la commande, réessayez.");
+    }
+
+    if (appliedSpinId) {
+      await supabaseAdmin
+        .from("wheel_spins")
+        .update({
+          status: "used",
+          order_id: order.id,
+          discount_amount_cents: wheelDiscountCents,
+        })
+        .eq("id", appliedSpinId)
+        .eq("status", "pending");
     }
 
     // Génération automatique de la facture (numéro séquentiel + PDF + stockage).
