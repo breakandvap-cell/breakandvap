@@ -1345,3 +1345,43 @@ function BrandRangeLine({
     </p>
   );
 }
+
+/** Prix affiché avec application de la meilleure promotion active. */
+function PromoPrice({
+  product,
+  priceCents,
+  prefix,
+}: {
+  product: ProductRow;
+  priceCents: number;
+  prefix?: string;
+}) {
+  const { data: promotions } = useQuery(activePromotionsQueryOptions());
+  const promo = bestPromotionFor(
+    promotions,
+    { productId: product.id, category: product.category },
+    priceCents,
+  );
+  if (!promo) {
+    return (
+      <>
+        {prefix}
+        {formatPrice(priceCents, product.currency)}
+      </>
+    );
+  }
+  return (
+    <>
+      {prefix}
+      <span className="mr-2 text-base font-normal text-muted-foreground line-through">
+        {formatPrice(promo.originalCents, product.currency)}
+      </span>
+      <span className="text-destructive">
+        {formatPrice(promo.finalCents, product.currency)}
+      </span>
+      <span className="ml-2 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive align-middle">
+        Promo
+      </span>
+    </>
+  );
+}
