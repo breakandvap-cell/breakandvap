@@ -379,12 +379,23 @@ describe("tunnel de commande — createOrder", () => {
   });
 
   it("rejette un panier vide ou un email invalide", async () => {
-    await expect(createOrder({ data: baseInput([]) })).rejects.toThrow();
-    await expect(
-      createOrder({
-        data: { ...baseInput([{ productId: P_ACC, quantity: 1 }]), email: "pas-un-email" },
+    // La validation Zod s'exécute avant le handler : l'erreur peut être
+    // levée de façon synchrone.
+    const fails = async (data: unknown) => {
+      try {
+        await createOrder({ data });
+        return false;
+      } catch {
+        return true;
+      }
+    };
+    expect(await fails(baseInput([]))).toBe(true);
+    expect(
+      await fails({
+        ...baseInput([{ productId: P_ACC, quantity: 1 }]),
+        email: "pas-un-email",
       }),
-    ).rejects.toThrow();
+    ).toBe(true);
   });
 });
 
