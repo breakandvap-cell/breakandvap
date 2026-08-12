@@ -20,6 +20,7 @@ import { CookieConsentProvider } from "../lib/cookie-consent";
 import { CookieConsentBanner } from "../components/cookie-consent-banner";
 import { AppErrorBoundary } from "../components/error-boundary";
 import { logClientError } from "../lib/client-error-log.functions";
+import { WelcomeWheelGate } from "../components/welcome-wheel";
 
 function NotFoundComponent() {
   return (
@@ -163,6 +164,7 @@ function RootComponent() {
               {/* Le bandeau cookies vit dans l'arbre de l'AgeGate : il reste
                   masqué tant que la vérification d'âge n'est pas validée. */}
               <CookieConsentBanner />
+              <WelcomeWheelGate />
               <Toaster />
             </AgeGate>
           </CookieConsentProvider>
