@@ -161,9 +161,12 @@ export const getInvoiceDownloadUrl = createServerFn({ method: "POST" })
       }),
     ]);
     if (!order) throw new Error("Commande introuvable.");
-    const isAdmin = Boolean(isAdminRes);
-    if (!isAdmin && order.user_id !== context.userId) {
-      throw new Error("Accès refusé.");
+    const isOwner = order.user_id === context.userId;
+    if (!isOwner) {
+      if (!isAdminRes) throw new Error("Accès refusé.");
+      // Accès admin : exiger la double authentification (aal2 ou code de secours).
+      const { assertAdminSession } = await import("@/lib/admin-security.server");
+      await assertAdminSession(context as never);
     }
 
     const { data: inv } = await supabaseAdmin
@@ -210,11 +213,8 @@ export const adminListInvoices = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { data: isAdminRes } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (!isAdminRes) throw new Error("Accès refusé.");
+    const { assertAdminSession } = await import("@/lib/admin-security.server");
+    await assertAdminSession(context as never);
 
     let query = context.supabase
       .from("invoices")
@@ -248,11 +248,8 @@ export const adminRegenerateInvoicePdf = createServerFn({ method: "POST" })
     z.object({ orderId: z.string().uuid().optional(), all: z.boolean().optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { data: isAdminRes } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (!isAdminRes) throw new Error("Accès refusé.");
+    const { assertAdminSession } = await import("@/lib/admin-security.server");
+    await assertAdminSession(context as never);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let orderIds: string[] = [];
