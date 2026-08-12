@@ -264,7 +264,7 @@ function ProductDetail() {
 
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="text-2xl font-semibold sm:text-3xl">
-                {formatPrice(product.price_cents, product.currency)}
+                <PromoPrice product={product} priceCents={product.price_cents} />
               </span>
               <span
                 className={
@@ -708,14 +708,17 @@ function EliquideDetail({
 
             <div className="mt-4 flex items-baseline gap-3">
               <span className="text-3xl font-semibold">
-                {variant && displayPrice !== null
-                  ? formatPrice(displayPrice, product.currency)
-                  : availableVolumes.length > 0
-                  ? `à partir de ${formatPrice(
-                      Math.min(...availableVolumes.map((v) => v.price_cents)),
-                      product.currency,
-                    )}`
-                  : formatPrice(product.price_cents, product.currency)}
+                {variant && displayPrice !== null ? (
+                  <PromoPrice product={product} priceCents={displayPrice} />
+                ) : availableVolumes.length > 0 ? (
+                  <PromoPrice
+                    product={product}
+                    priceCents={Math.min(...availableVolumes.map((v) => v.price_cents))}
+                    prefix="à partir de "
+                  />
+                ) : (
+                  <PromoPrice product={product} priceCents={product.price_cents} />
+                )}
               </span>
               {variant && !isReadyToUse && boostersCount > 0 && boosterPrice !== null && (
                 <span className="text-xs text-muted-foreground">
