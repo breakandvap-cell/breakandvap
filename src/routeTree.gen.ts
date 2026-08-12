@@ -34,6 +34,7 @@ import { Route as AuthenticatedAdminCategoriesRouteImport } from './routes/_auth
 import { Route as AuthenticatedAdminClientsRouteImport } from './routes/_authenticated/admin/clients'
 import { Route as AuthenticatedAdminFacturesRouteImport } from './routes/_authenticated/admin/factures'
 import { Route as AuthenticatedAdminParametresRouteImport } from './routes/_authenticated/admin/parametres'
+import { Route as AuthenticatedAdminPromotionsRouteImport } from './routes/_authenticated/admin/promotions'
 import { Route as AuthenticatedAdminReceptionMarchandiseRouteImport } from './routes/_authenticated/admin/reception-marchandise'
 import { Route as AuthenticatedAdminReferencesTechniquesRouteImport } from './routes/_authenticated/admin/references-techniques'
 import { Route as AuthenticatedAdminSecuriteRouteImport } from './routes/_authenticated/admin/securite'
@@ -182,6 +183,12 @@ const AuthenticatedAdminParametresRoute =
     path: '/parametres',
     getParentRoute: () => AuthenticatedAdminRouteRoute,
   } as any)
+const AuthenticatedAdminPromotionsRoute =
+  AuthenticatedAdminPromotionsRouteImport.update({
+    id: '/promotions',
+    path: '/promotions',
+    getParentRoute: () => AuthenticatedAdminRouteRoute,
+  } as any)
 const AuthenticatedAdminReceptionMarchandiseRoute =
   AuthenticatedAdminReceptionMarchandiseRouteImport.update({
     id: '/reception-marchandise',
@@ -321,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/factures': typeof AuthenticatedAdminFacturesRoute
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
   '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
@@ -365,6 +373,7 @@ export interface FileRoutesByTo {
   '/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/admin/factures': typeof AuthenticatedAdminFacturesRoute
   '/admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
   '/admin/securite': typeof AuthenticatedAdminSecuriteRoute
@@ -411,6 +420,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/clients': typeof AuthenticatedAdminClientsRouteWithChildren
   '/_authenticated/admin/factures': typeof AuthenticatedAdminFacturesRoute
   '/_authenticated/admin/parametres': typeof AuthenticatedAdminParametresRoute
+  '/_authenticated/admin/promotions': typeof AuthenticatedAdminPromotionsRoute
   '/_authenticated/admin/reception-marchandise': typeof AuthenticatedAdminReceptionMarchandiseRoute
   '/_authenticated/admin/references-techniques': typeof AuthenticatedAdminReferencesTechniquesRoute
   '/_authenticated/admin/securite': typeof AuthenticatedAdminSecuriteRoute
@@ -458,6 +468,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/factures'
     | '/admin/parametres'
+    | '/admin/promotions'
     | '/admin/reception-marchandise'
     | '/admin/references-techniques'
     | '/admin/securite'
@@ -502,6 +513,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/factures'
     | '/admin/parametres'
+    | '/admin/promotions'
     | '/admin/reception-marchandise'
     | '/admin/references-techniques'
     | '/admin/securite'
@@ -547,6 +559,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/clients'
     | '/_authenticated/admin/factures'
     | '/_authenticated/admin/parametres'
+    | '/_authenticated/admin/promotions'
     | '/_authenticated/admin/reception-marchandise'
     | '/_authenticated/admin/references-techniques'
     | '/_authenticated/admin/securite'
@@ -768,6 +781,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminParametresRouteImport
       parentRoute: typeof AuthenticatedAdminRouteRoute
     }
+    '/_authenticated/admin/promotions': {
+      id: '/_authenticated/admin/promotions'
+      path: '/promotions'
+      fullPath: '/admin/promotions'
+      preLoaderRoute: typeof AuthenticatedAdminPromotionsRouteImport
+      parentRoute: typeof AuthenticatedAdminRouteRoute
+    }
     '/_authenticated/admin/reception-marchandise': {
       id: '/_authenticated/admin/reception-marchandise'
       path: '/reception-marchandise'
@@ -923,6 +943,7 @@ interface AuthenticatedAdminRouteRouteChildren {
   AuthenticatedAdminClientsRoute: typeof AuthenticatedAdminClientsRouteWithChildren
   AuthenticatedAdminFacturesRoute: typeof AuthenticatedAdminFacturesRoute
   AuthenticatedAdminParametresRoute: typeof AuthenticatedAdminParametresRoute
+  AuthenticatedAdminPromotionsRoute: typeof AuthenticatedAdminPromotionsRoute
   AuthenticatedAdminReceptionMarchandiseRoute: typeof AuthenticatedAdminReceptionMarchandiseRoute
   AuthenticatedAdminReferencesTechniquesRoute: typeof AuthenticatedAdminReferencesTechniquesRoute
   AuthenticatedAdminSecuriteRoute: typeof AuthenticatedAdminSecuriteRoute
@@ -945,6 +966,7 @@ const AuthenticatedAdminRouteRouteChildren: AuthenticatedAdminRouteRouteChildren
     AuthenticatedAdminClientsRoute: AuthenticatedAdminClientsRouteWithChildren,
     AuthenticatedAdminFacturesRoute: AuthenticatedAdminFacturesRoute,
     AuthenticatedAdminParametresRoute: AuthenticatedAdminParametresRoute,
+    AuthenticatedAdminPromotionsRoute: AuthenticatedAdminPromotionsRoute,
     AuthenticatedAdminReceptionMarchandiseRoute:
       AuthenticatedAdminReceptionMarchandiseRoute,
     AuthenticatedAdminReferencesTechniquesRoute:
