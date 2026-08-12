@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { isAdmin as isAdminFn } from "@/lib/admin.functions";
 import logoAsset from "@/assets/logo-break-vap-cbd.png.asset.json";
 import { ProductSearch } from "@/components/product-search";
+import { ManageCookiesLink } from "@/components/cookie-consent-banner";
 import {
   Sheet,
   SheetContent,
