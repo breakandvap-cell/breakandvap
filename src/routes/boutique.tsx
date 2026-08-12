@@ -6,6 +6,7 @@ import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import {
   STOCK_LABELS,
   allVariantVolumesQueryOptions,
+  variantPriceSummaryQueryOptions,
   formatPrice,
   productsQueryOptions,
   type ProductRow,
