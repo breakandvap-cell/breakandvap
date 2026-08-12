@@ -16,6 +16,8 @@ import { CartProvider } from "../lib/cart";
 import { Toaster } from "../components/ui/sonner";
 import { AuthProvider } from "../lib/auth-context";
 import { SiteAmbient } from "../components/site-ambient";
+import { CookieConsentProvider } from "../lib/cookie-consent";
+import { CookieConsentBanner } from "../components/cookie-consent-banner";
 
 function NotFoundComponent() {
   return (
@@ -139,12 +141,17 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <CartProvider>
-          <AgeGate>
-            <SiteAmbient />
-            {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-            <Outlet />
-            <Toaster />
-          </AgeGate>
+          <CookieConsentProvider>
+            <AgeGate>
+              <SiteAmbient />
+              {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+              <Outlet />
+              {/* Le bandeau cookies vit dans l'arbre de l'AgeGate : il reste
+                  masqué tant que la vérification d'âge n'est pas validée. */}
+              <CookieConsentBanner />
+              <Toaster />
+            </AgeGate>
+          </CookieConsentProvider>
         </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
