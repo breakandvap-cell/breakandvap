@@ -248,11 +248,8 @@ export const adminRegenerateInvoicePdf = createServerFn({ method: "POST" })
     z.object({ orderId: z.string().uuid().optional(), all: z.boolean().optional() }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    const { data: isAdminRes } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (!isAdminRes) throw new Error("Accès refusé.");
+    const { assertAdminSession } = await import("@/lib/admin-security.server");
+    await assertAdminSession(context as never);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let orderIds: string[] = [];
