@@ -642,6 +642,13 @@ export const createOrder = createServerFn({ method: "POST" })
     }
 
     if (appliedSpinId) {
+      /* eslint-disable-next-line no-empty */
+    }
+    if (orderedMixIds.length > 0) {
+      const { markMixesOrdered } = await import("@/lib/custom-mix.mutations.server");
+      await markMixesOrdered(orderedMixIds);
+    }
+    if (appliedSpinId) {
       await supabaseAdmin
         .from("wheel_spins")
         .update({
