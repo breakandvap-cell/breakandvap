@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { RestockPendingBadge } from "@/components/admin/restock-pending-badge";
 import {
   adminGetProduct,
   adminListVariants,
