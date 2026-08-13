@@ -78,7 +78,7 @@ export function FloatingCartSummary() {
   return (
     <Link
       to="/panier"
-      className={`fixed left-4 z-40 flex flex-col items-center gap-2 transition-[bottom] ${
+      className={`fixed right-4 z-40 flex flex-col items-center gap-2 transition-[bottom] ${
         bannerOpen ? "bottom-[7.5rem]" : "bottom-4"
       }`}
       aria-label="Voir le panier"
