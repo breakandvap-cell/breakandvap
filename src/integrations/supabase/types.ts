@@ -221,6 +221,106 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_mix_flavors: {
+        Row: {
+          created_at: string
+          custom_mix_id: string
+          flavor_product_id: string
+          id: string
+          percentage: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_mix_id: string
+          flavor_product_id: string
+          id?: string
+          percentage: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_mix_id?: string
+          flavor_product_id?: string
+          id?: string
+          percentage?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_mix_flavors_custom_mix_id_fkey"
+            columns: ["custom_mix_id"]
+            isOneToOne: false
+            referencedRelation: "custom_mixes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_mix_flavors_flavor_product_id_fkey"
+            columns: ["flavor_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_mix_flavors_flavor_product_id_fkey"
+            columns: ["flavor_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_mixes: {
+        Row: {
+          bottle_product_id: string | null
+          created_at: string
+          id: string
+          nicotine_mg: number
+          price_cents: number | null
+          session_id: string | null
+          status: Database["public"]["Enums"]["custom_mix_status"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bottle_product_id?: string | null
+          created_at?: string
+          id?: string
+          nicotine_mg?: number
+          price_cents?: number | null
+          session_id?: string | null
+          status?: Database["public"]["Enums"]["custom_mix_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bottle_product_id?: string | null
+          created_at?: string
+          id?: string
+          nicotine_mg?: number
+          price_cents?: number | null
+          session_id?: string | null
+          status?: Database["public"]["Enums"]["custom_mix_status"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_mixes_bottle_product_id_fkey"
+            columns: ["bottle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_mixes_bottle_product_id_fkey"
+            columns: ["bottle_product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gammes: {
         Row: {
           created_at: string
@@ -1210,6 +1310,10 @@ export type Database = {
       }
     }
     Functions: {
+      assert_custom_mix_complete: {
+        Args: { _mix_id: string }
+        Returns: undefined
+      }
       create_invoice_for_order: {
         Args: {
           _buyer: Json
@@ -1335,6 +1439,7 @@ export type Database = {
         | "verifie"
         | "refuse"
       app_role: "client" | "admin"
+      custom_mix_status: "draft" | "validated" | "added_to_cart" | "ordered"
       discount_type: "percentage" | "fixed_amount"
       order_status: "a_preparer" | "expediee" | "livree" | "annulee"
       product_category:
@@ -1481,6 +1586,7 @@ export const Constants = {
         "refuse",
       ],
       app_role: ["client", "admin"],
+      custom_mix_status: ["draft", "validated", "added_to_cart", "ordered"],
       discount_type: ["percentage", "fixed_amount"],
       order_status: ["a_preparer", "expediee", "livree", "annulee"],
       product_category: [
