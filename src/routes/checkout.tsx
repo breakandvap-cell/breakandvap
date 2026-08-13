@@ -205,6 +205,8 @@ function CheckoutPage() {
         nicotineMg: i.nicotineMg ?? undefined,
         flavor: i.flavor ?? undefined,
         quantity: i.quantity,
+        customMixId: i.customMixId ?? undefined,
+        customMixSessionId: i.customMixSessionId ?? undefined,
         boostersCount:
           typeof i.boostersCount === "number" && i.boostersCount > 0
             ? i.boostersCount
