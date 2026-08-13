@@ -351,5 +351,17 @@ export const receptionApplyStock = createServerFn({ method: "POST" })
       } as never,
     });
 
+    // Alertes de réapprovisionnement pour les variantes remises en stock.
+    try {
+      const { dispatchRestockNotifications } = await import(
+        "@/lib/stock-notifications.server"
+      );
+      await dispatchRestockNotifications({
+        variantIds: data.updates.map((u) => u.variant_id),
+      });
+    } catch (e) {
+      console.error("[restock] dispatch after reception failed:", e);
+    }
+
     return { updated, failures, pending: data.counts.pending, to_create: data.counts.to_create };
   });
