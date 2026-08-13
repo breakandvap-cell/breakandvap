@@ -4,6 +4,7 @@ import { useCart } from "@/lib/cart";
 import { useCartPromoLines } from "@/lib/cart-promotions";
 import { useCookieConsent } from "@/lib/cookie-consent";
 import { formatPrice } from "@/lib/products";
+import { useNow } from "@/lib/use-now";
 import type { PromotionApplication } from "@/lib/promotions-pricing";
 import { formatPrizeLabel, useWheelState } from "@/components/welcome-wheel";
 
@@ -16,6 +17,16 @@ function useHidden() {
 }
 
 /**
+ * Décalage vertical des encarts flottants : hauteur réelle du bandeau cookies
+ * (0 quand il est fermé) + une marge, mesurée par le bandeau lui-même.
+ */
+function bottomStyle(extraRem: number) {
+  return {
+    bottom: `calc(var(--bnv-banner-h, 0px) + ${extraRem}rem)`,
+  } as const;
+}
+
+/**
  * Rappel discret d'un gain de roue encore valable (statut "pending", non
  * expiré). L'état vient du serveur : le badge disparaît dès que le gain est
  * utilisé ou expiré. Aucun calcul de remise n'est fait ici.
@@ -23,16 +34,20 @@ function useHidden() {
 export function PendingRewardBadge() {
   const { data: state } = useWheelState();
   const hidden = useHidden();
-  const { bannerOpen } = useCookieConsent();
-  const pending = state?.pending?.[0];
+  const now = useNow();
+  const { count, hydrated } = useCart();
+  const pending = (state?.pending ?? []).find(
+    (p) => !p.expires_at || new Date(p.expires_at).getTime() > now.getTime(),
+  );
   if (!pending || hidden) return null;
+  // Empile le rappel au-dessus de la bulle panier quand celle-ci est affichée.
+  const cartVisible = hydrated && count > 0;
 
   return (
     <Link
       to="/panier"
-      className={`fixed right-4 z-40 inline-flex max-w-[85vw] items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs text-foreground backdrop-blur-sm transition-[bottom] transition-colors hover:bg-secondary ${
-        bannerOpen ? "bottom-[15rem]" : "bottom-[8.5rem]"
-      }`}
+      style={bottomStyle(cartVisible ? 9.5 : 1)}
+      className="fixed right-4 z-40 inline-flex max-w-[85vw] items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs text-foreground backdrop-blur-sm transition-[bottom] transition-colors hover:bg-secondary"
       aria-label={`Gain disponible : ${pending.label}. Aller au panier`}
     >
       <Gift className="h-4 w-4 shrink-0 text-accent" aria-hidden />
@@ -64,7 +79,6 @@ export function FloatingCartSummary() {
     subtotalCents,
   );
   const hidden = useHidden();
-  const { bannerOpen } = useCookieConsent();
   if (!hydrated || count === 0 || hidden) return null;
   const hasPromo = promoDiscountCents > 0;
 
@@ -78,9 +92,8 @@ export function FloatingCartSummary() {
   return (
     <Link
       to="/panier"
-      className={`fixed right-4 z-40 flex flex-col items-center gap-2 transition-[bottom] ${
-        bannerOpen ? "bottom-[7.5rem]" : "bottom-4"
-      }`}
+      style={bottomStyle(1)}
+      className="fixed right-4 z-40 flex flex-col items-center gap-2 transition-[bottom]"
       aria-label="Voir le panier"
     >
       <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95">
