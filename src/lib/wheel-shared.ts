@@ -36,8 +36,7 @@ export function pickWeighted<T extends { weight: number }>(prizes: T[]): T | nul
   const pool = prizes.filter((p) => p.weight > 0);
   if (pool.length === 0) return null;
   const sum = pool.reduce((s, p) => s + p.weight, 0);
-  const scale = Math.max(sum, 100);
-  let r = Math.random() * scale;
+  let r = Math.random() * sum;
   for (const p of pool) {
     r -= p.weight;
     if (r <= 0) return p;
