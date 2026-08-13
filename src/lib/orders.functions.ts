@@ -641,9 +641,6 @@ export const createOrder = createServerFn({ method: "POST" })
       throw new Error("Impossible de créer la commande, réessayez.");
     }
 
-    if (appliedSpinId) {
-      /* eslint-disable-next-line no-empty */
-    }
     if (orderedMixIds.length > 0) {
       const { markMixesOrdered } = await import("@/lib/custom-mix.mutations.server");
       await markMixesOrdered(orderedMixIds);
