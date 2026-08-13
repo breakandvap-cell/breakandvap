@@ -21,6 +21,10 @@ import { CookieConsentBanner } from "../components/cookie-consent-banner";
 import { AppErrorBoundary } from "../components/error-boundary";
 import { logClientError } from "../lib/client-error-log.functions";
 import { WelcomeWheelGate } from "../components/welcome-wheel";
+import {
+  FloatingCartSummary,
+  PendingRewardBadge,
+} from "../components/floating-widgets";
 
 function NotFoundComponent() {
   return (
@@ -165,6 +169,8 @@ function RootComponent() {
                   masqué tant que la vérification d'âge n'est pas validée. */}
               <CookieConsentBanner />
               <WelcomeWheelGate />
+              <FloatingCartSummary />
+              <PendingRewardBadge />
               <Toaster />
             </AgeGate>
           </CookieConsentProvider>
