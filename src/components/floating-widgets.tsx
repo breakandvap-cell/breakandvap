@@ -61,6 +61,7 @@ export function FloatingCartSummary() {
     subtotalCents,
   );
   const hidden = useHidden();
+  const { bannerOpen } = useCookieConsent();
   if (!hydrated || count === 0 || hidden) return null;
   const hasPromo = promoDiscountCents > 0;
 
@@ -74,7 +75,9 @@ export function FloatingCartSummary() {
   return (
     <Link
       to="/panier"
-      className="fixed bottom-4 left-4 z-40 flex flex-col items-center gap-2"
+      className={`fixed left-4 z-40 flex flex-col items-center gap-2 transition-[bottom] ${
+        bannerOpen ? "bottom-[7.5rem]" : "bottom-4"
+      }`}
       aria-label="Voir le panier"
     >
       <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95">
