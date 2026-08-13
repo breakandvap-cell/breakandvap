@@ -28,11 +28,16 @@ export function toPending(row: SpinRow): PendingSpin {
   };
 }
 
+/**
+ * `weight` est une probabilité directe en pourcentage (0-100).
+ * Tirage sur 100 % ; on retombe sur le total réel si la somme n'est pas 100.
+ */
 export function pickWeighted<T extends { weight: number }>(prizes: T[]): T | null {
   const pool = prizes.filter((p) => p.weight > 0);
   if (pool.length === 0) return null;
-  const total = pool.reduce((s, p) => s + p.weight, 0);
-  let r = Math.random() * total;
+  const sum = pool.reduce((s, p) => s + p.weight, 0);
+  const scale = Math.max(sum, 100);
+  let r = Math.random() * scale;
   for (const p of pool) {
     r -= p.weight;
     if (r <= 0) return p;
