@@ -30,7 +30,7 @@ export function PendingRewardBadge() {
   return (
     <Link
       to="/panier"
-      className={`fixed right-4 z-40 inline-flex max-w-[85vw] items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs text-foreground backdrop-blur-sm transition-[bottom] hover:bg-secondary ${
+      className={`fixed right-4 z-40 inline-flex max-w-[85vw] items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs text-foreground backdrop-blur-sm transition-[bottom] transition-colors hover:bg-secondary ${
         bannerOpen ? "bottom-[15rem]" : "bottom-[8.5rem]"
       }`}
       aria-label={`Gain disponible : ${pending.label}. Aller au panier`}
