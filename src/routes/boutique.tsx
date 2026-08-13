@@ -40,6 +40,7 @@ import {
   type ShopFilters,
 } from "@/lib/product-search";
 import { AppErrorBoundary } from "@/components/error-boundary";
+import { CustomMixConfigurator } from "@/components/custom-mix-configurator";
 
 type ShopSearch = z.infer<typeof searchSchema>;
 
@@ -175,6 +176,9 @@ function BoutiquePage() {
   if (showAll || hasQuery) stage = "products";
   else if (activeCat && activeCatSubs.length > 0 && !activeSub) stage = "subcategories";
   else if (activeCat) stage = "products";
+  // La sous-catégorie « Mon Mix » ouvre le configurateur DIY.
+  const isCustomMix =
+    !showAll && !hasQuery && activeSub?.slug === "mon-mix";
 
   // 1) Périmètre catégorie / sous-catégorie
   const scopedProducts = useMemo(
