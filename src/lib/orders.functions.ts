@@ -284,6 +284,8 @@ export const createOrder = createServerFn({ method: "POST" })
       if (!p || !p.is_published) {
         throw new Error(`Produit indisponible.`);
       }
+      // Les lignes « mix personnalisé » sont chiffrées dans un bloc dédié.
+      if (line.customMixId) continue;
       currency = p.currency;
       // Flavor handling (independent axis): validate & decrement working copy.
       const productFlavors = flavorMap.get(p.id) ?? null;
