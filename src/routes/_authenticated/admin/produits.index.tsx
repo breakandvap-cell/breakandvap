@@ -14,6 +14,7 @@ import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { computeProductStatus, StatusBadge } from "@/lib/product-status";
 import { AdminProductSearch } from "@/components/admin/admin-product-search";
+import { pendingRestockCountsQueryOptions } from "@/lib/stock-notifications";
 
 type ProductFilters = {
   category?: "" | "cbd" | "e_liquide" | "accessoire_vape" | "accessoire_cbd";
@@ -68,6 +69,9 @@ function ProductsList() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const { data } = useSuspenseQuery(listOptions(search));
+  const { data: restockCounts } = useQuery(
+    pendingRestockCountsQueryOptions(data.map((p) => p.id)),
+  );
   const { data: boosterList } = useQuery(boosterProductsQueryOptions());
   const techRefsFn = useServerFn(adminTechnicalReferences);
   const { data: techRefs } = useQuery({
@@ -267,6 +271,14 @@ function ProductsList() {
                     <span className="text-destructive text-xs">(rupture)</span>
                   ) : p.stock_status === "low_stock" ? (
                     <span className="text-amber-700 text-xs">(faible)</span>
+                  ) : null}
+                  {restockCounts?.[p.id] ? (
+                    <span
+                      className="ml-1 inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground"
+                      title="Clients en attente d'une alerte de réapprovisionnement"
+                    >
+                      🔔 {restockCounts[p.id]} en attente
+                    </span>
                   ) : null}
                 </td>
                 <td className="px-3 py-2">{p.is_published ? "Oui" : "Non"}</td>
