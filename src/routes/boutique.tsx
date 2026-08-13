@@ -20,6 +20,7 @@ import {
   type ShopSubcategory,
 } from "@/lib/categories.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { RestockAlertButton } from "@/components/restock-alert";
 import { buildShopCollectionJsonLd } from "@/lib/shop-structured-data";
 import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 import { CategoryTileFx } from "@/components/category-tile-fx";
