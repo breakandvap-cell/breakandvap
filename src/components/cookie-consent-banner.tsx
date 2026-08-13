@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   Dialog,
@@ -17,11 +17,34 @@ const BUTTON =
 export function CookieConsentBanner() {
   const { bannerOpen, panelOpen, openPanel, closePanel, acceptAll, rejectAll, consent, save } =
     useCookieConsent();
+  const bannerRef = useRef<HTMLDivElement | null>(null);
+  const visible = bannerOpen && !panelOpen;
+
+  // Publie la hauteur réelle du bandeau afin que les encarts flottants
+  // (bulle panier, rappel de gain) se décalent sans jamais se chevaucher.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (!visible) {
+      root.style.setProperty("--bnv-banner-h", "0px");
+      return;
+    }
+    const el = bannerRef.current;
+    if (!el) return;
+    const apply = () => root.style.setProperty("--bnv-banner-h", `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      root.style.setProperty("--bnv-banner-h", "0px");
+    };
+  }, [visible]);
 
   return (
     <>
-      {bannerOpen && !panelOpen ? (
+      {visible ? (
         <div
+          ref={bannerRef}
           role="region"
           aria-label="Consentement aux cookies"
           className="fixed inset-x-0 bottom-0 z-[9000] border-t border-border bg-card/95 p-4 shadow-lg backdrop-blur-sm sm:p-5"

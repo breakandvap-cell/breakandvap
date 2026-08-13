@@ -8,6 +8,8 @@ export const activePromotionsQueryOptions = () =>
   queryOptions({
     queryKey: ["active-promotions"] as const,
     staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
     queryFn: async (): Promise<ActivePromotion[]> => {
       const [{ data: promos, error }, { data: cats }] = await Promise.all([
         supabase

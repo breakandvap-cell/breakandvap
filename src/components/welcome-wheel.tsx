@@ -36,6 +36,8 @@ export function useWheelState() {
   return useQuery({
     queryKey: ["wheel-state", user?.id ?? null] as const,
     enabled: !!user,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
     queryFn: () => fetchState(),
   });
 }
