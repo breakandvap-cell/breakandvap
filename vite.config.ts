@@ -35,6 +35,18 @@ export default defineConfig({
   },
   vite: {
     plugins: [singletonGuard()],
+    optimizeDeps: {
+      // Le preset active cette option expérimentale, mais Vite précise qu'elle
+      // peut conserver simultanément l'ancienne et la nouvelle référence d'un
+      // module lorsqu'une seconde vague de pré-bundling se produit. Pour React,
+      // cela dissocie le dispatcher utilisé par react-dom de celui des hooks et
+      // provoque `resolveDispatcher().use is null`.
+      //
+      // En la désactivant, une requête vers un chunk optimisé devenu obsolète
+      // échoue proprement et force le navigateur à recharger un graphe cohérent
+      // au lieu de mélanger deux générations du cache Vite.
+      ignoreOutdatedRequests: false,
+    },
     resolve: {
       // Le preset Lovable déduplique déjà react/react-dom/react-query ;
       // on y ajoute les paquets du router pour interdire toute instance parallèle.
