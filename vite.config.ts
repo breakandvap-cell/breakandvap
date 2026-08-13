@@ -45,9 +45,5 @@ export default defineConfig({
         "@tanstack/history",
       ],
     },
-    optimizeDeps: {
-      // Pré-bundler le router avec React évite qu'il charge une copie brute de React en dev.
-      include: ["@tanstack/react-router", "@tanstack/react-store"],
-    },
   },
 });
