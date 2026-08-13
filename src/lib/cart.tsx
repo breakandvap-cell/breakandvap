@@ -24,6 +24,10 @@ export type CartItem = {
   boostersCount?: number | null;
   /** Prix unitaire du booster utilisé pour calculer la ligne. */
   boosterUnitPriceCents?: number | null;
+  /** Mix personnalisé (DIY) associé à cette ligne, si applicable. */
+  customMixId?: string | null;
+  /** Session propriétaire du mix personnalisé (revérifiée côté serveur). */
+  customMixSessionId?: string | null;
   photo: string | null;
   quantity: number;
   maxStock: number;

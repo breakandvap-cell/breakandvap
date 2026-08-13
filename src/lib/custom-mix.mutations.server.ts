@@ -159,3 +159,77 @@ export async function readMix(args: {
 }
 
 export type { Owner };
+
+/** Recalcule intégralement un mix au moment de la commande (jamais de prix
+ *  fourni par le client) et renvoie la ligne de commande correspondante. */
+export async function priceMixForOrder(args: {
+  mixId: string;
+  sessionId?: string | null;
+  userId?: string | null;
+}) {
+  const db = await admin();
+  const { data: mix, error } = await db
+    .from("custom_mixes")
+    .select("id, user_id, session_id, status, bottle_product_id, nicotine_mg")
+    .eq("id", args.mixId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!mix) throw new Error("Mix personnalisé introuvable.");
+  assertMixOwnership(mix, {
+    userId: args.userId ?? null,
+    sessionId: args.sessionId ?? null,
+  });
+  if (mix.status === "ordered") {
+    throw new Error("Ce mix personnalisé a déjà été commandé.");
+  }
+  if (!mix.bottle_product_id) throw new Error("Mix personnalisé incomplet.");
+  assertNicotine(mix.nicotine_mg);
+
+  const { data: rows, error: fErr } = await db
+    .from("custom_mix_flavors")
+    .select("flavor_product_id, percentage")
+    .eq("custom_mix_id", args.mixId);
+  if (fErr) throw new Error(fErr.message);
+  const flavors: MixFlavorInput[] = (rows ?? []).map((r) => ({
+    flavor_product_id: r.flavor_product_id,
+    percentage: Number(r.percentage),
+  }));
+  assertMixFlavorsShape(flavors);
+
+  const { priceCents, currency, brand } = await computeMixPriceCents({
+    bottleProductId: mix.bottle_product_id,
+    flavors,
+  });
+
+  const { data: prods, error: pErr } = await db
+    .from("products")
+    .select("id, name, volume_ml, photos")
+    .in("id", [mix.bottle_product_id, ...flavors.map((f) => f.flavor_product_id)]);
+  if (pErr) throw new Error(pErr.message);
+  const byId = new Map((prods ?? []).map((p) => [p.id, p]));
+  const bottle = byId.get(mix.bottle_product_id);
+  const composition = flavors
+    .map((f) => `${byId.get(f.flavor_product_id)?.name ?? "Arôme"} ${f.percentage}%`)
+    .join(" + ");
+
+  return {
+    mixId: mix.id,
+    priceCents,
+    currency,
+    brand,
+    nicotineMg: mix.nicotine_mg,
+    volumeMl: bottle?.volume_ml ?? null,
+    bottleProductId: mix.bottle_product_id,
+    composition,
+    label: `Mon Mix ${brand}${bottle?.volume_ml ? ` — ${bottle.volume_ml} ml` : ""} — ${composition}${
+      mix.nicotine_mg > 0 ? ` — ${mix.nicotine_mg} mg` : " — 0 mg"
+    }`,
+  };
+}
+
+/** Marque les mix comme commandés (après création effective de la commande). */
+export async function markMixesOrdered(mixIds: string[]) {
+  if (mixIds.length === 0) return;
+  const db = await admin();
+  await db.from("custom_mixes").update({ status: "ordered" }).in("id", mixIds);
+}

@@ -28,6 +28,9 @@ const orderInputSchema = z.object({
         nicotineMg: z.number().min(0).max(50).optional(),
         flavor: z.string().trim().min(1).max(80).optional(),
         quantity: z.number().int().min(1).max(50),
+        /** Mix personnalisé DIY : le prix est TOUJOURS recalculé côté serveur. */
+        customMixId: z.string().uuid().optional(),
+        customMixSessionId: z.string().min(8).max(128).optional(),
         // Nombre de boosters explicitement choisi par le client. Prioritaire
         // sur la déduction depuis `nicotineMg`. Permet au client de valider
         // même si le nombre dépasse la capacité physique déclarée du flacon
@@ -281,6 +284,8 @@ export const createOrder = createServerFn({ method: "POST" })
       if (!p || !p.is_published) {
         throw new Error(`Produit indisponible.`);
       }
+      // Les lignes « mix personnalisé » sont chiffrées dans un bloc dédié.
+      if (line.customMixId) continue;
       currency = p.currency;
       // Flavor handling (independent axis): validate & decrement working copy.
       const productFlavors = flavorMap.get(p.id) ?? null;
@@ -435,6 +440,39 @@ export const createOrder = createServerFn({ method: "POST" })
           volume_ml: null,
           flavor: flavorLabel,
           variant_sku: flavorSku,
+        });
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // Mix personnalisés (DIY) : prix recalculé et revérifié côté serveur.
+    // ---------------------------------------------------------------------
+    const orderedMixIds: string[] = [];
+    const mixLines = data.items.filter((l) => l.customMixId);
+    if (mixLines.length > 0) {
+      const { priceMixForOrder } = await import("@/lib/custom-mix.mutations.server");
+      for (const line of mixLines) {
+        const mix = await priceMixForOrder({
+          mixId: line.customMixId!,
+          sessionId: line.customMixSessionId ?? null,
+          userId,
+        });
+        currency = mix.currency;
+        const unitPrice = mix.priceCents;
+        totalCents += unitPrice * line.quantity;
+        orderedMixIds.push(mix.mixId);
+        itemsToInsert.push({
+          product_id: mix.bottleProductId,
+          product_name: mix.label,
+          quantity: line.quantity,
+          unit_price_cents: unitPrice,
+          base_price_cents: unitPrice,
+          boosters_count: 0,
+          booster_unit_price_cents: null,
+          nicotine_mg: mix.nicotineMg,
+          volume_ml: mix.volumeMl,
+          flavor: mix.composition,
+          variant_sku: null,
         });
       }
     }
@@ -603,6 +641,10 @@ export const createOrder = createServerFn({ method: "POST" })
       throw new Error("Impossible de créer la commande, réessayez.");
     }
 
+    if (orderedMixIds.length > 0) {
+      const { markMixesOrdered } = await import("@/lib/custom-mix.mutations.server");
+      await markMixesOrdered(orderedMixIds);
+    }
     if (appliedSpinId) {
       await supabaseAdmin
         .from("wheel_spins")
