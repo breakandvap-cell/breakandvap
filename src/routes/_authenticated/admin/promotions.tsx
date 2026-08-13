@@ -686,7 +686,7 @@ function PrizeRow({
           onChange={(e) =>
             setDraft({
               ...draft,
-              weight: Number(e.target.value.replace(",", ".")) || 0,
+              weight: Math.round(Number(e.target.value.replace(",", ".")) || 0),
             })
           }
         />

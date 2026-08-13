@@ -181,7 +181,7 @@ const prizeSchema = z.object({
   discount_type: z.enum(["percentage", "fixed_amount"]),
   discount_value: z.number().min(0).max(100000),
   /** Probabilité directe en pourcentage (0-100). */
-  weight: z.number().min(0).max(100),
+  weight: z.number().int().min(0).max(100),
   is_active: z.boolean().default(true),
 });
 
