@@ -444,9 +444,41 @@ export const createOrder = createServerFn({ method: "POST" })
       }
     }
 
+    // ---------------------------------------------------------------------
+    // Mix personnalisés (DIY) : prix recalculé et revérifié côté serveur.
+    // ---------------------------------------------------------------------
+    const orderedMixIds: string[] = [];
+    const mixLines = data.items.filter((l) => l.customMixId);
+    if (mixLines.length > 0) {
+      const { priceMixForOrder } = await import("@/lib/custom-mix.mutations.server");
+      for (const line of mixLines) {
+        const mix = await priceMixForOrder({
+          mixId: line.customMixId!,
+          sessionId: line.customMixSessionId ?? null,
+          userId,
+        });
+        currency = mix.currency;
+        const unitPrice = mix.priceCents;
+        totalCents += unitPrice * line.quantity;
+        orderedMixIds.push(mix.mixId);
+        itemsToInsert.push({
+          product_id: mix.bottleProductId,
+          product_name: mix.label,
+          quantity: line.quantity,
+          unit_price_cents: unitPrice,
+          base_price_cents: unitPrice,
+          boosters_count: 0,
+          booster_unit_price_cents: null,
+          nicotine_mg: mix.nicotineMg,
+          volume_ml: mix.volumeMl,
+          flavor: mix.composition,
+          variant_sku: null,
+        });
+      }
+    }
+
     const shipping = {
       full_name: data.shipping.fullName,
-*** PLACEHOLDER ***
       phone: data.shipping.phone || null,
       line1: data.shipping.line1,
       line2: data.shipping.line2 || null,
