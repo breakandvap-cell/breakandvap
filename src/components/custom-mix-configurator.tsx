@@ -22,6 +22,7 @@ import {
   saveCustomMixDraft,
   validateCustomMix,
 } from "@/lib/custom-mix.functions";
+import { siteSettingsQueryOptions } from "@/lib/site-settings.functions";
 
 type Part = { flavorId: string; percentage: number };
 
@@ -34,6 +35,7 @@ export function CustomMixConfigurator() {
     mixBottlesQueryOptions(),
   );
   const { data: flavorsByBrand } = useQuery(mixFlavorsByBrandQueryOptions());
+  const { data: settings } = useQuery(siteSettingsQueryOptions());
 
   const [bottleId, setBottleId] = useState<string | null>(null);
   const [nicotine, setNicotine] = useState(0);
@@ -60,9 +62,22 @@ export function CustomMixConfigurator() {
   }, [bottle, parts, brandFlavors]);
 
   const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#9aa5b1", to: "#4b5563" };
+
+  // Volume réellement occupé par la base nicotinée, d'après la concentration
+  // des boosters configurée dans les réglages du site :
+  //   volume_base = (mg/ml voulus × contenance) / concentration_booster
+  // soit une fraction du flacon = nicotine / concentration.
+  const concentration =
+    settings?.boosterConcentrationMgPerMl && settings.boosterConcentrationMgPerMl > 0
+      ? settings.boosterConcentrationMgPerMl
+      : 20;
+  const baseFill = bottle
+    ? Math.max(0, Math.min(1, nicotine / concentration))
+    : 0;
+  // Les arômes remplissent le volume restant : 100 % de composition = flacon plein.
   const fill = Math.min(
     1,
-    (nicotine > 0 ? 0.12 : 0) + 0.88 * Math.min(100, totalPct) / 100,
+    baseFill + (1 - baseFill) * (Math.min(100, Math.max(0, totalPct)) / 100),
   );
 
   const setPart = (flavorId: string, percentage: number) =>
@@ -370,8 +385,10 @@ export function CustomMixConfigurator() {
         <div className="rounded-xl border border-border bg-card p-5">
           <MixBottleVisual
             fill={fill}
+            baseFill={baseFill}
             from={colors.from}
             to={colors.to}
+            volumeMl={bottle?.volume_ml ?? null}
             volumeLabel={bottle ? `${bottle.volume_ml} ml` : null}
             caption={
               parts.length > 0
