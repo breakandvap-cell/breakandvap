@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
 import { bestPromotionFor } from "@/lib/promotions-pricing";
+import { useNow } from "@/lib/use-now";
 import type { CartItem } from "@/lib/cart";
 
 /**
@@ -11,6 +12,9 @@ import type { CartItem } from "@/lib/cart";
  */
 export function useCartPromoLines(items: CartItem[], subtotalCents: number) {
   const { data: promotions } = useQuery(activePromotionsQueryOptions());
+  // Recalcul périodique : une promo qui démarre ou expire pendant la visite
+  // doit se refléter immédiatement dans le panier et la bulle flottante.
+  const now = useNow();
   const productIds = Array.from(new Set(items.map((i) => i.productId))).sort();
   const { data: categoryById } = useQuery({
     queryKey: ["cart-product-categories", productIds.join(",")] as const,
@@ -32,6 +36,7 @@ export function useCartPromoLines(items: CartItem[], subtotalCents: number) {
       promotions,
       { productId: it.productId, category: categoryById?.[it.productId] ?? "" },
       it.priceCents,
+      now,
     );
     const unit = promo?.finalCents ?? it.priceCents;
     return { item: it, unit, original: it.priceCents, promo };
