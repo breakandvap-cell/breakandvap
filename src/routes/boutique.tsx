@@ -355,7 +355,9 @@ function BoutiquePage() {
           />
         )}
 
-        {stage === "products" && (
+        {isCustomMix && <CustomMixConfigurator />}
+
+        {stage === "products" && !isCustomMix && (
           <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
             <aside className="lg:w-64 lg:shrink-0">
               <MobileFiltersToggle
