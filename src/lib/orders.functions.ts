@@ -28,6 +28,9 @@ const orderInputSchema = z.object({
         nicotineMg: z.number().min(0).max(50).optional(),
         flavor: z.string().trim().min(1).max(80).optional(),
         quantity: z.number().int().min(1).max(50),
+        /** Mix personnalisé DIY : le prix est TOUJOURS recalculé côté serveur. */
+        customMixId: z.string().uuid().optional(),
+        customMixSessionId: z.string().min(8).max(128).optional(),
         // Nombre de boosters explicitement choisi par le client. Prioritaire
         // sur la déduction depuis `nicotineMg`. Permet au client de valider
         // même si le nombre dépasse la capacité physique déclarée du flacon
