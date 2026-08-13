@@ -651,6 +651,7 @@ function ProductCard({
   categoryName: string;
 }) {
   const stock = STOCK_LABELS[product.stock_status];
+  const outOfStock = product.stock_status === "out_of_stock";
   const photo = product.photos?.[0];
   const { data: priceSummary } = useQuery(variantPriceSummaryQueryOptions());
   const { data: promotions } = useQuery(activePromotionsQueryOptions());
