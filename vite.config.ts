@@ -17,7 +17,8 @@ function singletonGuard(): Plugin {
   let ran = false;
   return {
     name: "lovable-singleton-guard",
-    apply: "build",
+    // Exécuter aussi en développement : le crash se produit dans le navigateur
+    // bien avant qu'une build de production ne lance cette vérification.
     buildStart() {
       if (ran) return; // le build tourne en plusieurs environnements (client/ssr)
       ran = true;
