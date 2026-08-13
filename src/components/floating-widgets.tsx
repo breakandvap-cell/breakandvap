@@ -23,13 +23,16 @@ function useHidden() {
 export function PendingRewardBadge() {
   const { data: state } = useWheelState();
   const hidden = useHidden();
+  const { bannerOpen } = useCookieConsent();
   const pending = state?.pending?.[0];
   if (!pending || hidden) return null;
 
   return (
     <Link
       to="/panier"
-      className="fixed bottom-4 right-4 z-40 inline-flex max-w-[85vw] items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs text-foreground backdrop-blur-sm transition-colors hover:bg-secondary"
+      className={`fixed right-4 z-40 inline-flex max-w-[85vw] items-center gap-2 rounded-full border border-border bg-card/95 px-3 py-2 text-xs text-foreground backdrop-blur-sm transition-[bottom] transition-colors hover:bg-secondary ${
+        bannerOpen ? "bottom-[15rem]" : "bottom-[8.5rem]"
+      }`}
       aria-label={`Gain disponible : ${pending.label}. Aller au panier`}
     >
       <Gift className="h-4 w-4 shrink-0 text-accent" aria-hidden />
@@ -75,7 +78,7 @@ export function FloatingCartSummary() {
   return (
     <Link
       to="/panier"
-      className={`fixed left-4 z-40 flex flex-col items-center gap-2 transition-[bottom] ${
+      className={`fixed right-4 z-40 flex flex-col items-center gap-2 transition-[bottom] ${
         bannerOpen ? "bottom-[7.5rem]" : "bottom-4"
       }`}
       aria-label="Voir le panier"
