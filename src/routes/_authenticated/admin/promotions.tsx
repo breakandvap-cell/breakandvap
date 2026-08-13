@@ -468,9 +468,15 @@ function WheelSection({
     () => prizes.filter((p) => p.wheel_type === wheelType),
     [prizes, wheelType],
   );
-  const totalWeight = rows
-    .filter((r) => r.is_active)
-    .reduce((s, r) => s + Number(r.weight || 0), 0);
+  /** Probabilités en cours d'édition (id -> { proba, actif }). */
+  const [drafts, setDrafts] = useState<
+    Record<string, { weight: number; is_active: boolean }>
+  >({});
+  const totalProbability = rows.reduce((s, r) => {
+    const d = drafts[r.id] ?? { weight: Number(r.weight || 0), is_active: r.is_active };
+    return d.is_active ? s + Number(d.weight || 0) : s;
+  }, 0);
+  const totalValid = Math.round(totalProbability * 100) === 10000;
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["admin", "wheel-prizes"] });
@@ -540,7 +546,20 @@ function WheelSection({
         <Stat label="Réductions accordées" value={euro(stats?.total_discount_cents ?? 0)} />
       </div>
 
-      <div className="mt-6 overflow-x-auto">
+      <div
+        className={`mt-6 rounded-md p-2 text-sm ${
+          totalValid
+            ? "bg-secondary/50 text-muted-foreground"
+            : "border border-destructive bg-destructive/10 text-destructive"
+        }`}
+      >
+        {totalValid
+          ? "Total des probabilités : 100 %"
+          : `Le total doit faire 100 %, actuellement ${totalProbability
+              .toLocaleString("fr-FR", { maximumFractionDigits: 2 })} %`}
+      </div>
+
+      <div className="mt-4 overflow-x-auto">
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Chargement…</p>
         ) : (
@@ -550,8 +569,7 @@ function WheelSection({
                 <th className="py-2">Libellé</th>
                 <th>Type</th>
                 <th>Valeur</th>
-                <th>Poids</th>
-                <th>Probabilité</th>
+                <th>Probabilité (%)</th>
                 <th>Actif</th>
                 <th />
               </tr>
@@ -561,14 +579,17 @@ function WheelSection({
                 <PrizeRow
                   key={p.id}
                   prize={p}
-                  totalWeight={totalWeight}
+                  totalValid={totalValid}
+                  onDraftChange={(next) =>
+                    setDrafts((prev) => ({ ...prev, [p.id]: next }))
+                  }
                   onSave={(next) => mSave.mutate(next)}
                   onDelete={() => mDelete.mutate(p.id)}
                 />
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-3 text-sm text-muted-foreground">
+                  <td colSpan={6} className="py-3 text-sm text-muted-foreground">
                     Aucun lot pour cette roue.
                   </td>
                 </tr>
@@ -585,8 +606,8 @@ function WheelSection({
             label: "-5%",
             discount_type: "percentage",
             discount_value: 5,
-            weight: 1,
-            is_active: true,
+            weight: 0,
+            is_active: false,
           })
         }
         disabled={mSave.isPending}
@@ -600,27 +621,30 @@ function WheelSection({
 
 function PrizeRow({
   prize,
-  totalWeight,
+  totalValid,
+  onDraftChange,
   onSave,
   onDelete,
 }: {
   prize: WheelPrize;
-  totalWeight: number;
+  totalValid: boolean;
+  onDraftChange: (d: { weight: number; is_active: boolean }) => void;
   onSave: (p: WheelPrize) => void;
   onDelete: () => void;
 }) {
   const [draft, setDraft] = useState(prize);
   useEffect(() => setDraft(prize), [prize]);
+  useEffect(() => {
+    onDraftChange({ weight: Number(draft.weight) || 0, is_active: draft.is_active });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.weight, draft.is_active]);
   const dirty =
     draft.label !== prize.label ||
     draft.discount_type !== prize.discount_type ||
     Number(draft.discount_value) !== Number(prize.discount_value) ||
     Number(draft.weight) !== Number(prize.weight) ||
     draft.is_active !== prize.is_active;
-  const proba =
-    draft.is_active && totalWeight > 0
-      ? `${Math.round((Number(draft.weight) / totalWeight) * 100)} %`
-      : "—";
+  const probaInvalid = Number(draft.weight) < 0 || Number(draft.weight) > 100;
 
   return (
     <tr className="border-t border-border">
@@ -655,13 +679,18 @@ function PrizeRow({
       </td>
       <td className="pr-2">
         <input
-          className="input h-9 w-16"
-          inputMode="numeric"
+          className={`input h-9 w-20 ${probaInvalid || !totalValid ? "border-destructive" : ""}`}
+          inputMode="decimal"
+          aria-label="Probabilité en pourcentage"
           value={String(draft.weight)}
-          onChange={(e) => setDraft({ ...draft, weight: Number(e.target.value) || 0 })}
+          onChange={(e) =>
+            setDraft({
+              ...draft,
+              weight: Number(e.target.value.replace(",", ".")) || 0,
+            })
+          }
         />
       </td>
-      <td className="pr-2 text-muted-foreground">{proba}</td>
       <td className="pr-2">
         <input
           type="checkbox"
@@ -672,7 +701,8 @@ function PrizeRow({
       <td className="whitespace-nowrap text-right">
         <button
           onClick={() => onSave(draft)}
-          disabled={!dirty}
+          disabled={!dirty || !totalValid || probaInvalid}
+          title={!totalValid ? "Le total des probabilités doit faire 100 %" : undefined}
           className="rounded-md border border-border px-2 py-1 text-xs hover:bg-secondary disabled:opacity-40"
         >
           Enregistrer
