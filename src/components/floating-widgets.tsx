@@ -84,15 +84,18 @@ export function FloatingCartSummary() {
       </span>
       <span className="rounded-xl border border-border bg-card/95 px-2.5 py-1.5 text-[11px] leading-tight backdrop-blur-sm">
         <span className="block text-center font-medium text-foreground">
+          {count} article{count > 1 ? "s" : ""}
+        </span>
+        <span className="block text-center text-foreground">
           {hasPromo ? (
             <>
               <span className="text-muted-foreground line-through">
                 {formatPrice(subtotalCents)}
               </span>{" "}
-              <span>{formatPrice(promoSubtotalCents)}</span>
+              <span className="font-medium">{formatPrice(promoSubtotalCents)}</span>
             </>
           ) : (
-            formatPrice(subtotalCents)
+            <span className="font-medium">{formatPrice(subtotalCents)}</span>
           )}
         </span>
         {hasPromo && promoLabel && (
