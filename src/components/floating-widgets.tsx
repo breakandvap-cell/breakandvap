@@ -38,12 +38,11 @@ export function PendingRewardBadge() {
   );
 }
 
-function formatPromoLabel(line: {
-  original: number;
-  promo?: { promotion: { name: string; discount_type: string; discount_value: number }; discountCents: number } | null;
-}) {
-  if (!line.promo || line.promo.discountCents <= 0) return null;
-  const { promotion } = line.promo;
+import type { PromotionApplication } from "@/lib/promotions-pricing";
+
+function formatPromoLabel(promo: PromotionApplication | null | undefined) {
+  if (!promo || promo.discountCents <= 0) return null;
+  const { promotion } = promo;
   if (promotion.discount_type === "percentage") {
     return `-${promotion.discount_value}% (${promotion.name})`;
   }
@@ -70,7 +69,7 @@ export function FloatingCartSummary() {
         .filter((l) => l.promo && l.promo.discountCents > 0)
         .sort((a, b) => (b.promo?.discountCents ?? 0) - (a.promo?.discountCents ?? 0))[0]
     : null;
-  const promoLabel = dominantLine ? formatPromoLabel(dominantLine as typeof dominantLine & { promo: NonNullable<typeof dominantLine.promo> }) : null;
+  const promoLabel = dominantLine ? formatPromoLabel(dominantLine.promo) : null;
 
   return (
     <Link
