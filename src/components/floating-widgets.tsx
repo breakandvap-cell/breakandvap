@@ -2,6 +2,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Gift, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useCartPromoLines } from "@/lib/cart-promotions";
+import { useCookieConsent } from "@/lib/cookie-consent";
 import { formatPrice } from "@/lib/products";
 import type { PromotionApplication } from "@/lib/promotions-pricing";
 import { formatPrizeLabel, useWheelState } from "@/components/welcome-wheel";
