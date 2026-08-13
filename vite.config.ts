@@ -37,6 +37,27 @@ export default defineConfig({
   vite: {
     plugins: [singletonGuard()],
     optimizeDeps: {
+      // TanStack Start découvre sinon ces imports profonds après le premier rendu
+      // SSR. Vite lance alors une seconde optimisation et remplace en cours de
+      // page les chunks auxquels React Router est relié. Pré-bundler tout le
+      // sous-graphe dès le démarrage garantit une seule génération de cache.
+      include: [
+        "react",
+        "react-dom",
+        "react-dom/client",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/react-router",
+        "@tanstack/react-router > @tanstack/react-store",
+        "@tanstack/history",
+        "@tanstack/router-core",
+        "@tanstack/router-core/isServer",
+        "@tanstack/router-core/ssr/client",
+        "@tanstack/router-core/ssr/server",
+        "h3-v2",
+        "seroval",
+      ],
       // Le preset active cette option expérimentale, mais Vite précise qu'elle
       // peut conserver simultanément l'ancienne et la nouvelle référence d'un
       // module lorsqu'une seconde vague de pré-bundling se produit. Pour React,
