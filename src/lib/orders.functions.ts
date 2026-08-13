@@ -446,6 +446,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const shipping = {
       full_name: data.shipping.fullName,
+*** PLACEHOLDER ***
       phone: data.shipping.phone || null,
       line1: data.shipping.line1,
       line2: data.shipping.line2 || null,
