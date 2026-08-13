@@ -577,7 +577,7 @@ function EditProduct() {
 
       {!isNew && (
         <div className="flex flex-wrap items-center gap-2">
-          <RestockPendingBadge productId={params.id ?? null} />
+          <RestockPendingBadge productId={isNew ? null : id} />
           <StatusBadge
             status={computeProductStatus({
               is_published: form.is_published,
