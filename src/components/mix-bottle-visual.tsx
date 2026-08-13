@@ -3,22 +3,44 @@ import { useMemo } from "react";
 type Props = {
   /** Taux de remplissage visuel, 0 → 1. */
   fill: number;
+  /** Part du remplissage occupée par la base nicotinée (0 → 1 du flacon). */
+  baseFill?: number;
   /** Couleurs du liquide (dégradé). */
   from: string;
   to: string;
+  /** Contenance réelle du flacon (ml) : pilote la taille affichée. */
+  volumeMl?: number | null;
   /** Volume affiché sous le flacon. */
   volumeLabel?: string | null;
   /** Étiquette de composition affichée sur le flacon. */
   caption?: string | null;
 };
 
+/** Hauteur affichée proportionnelle au volume réel.
+ *  Échelle en racine cubique (comme un volume physique) : chaque palier
+ *  10 / 30 / 50 / 60 / 120 ml est visuellement distinct et cohérent. */
+function bottleHeightPx(volumeMl: number | null | undefined): number {
+  const v = volumeMl && volumeMl > 0 ? volumeMl : 50;
+  const k = Math.cbrt(v / 60);
+  return Math.max(150, Math.min(340, 270 * k));
+}
+
 /**
  * Flacon SVG avec niveau de liquide animé.
  * Uniquement du SVG + CSS (pas de canvas ni de WebGL) : rendu net, léger,
  * et aucune boucle de rendu JS qui pourrait ralentir la page.
  */
-export function MixBottleVisual({ fill, from, to, volumeLabel, caption }: Props) {
+export function MixBottleVisual({
+  fill,
+  baseFill = 0,
+  from,
+  to,
+  volumeMl,
+  volumeLabel,
+  caption,
+}: Props) {
   const ratio = Math.max(0, Math.min(1, fill));
+  const baseRatio = Math.max(0, Math.min(ratio, baseFill));
   const gradientId = useMemo(
     () => `mixliquid-${Math.random().toString(36).slice(2, 9)}`,
     [],
@@ -30,6 +52,8 @@ export function MixBottleVisual({ fill, from, to, volumeLabel, caption }: Props)
   const bodyHeight = bodyBottom - bodyTop;
   const liquidHeight = bodyHeight * ratio;
   const liquidY = bodyBottom - liquidHeight;
+  const baseY = bodyBottom - bodyHeight * baseRatio;
+  const heightPx = bottleHeightPx(volumeMl);
 
   return (
     <div className="flex flex-col items-center">
@@ -44,14 +68,29 @@ export function MixBottleVisual({ fill, from, to, volumeLabel, caption }: Props)
       `}</style>
       <svg
         viewBox="0 0 180 320"
-        className="h-[300px] w-auto drop-shadow-[0_18px_30px_rgba(0,0,0,0.35)]"
+        className="w-auto drop-shadow-[0_18px_30px_rgba(0,0,0,0.35)]"
+        style={{
+          height: `${heightPx}px`,
+          transition: "height 600ms cubic-bezier(.22,1,.36,1)",
+        }}
         role="img"
-        aria-label={`Flacon rempli à ${Math.round(ratio * 100)} %`}
+        aria-label={`Flacon ${volumeMl ? `${volumeMl} ml ` : ""}rempli à ${Math.round(ratio * 100)} %`}
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={from} />
+            <stop offset="0%" stopColor={from} stopOpacity="0.95" />
+            <stop offset="45%" stopColor={from} stopOpacity="0.8" />
             <stop offset="100%" stopColor={to} />
+          </linearGradient>
+          <linearGradient id={`${gradientId}-glass`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="35%" stopColor="#ffffff" stopOpacity="0.04" />
+            <stop offset="80%" stopColor="#000000" stopOpacity="0.10" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.14" />
+          </linearGradient>
+          <linearGradient id={`${gradientId}-sheen`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.05" />
           </linearGradient>
           <clipPath id={`${gradientId}-clip`}>
             <path d="M46 78 q0 -14 12 -18 l6 -14 h52 l6 14 q12 4 12 18 v190 q0 18 -18 18 h-52 q-18 0 -18 -18 z" />
@@ -65,7 +104,7 @@ export function MixBottleVisual({ fill, from, to, volumeLabel, caption }: Props)
         {/* Corps (verre) */}
         <path
           d="M46 78 q0 -14 12 -18 l6 -14 h52 l6 14 q12 4 12 18 v190 q0 18 -18 18 h-52 q-18 0 -18 -18 z"
-          className="fill-background/60 stroke-border"
+          className="fill-background/40 stroke-border"
           strokeWidth="2"
         />
 
@@ -93,6 +132,20 @@ export function MixBottleVisual({ fill, from, to, volumeLabel, caption }: Props)
                 />
               </g>
             )}
+            {/* Ligne de séparation base nicotinée / arômes */}
+            {baseRatio > 0 && ratio > baseRatio && (
+              <line
+                x1="30"
+                x2="150"
+                y1={baseY}
+                y2={baseY}
+                stroke="#ffffff"
+                strokeOpacity="0.35"
+                strokeDasharray="4 4"
+                strokeWidth="1.5"
+                style={{ transition: "y1 700ms cubic-bezier(.22,1,.36,1), y2 700ms cubic-bezier(.22,1,.36,1)" }}
+              />
+            )}
             {ratio > 0.1 && (
               <>
                 <circle cx="70" cy={bodyBottom - 10} r="3" fill="#fff" opacity="0.35" className="bnv-bubble" />
@@ -110,8 +163,14 @@ export function MixBottleVisual({ fill, from, to, volumeLabel, caption }: Props)
           </g>
         </g>
 
-        {/* Reflet */}
-        <rect x="56" y="92" width="8" height="150" rx="4" fill="#fff" opacity="0.12" />
+        {/* Verre : transparence + reflets */}
+        <path
+          d="M46 78 q0 -14 12 -18 l6 -14 h52 l6 14 q12 4 12 18 v190 q0 18 -18 18 h-52 q-18 0 -18 -18 z"
+          fill={`url(#${gradientId}-glass)`}
+          pointerEvents="none"
+        />
+        <rect x="56" y="92" width="7" height="150" rx="3.5" fill={`url(#${gradientId}-sheen)`} />
+        <rect x="126" y="110" width="4" height="96" rx="2" fill="#fff" opacity="0.08" />
 
         {/* Graduations */}
         {[0.25, 0.5, 0.75].map((g) => (
