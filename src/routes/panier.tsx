@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
 import { useCart } from "@/lib/cart";
+import { useCartPromoLines } from "@/lib/cart-promotions";
 import { formatPrice } from "@/lib/products";
 import { formatNicotineMg } from "@/lib/site-settings.functions";
 
@@ -18,6 +19,11 @@ export const Route = createFileRoute("/panier")({
 
 function CartPage() {
   const { items, subtotalCents, setQuantity, remove, hydrated } = useCart();
+  const { lines, promoSubtotalCents, promoDiscountCents } = useCartPromoLines(
+    items,
+    subtotalCents,
+  );
+  const unitByKey = new Map(lines.map((l) => [l.item.key, l]));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -67,7 +73,19 @@ function CartPage() {
                       </span>
                     )}
                     <span className="mt-1 text-xs text-muted-foreground">
-                      {formatPrice(item.priceCents)} l'unité
+                      {unitByKey.get(item.key)?.promo ? (
+                        <>
+                          <span className="line-through">
+                            {formatPrice(item.priceCents)}
+                          </span>{" "}
+                          <span className="text-destructive">
+                            {formatPrice(unitByKey.get(item.key)!.unit)}
+                          </span>{" "}
+                          l'unité
+                        </>
+                      ) : (
+                        <>{formatPrice(item.priceCents)} l'unité</>
+                      )}
                     </span>
                     {item.boostersCount && item.boostersCount > 0 &&
                     item.boosterUnitPriceCents != null &&
@@ -112,7 +130,20 @@ function CartPage() {
                       </div>
                       <div className="ml-auto flex items-center gap-3">
                         <span className="text-sm font-semibold whitespace-nowrap">
-                          {formatPrice(item.priceCents * item.quantity)}
+                          {unitByKey.get(item.key)?.promo ? (
+                            <>
+                              <span className="mr-1 text-xs font-normal text-muted-foreground line-through">
+                                {formatPrice(item.priceCents * item.quantity)}
+                              </span>
+                              <span className="text-destructive">
+                                {formatPrice(
+                                  unitByKey.get(item.key)!.unit * item.quantity,
+                                )}
+                              </span>
+                            </>
+                          ) : (
+                            formatPrice(item.priceCents * item.quantity)
+                          )}
                         </span>
                         <button
                           onClick={() => remove(item.key)}
@@ -135,6 +166,14 @@ function CartPage() {
                   <dt className="text-muted-foreground">Sous-total</dt>
                   <dd className="font-medium">{formatPrice(subtotalCents)}</dd>
                 </div>
+                {promoDiscountCents > 0 && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted-foreground">Promotion</dt>
+                    <dd className="font-medium text-destructive">
+                      −{formatPrice(promoDiscountCents)}
+                    </dd>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <dt className="text-muted-foreground">Livraison</dt>
                   <dd className="text-muted-foreground">Calculée à l'étape suivante</dd>
@@ -143,7 +182,7 @@ function CartPage() {
               <div className="mt-6 flex items-baseline justify-between border-t border-border pt-4">
                 <span className="text-sm text-muted-foreground">Total</span>
                 <span className="text-xl font-semibold">
-                  {formatPrice(subtotalCents)}
+                  {formatPrice(promoSubtotalCents)}
                 </span>
               </div>
               <Link
