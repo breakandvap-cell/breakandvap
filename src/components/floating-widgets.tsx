@@ -3,6 +3,7 @@ import { Gift, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart";
 import { useCartPromoLines } from "@/lib/cart-promotions";
 import { formatPrice } from "@/lib/products";
+import type { PromotionApplication } from "@/lib/promotions-pricing";
 import { formatPrizeLabel, useWheelState } from "@/components/welcome-wheel";
 
 /** Routes où les encarts seraient redondants avec le contenu de la page. */
