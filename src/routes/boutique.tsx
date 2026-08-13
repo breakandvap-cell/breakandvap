@@ -722,6 +722,11 @@ function ProductCard({
             Voir →
           </span>
         </div>
+        {outOfStock ? (
+          <div className="pt-1">
+            <RestockAlertButton productId={product.id} compact />
+          </div>
+        ) : null}
       </div>
     </Link>
   );
