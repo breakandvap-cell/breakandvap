@@ -93,7 +93,9 @@ export function FloatingCartSummary() {
       to="/panier"
       style={bottomStyle(1)}
       className="fixed right-4 z-40 flex flex-col items-center gap-2 transition-[bottom]"
-      aria-label="Voir le panier"
+      aria-label={`Panier : ${count} article${count > 1 ? "s" : ""}, total ${formatPrice(
+        hasPromo ? promoSubtotalCents : subtotalCents,
+      )}`}
     >
       <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform hover:scale-105 active:scale-95">
         <ShoppingCart className="h-6 w-6" aria-hidden />
@@ -111,10 +113,12 @@ export function FloatingCartSummary() {
               <span className="text-muted-foreground line-through">
                 {formatPrice(subtotalCents)}
               </span>{" "}
-              <span className="font-medium">{formatPrice(promoSubtotalCents)}</span>
+              <span className="font-semibold text-destructive">
+                {formatPrice(promoSubtotalCents)}
+              </span>
             </>
           ) : (
-            <span className="font-medium">{formatPrice(subtotalCents)}</span>
+            <span className="font-semibold">{formatPrice(subtotalCents)}</span>
           )}
         </span>
         {hasPromo && promoLabel && (
