@@ -8,6 +8,8 @@ import {
   variantPriceSummaryQueryOptions,
 } from "@/lib/products";
 import { matchesSearch } from "@/lib/product-search";
+import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
+import { bestPromotionFor } from "@/lib/promotions-pricing";
 
 const MAX_RESULTS = 8;
 
@@ -26,6 +28,7 @@ export function ProductSearch({
   const navigate = useNavigate();
   const { data: products } = useQuery(productsQueryOptions());
   const { data: priceSummary } = useQuery(variantPriceSummaryQueryOptions());
+  const { data: promotions } = useQuery(activePromotionsQueryOptions());
 
   const trimmed = query.trim();
   const results = useMemo(() => {
@@ -114,6 +117,12 @@ export function ProductSearch({
                   const s = priceSummary?.[p.id];
                   const showFrom =
                     (s?.variantCount ?? 0) > 1 && s?.minPriceCents != null;
+                  const baseCents = showFrom ? s!.minPriceCents! : p.price_cents;
+                  const promo = bestPromotionFor(
+                    promotions,
+                    { productId: p.id, category: p.category },
+                    baseCents,
+                  );
                   return (
                   <li key={p.id}>
                     <Link
@@ -148,9 +157,17 @@ export function ProductSearch({
                             dès
                           </span>
                         )}
-                        {formatPrice(
-                          showFrom ? s!.minPriceCents! : p.price_cents,
-                          p.currency,
+                        {promo ? (
+                          <>
+                            <span className="mr-1 text-xs font-normal text-muted-foreground line-through">
+                              {formatPrice(promo.originalCents, p.currency)}
+                            </span>
+                            <span className="text-destructive">
+                              {formatPrice(promo.finalCents, p.currency)}
+                            </span>
+                          </>
+                        ) : (
+                          formatPrice(baseCents, p.currency)
                         )}
                       </span>
                     </Link>
