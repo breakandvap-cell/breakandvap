@@ -39,8 +39,6 @@ export function PendingRewardBadge() {
   );
 }
 
-import type { PromotionApplication } from "@/lib/promotions-pricing";
-
 function formatPromoLabel(promo: PromotionApplication | null | undefined) {
   if (!promo || promo.discountCents <= 0) return null;
   const { promotion } = promo;
