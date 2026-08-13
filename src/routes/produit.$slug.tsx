@@ -38,6 +38,7 @@ import {
   type BoosterConfig,
 } from "@/lib/site-settings.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { RestockAlertButton } from "@/components/restock-alert";
 import { activePromotionsQueryOptions } from "@/lib/promotions-pricing.query";
 import { bestPromotionFor } from "@/lib/promotions-pricing";
 import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
@@ -299,6 +300,13 @@ function ProductDetail() {
               ) : null}
               <SpecRow label="Référence" value={product.slug} />
             </dl>
+
+            {product.stock_status === "out_of_stock" ? (
+              <div className="mt-6 space-y-3 rounded-md border border-border bg-card p-4">
+                <p className="text-sm font-medium text-destructive">Rupture de stock</p>
+                <RestockAlertButton productId={product.id} />
+              </div>
+            ) : null}
 
             {product.stock_status !== "out_of_stock" ? (
               <div className="mt-6 flex items-center gap-3">
@@ -1076,14 +1084,15 @@ function EliquideDetail({
               </div>
               </>
             ) : variant ? (
-              <button
-                disabled
-                className="mt-6 inline-flex w-full items-center justify-center rounded-md bg-primary px-4 py-3 text-sm font-medium text-primary-foreground opacity-50"
-              >
-                {hasFlavors && selectedFlavor && selectedFlavor.stock <= 0
-                  ? "Goût épuisé"
-                  : "Volume épuisé"}
-              </button>
+              <div className="mt-6 space-y-3 rounded-md border border-border bg-card p-4">
+                <p className="text-sm font-medium text-destructive">
+                  Rupture de stock —{" "}
+                  {hasFlavors && selectedFlavor && selectedFlavor.stock <= 0
+                    ? "goût épuisé"
+                    : "volume épuisé"}
+                </p>
+                <RestockAlertButton productId={product.id} variantId={variant.id} />
+              </div>
             ) : null}
 
             {product.coa_url ? (

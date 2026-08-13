@@ -20,6 +20,7 @@ import {
   type ShopSubcategory,
 } from "@/lib/categories.functions";
 import { SiteFooter, SiteHeader } from "@/components/site-header";
+import { RestockAlertButton } from "@/components/restock-alert";
 import { buildShopCollectionJsonLd } from "@/lib/shop-structured-data";
 import { buildBreadcrumbJsonLd, HOME_CRUMB } from "@/lib/breadcrumb-jsonld";
 import { CategoryTileFx } from "@/components/category-tile-fx";
@@ -651,6 +652,7 @@ function ProductCard({
   categoryName: string;
 }) {
   const stock = STOCK_LABELS[product.stock_status];
+  const outOfStock = product.stock_status === "out_of_stock";
   const photo = product.photos?.[0];
   const { data: priceSummary } = useQuery(variantPriceSummaryQueryOptions());
   const { data: promotions } = useQuery(activePromotionsQueryOptions());
@@ -721,6 +723,11 @@ function ProductCard({
             Voir →
           </span>
         </div>
+        {outOfStock ? (
+          <div className="pt-1">
+            <RestockAlertButton productId={product.id} compact />
+          </div>
+        ) : null}
       </div>
     </Link>
   );

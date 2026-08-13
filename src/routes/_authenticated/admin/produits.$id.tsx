@@ -28,6 +28,7 @@ import { useState, useEffect, useMemo, useRef, type FormEvent, type ChangeEvent 
 import { toast } from "sonner";
 import { X, Upload, Loader2, ArrowLeft, Plus, Trash2, ShieldAlert } from "lucide-react";
 import { computeProductStatus, StatusBadge } from "@/lib/product-status";
+import { RestockPendingBadge } from "@/components/admin/restock-pending-badge";
 import {
   shopCategoriesQueryOptions,
   shopSubcategoriesQueryOptions,
@@ -576,6 +577,7 @@ function EditProduct() {
 
       {!isNew && (
         <div className="flex flex-wrap items-center gap-2">
+          <RestockPendingBadge productId={isNew ? null : id} />
           <StatusBadge
             status={computeProductStatus({
               is_published: form.is_published,

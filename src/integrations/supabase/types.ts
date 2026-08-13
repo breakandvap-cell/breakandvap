@@ -1049,6 +1049,70 @@ export type Database = {
           },
         ]
       }
+      stock_notifications: {
+        Row: {
+          channel: Database["public"]["Enums"]["stock_notification_channel"]
+          created_at: string
+          email: string | null
+          id: string
+          notified_at: string | null
+          phone: string | null
+          product_id: string
+          status: Database["public"]["Enums"]["stock_notification_status"]
+          updated_at: string
+          user_id: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          channel?: Database["public"]["Enums"]["stock_notification_channel"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          notified_at?: string | null
+          phone?: string | null
+          product_id: string
+          status?: Database["public"]["Enums"]["stock_notification_status"]
+          updated_at?: string
+          user_id?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["stock_notification_channel"]
+          created_at?: string
+          email?: string | null
+          id?: string
+          notified_at?: string | null
+          phone?: string | null
+          product_id?: string
+          status?: Database["public"]["Enums"]["stock_notification_status"]
+          updated_at?: string
+          user_id?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_notifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_notifications_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products_brand_range_audit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_notifications_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_invoices: {
         Row: {
           created_at: string
@@ -1449,6 +1513,8 @@ export type Database = {
         | "accessoire_vape"
         | "accessoire_cbd"
       promotion_scope: "site" | "category" | "product"
+      stock_notification_channel: "email" | "sms" | "both"
+      stock_notification_status: "pending" | "sent" | "cancelled"
       stock_status: "in_stock" | "low_stock" | "out_of_stock"
       wheel_spin_status: "pending" | "used" | "expired"
       wheel_type: "welcome" | "general"
@@ -1597,6 +1663,8 @@ export const Constants = {
         "accessoire_cbd",
       ],
       promotion_scope: ["site", "category", "product"],
+      stock_notification_channel: ["email", "sms", "both"],
+      stock_notification_status: ["pending", "sent", "cancelled"],
       stock_status: ["in_stock", "low_stock", "out_of_stock"],
       wheel_spin_status: ["pending", "used", "expired"],
       wheel_type: ["welcome", "general"],

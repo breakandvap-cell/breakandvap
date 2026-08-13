@@ -51,6 +51,7 @@ import { Route as AuthenticatedAdminProduitsImportRouteImport } from './routes/_
 import { Route as AuthenticatedCompteCommandesIndexRouteImport } from './routes/_authenticated/compte.commandes.index'
 import { Route as AuthenticatedCompteCommandesOrderNumberRouteImport } from './routes/_authenticated/compte.commandes.$orderNumber'
 import { Route as ApiPublicHooksLowStockAlertRouteImport } from './routes/api/public/hooks/low-stock-alert'
+import { Route as ApiPublicHooksRestockNotifyRouteImport } from './routes/api/public/hooks/restock-notify'
 import { Route as AuthenticatedAdminProduitsEliquideIdRouteImport } from './routes/_authenticated/admin/produits.eliquide.$id'
 import { Route as AuthenticatedAdminProduitsNouveauIndexRouteImport } from './routes/_authenticated/admin/produits.nouveau.index'
 import { Route as AuthenticatedAdminProduitsNouveauCategorieRouteImport } from './routes/_authenticated/admin/produits.nouveau.$categorie'
@@ -285,6 +286,12 @@ const ApiPublicHooksLowStockAlertRoute =
     path: '/api/public/hooks/low-stock-alert',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRestockNotifyRoute =
+  ApiPublicHooksRestockNotifyRouteImport.update({
+    id: '/api/public/hooks/restock-notify',
+    path: '/api/public/hooks/restock-notify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedAdminProduitsEliquideIdRoute =
   AuthenticatedAdminProduitsEliquideIdRouteImport.update({
     id: '/produits/eliquide/$id',
@@ -343,6 +350,7 @@ export interface FileRoutesByFullPath {
   '/admin/produits/import': typeof AuthenticatedAdminProduitsImportRoute
   '/compte/commandes/$orderNumber': typeof AuthenticatedCompteCommandesOrderNumberRoute
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
+  '/api/public/hooks/restock-notify': typeof ApiPublicHooksRestockNotifyRoute
   '/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
   '/compte/commandes/': typeof AuthenticatedCompteCommandesIndexRoute
@@ -387,6 +395,7 @@ export interface FileRoutesByTo {
   '/admin/produits/import': typeof AuthenticatedAdminProduitsImportRoute
   '/compte/commandes/$orderNumber': typeof AuthenticatedCompteCommandesOrderNumberRoute
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
+  '/api/public/hooks/restock-notify': typeof ApiPublicHooksRestockNotifyRoute
   '/admin/commandes': typeof AuthenticatedAdminCommandesIndexRoute
   '/admin/produits': typeof AuthenticatedAdminProduitsIndexRoute
   '/compte/commandes': typeof AuthenticatedCompteCommandesIndexRoute
@@ -435,6 +444,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/produits/import': typeof AuthenticatedAdminProduitsImportRoute
   '/_authenticated/compte/commandes/$orderNumber': typeof AuthenticatedCompteCommandesOrderNumberRoute
   '/api/public/hooks/low-stock-alert': typeof ApiPublicHooksLowStockAlertRoute
+  '/api/public/hooks/restock-notify': typeof ApiPublicHooksRestockNotifyRoute
   '/_authenticated/admin/commandes/': typeof AuthenticatedAdminCommandesIndexRoute
   '/_authenticated/admin/produits/': typeof AuthenticatedAdminProduitsIndexRoute
   '/_authenticated/compte/commandes/': typeof AuthenticatedCompteCommandesIndexRoute
@@ -483,6 +493,7 @@ export interface FileRouteTypes {
     | '/admin/produits/import'
     | '/compte/commandes/$orderNumber'
     | '/api/public/hooks/low-stock-alert'
+    | '/api/public/hooks/restock-notify'
     | '/admin/commandes/'
     | '/admin/produits/'
     | '/compte/commandes/'
@@ -527,6 +538,7 @@ export interface FileRouteTypes {
     | '/admin/produits/import'
     | '/compte/commandes/$orderNumber'
     | '/api/public/hooks/low-stock-alert'
+    | '/api/public/hooks/restock-notify'
     | '/admin/commandes'
     | '/admin/produits'
     | '/compte/commandes'
@@ -574,6 +586,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/produits/import'
     | '/_authenticated/compte/commandes/$orderNumber'
     | '/api/public/hooks/low-stock-alert'
+    | '/api/public/hooks/restock-notify'
     | '/_authenticated/admin/commandes/'
     | '/_authenticated/admin/produits/'
     | '/_authenticated/compte/commandes/'
@@ -602,6 +615,7 @@ export interface RootRouteChildren {
   CommandeOrderNumberRoute: typeof CommandeOrderNumberRoute
   ProduitSlugRoute: typeof ProduitSlugRoute
   ApiPublicHooksLowStockAlertRoute: typeof ApiPublicHooksLowStockAlertRoute
+  ApiPublicHooksRestockNotifyRoute: typeof ApiPublicHooksRestockNotifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -900,6 +914,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksLowStockAlertRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/restock-notify': {
+      id: '/api/public/hooks/restock-notify'
+      path: '/api/public/hooks/restock-notify'
+      fullPath: '/api/public/hooks/restock-notify'
+      preLoaderRoute: typeof ApiPublicHooksRestockNotifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/produits/eliquide/$id': {
       id: '/_authenticated/admin/produits/eliquide/$id'
       path: '/produits/eliquide/$id'
@@ -1061,6 +1082,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommandeOrderNumberRoute: CommandeOrderNumberRoute,
   ProduitSlugRoute: ProduitSlugRoute,
   ApiPublicHooksLowStockAlertRoute: ApiPublicHooksLowStockAlertRoute,
+  ApiPublicHooksRestockNotifyRoute: ApiPublicHooksRestockNotifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

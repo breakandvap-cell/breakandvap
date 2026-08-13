@@ -722,6 +722,17 @@ async function upsertProductCore(
         .eq("product_id", productId);
     }
 
+    // Réapprovisionnement : prévient les clients en attente si le stock du
+    // produit (ou d'une de ses variantes) est repassé au-dessus de 0.
+    try {
+      const { dispatchRestockNotifications } = await import(
+        "@/lib/stock-notifications.server"
+      );
+      await dispatchRestockNotifications({ productIds: [productId] });
+    } catch (e) {
+      console.error("[restock] dispatch after product save failed:", e);
+    }
+
     return { id: productId };
 }
 

@@ -32,6 +32,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { RestockPendingBadge } from "@/components/admin/restock-pending-badge";
 import {
   adminGetProduct,
   adminListVariants,
@@ -551,6 +552,7 @@ function Wizard({
         >
           <ArrowLeft className="h-4 w-4" /> Choisir un autre type
         </Link>
+        <RestockPendingBadge productId={isNew ? null : productId} />
         {isNew ? (
           <Link
             to="/admin/produits/$id"
