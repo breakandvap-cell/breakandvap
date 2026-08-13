@@ -111,7 +111,9 @@ export function FloatingCartSummary() {
               <span className="text-muted-foreground line-through">
                 {formatPrice(subtotalCents)}
               </span>{" "}
-              <span className="font-medium">{formatPrice(promoSubtotalCents)}</span>
+              <span className="font-medium text-destructive">
+                {formatPrice(promoSubtotalCents)}
+              </span>
             </>
           ) : (
             <span className="font-medium">{formatPrice(subtotalCents)}</span>
