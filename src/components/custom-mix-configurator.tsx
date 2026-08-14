@@ -3,7 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { MixBottleVisual } from "@/components/mix-bottle-visual";
+import {
+  BottleCarousel3DClient,
+  MixStage3DClient,
+} from "@/components/mix3d/client-3d";
 import { formatPrice } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import {
@@ -26,6 +29,14 @@ import { siteSettingsQueryOptions } from "@/lib/site-settings.functions";
 
 type Part = { flavorId: string; percentage: number };
 
+/** Échelle 3D proportionnelle à la contenance (racine cubique). */
+function bottleScale(volumeMl: number | null | undefined): number {
+  const v = volumeMl && volumeMl > 0 ? volumeMl : 50;
+  return Math.max(0.62, Math.min(1.5, Math.cbrt(v / 60)));
+}
+
+
+
 export function CustomMixConfigurator() {
   const cart = useCart();
   const saveDraft = useServerFn(saveCustomMixDraft);
@@ -42,6 +53,7 @@ export function CustomMixConfigurator() {
   const [brand, setBrand] = useState<MixBrand | null>(null);
   const [parts, setParts] = useState<Part[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [focusFlavor, setFocusFlavor] = useState<string | null>(null);
 
   const bottle = bottles.find((b) => b.id === bottleId) ?? null;
   const brandFlavors: MixFlavorOption[] = brand
@@ -61,7 +73,7 @@ export function CustomMixConfigurator() {
     return Math.round(cents);
   }, [bottle, parts, brandFlavors]);
 
-  const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#9aa5b1", to: "#4b5563" };
+  const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
 
   // Volume réellement occupé par la base nicotinée, d'après la concentration
   // des boosters configurée dans les réglages du site :
@@ -197,27 +209,60 @@ export function CustomMixConfigurator() {
           {bottlesLoading ? (
             <p className="text-sm text-muted-foreground">Chargement des flacons…</p>
           ) : bottles.length === 0 ? (
-            <EmptyNote>Aucun flacon vide n'est disponible pour le moment.</EmptyNote>
+            <ShowcaseFrame>
+              <BottleCarousel3DClient
+                items={[30, 60, 120, 200].map((v) => ({
+                  id: `ghost-${v}`,
+                  size: bottleScale(v),
+                  from: "#8ea79c",
+                  to: "#3f524a",
+                }))}
+                selectedId={null}
+                onSelect={() => {}}
+                ghost
+              />
+              <ShowcaseOverlay>Bientôt disponible</ShowcaseOverlay>
+            </ShowcaseFrame>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {bottles.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setBottleId(b.id)}
-                  className={`rounded-lg border px-4 py-3 text-left transition ${
-                    bottleId === b.id
-                      ? "border-accent bg-accent/10"
-                      : "border-border hover:border-accent/60"
-                  }`}
-                >
-                  <span className="block text-sm font-medium">{b.volume_ml} ml</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {formatPrice(b.price_cents)}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <ShowcaseFrame>
+              <BottleCarousel3DClient
+                items={bottles.map((b) => ({
+                  id: b.id,
+                  size: bottleScale(b.volume_ml),
+                  from: colors.from,
+                  to: colors.to,
+                  fill: 0.55,
+                }))}
+                selectedId={bottleId ?? bottles[0]?.id ?? null}
+                onSelect={setBottleId}
+              />
+              <CarouselNav
+                onPrev={() => {
+                  const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
+                  setBottleId(bottles[Math.max(0, i - 1)]!.id);
+                }}
+                onNext={() => {
+                  const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
+                  setBottleId(bottles[Math.min(bottles.length - 1, i + 1)]!.id);
+                }}
+              />
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                {bottles.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setBottleId(b.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                      bottleId === b.id
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border text-muted-foreground hover:border-accent/60"
+                    }`}
+                  >
+                    {b.volume_ml} ml · {formatPrice(b.price_cents)}
+                  </button>
+                ))}
+              </div>
+            </ShowcaseFrame>
           )}
         </Step>
 
@@ -275,27 +320,74 @@ export function CustomMixConfigurator() {
               Sélectionnez d'abord une marque : les arômes ne se mélangent pas entre marques.
             </p>
           ) : brandFlavors.length === 0 ? (
-            <EmptyNote>Les arômes {brand} arrivent bientôt.</EmptyNote>
+            <ShowcaseFrame>
+              <BottleCarousel3DClient
+                items={[0, 1, 2].map((i) => ({
+                  id: `ghost-flavor-${i}`,
+                  size: 1,
+                  from: "#8ea79c",
+                  to: "#3f524a",
+                }))}
+                selectedId={null}
+                onSelect={() => {}}
+                ghost
+              />
+              <ShowcaseOverlay>Arômes {brand} bientôt disponibles</ShowcaseOverlay>
+            </ShowcaseFrame>
           ) : (
             <div className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-2">
+              <ShowcaseFrame>
+                <BottleCarousel3DClient
+                  items={brandFlavors.map((f) => ({
+                    id: f.id,
+                    size: 1,
+                    from: colors.from,
+                    to: colors.to,
+                    fill: parts.some((p) => p.flavorId === f.id) ? 0.8 : 0.4,
+                  }))}
+                  selectedId={focusFlavor ?? brandFlavors[0]?.id ?? null}
+                  onSelect={(id) => {
+                    setFocusFlavor(id);
+                    toggleFlavor(id);
+                  }}
+                />
+                <CarouselNav
+                  onPrev={() => {
+                    const i = Math.max(
+                      0,
+                      brandFlavors.findIndex((f) => f.id === focusFlavor),
+                    );
+                    setFocusFlavor(brandFlavors[Math.max(0, i - 1)]!.id);
+                  }}
+                  onNext={() => {
+                    const i = Math.max(
+                      0,
+                      brandFlavors.findIndex((f) => f.id === focusFlavor),
+                    );
+                    setFocusFlavor(
+                      brandFlavors[Math.min(brandFlavors.length - 1, i + 1)]!.id,
+                    );
+                  }}
+                />
+              </ShowcaseFrame>
+              <div className="flex flex-wrap justify-center gap-2">
                 {brandFlavors.map((f) => {
                   const selected = parts.some((p) => p.flavorId === f.id);
                   return (
                     <button
                       key={f.id}
                       type="button"
-                      onClick={() => toggleFlavor(f.id)}
-                      className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                      onClick={() => {
+                        setFocusFlavor(f.id);
+                        toggleFlavor(f.id);
+                      }}
+                      className={`rounded-full border px-3 py-1.5 text-xs transition ${
                         selected
-                          ? "border-accent bg-accent/10"
-                          : "border-border hover:border-accent/60"
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-border text-muted-foreground hover:border-accent/60"
                       }`}
                     >
-                      <span>{f.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatPrice(f.price_cents)}
-                      </span>
+                      {f.name} · {formatPrice(f.price_cents)}
                     </button>
                   );
                 })}
@@ -395,25 +487,26 @@ export function CustomMixConfigurator() {
               : undefined,
           }}
         >
-          <MixBottleVisual
+          <MixStage3DClient
             fill={fill}
-            baseFill={baseFill}
             from={colors.from}
             to={colors.to}
+            size={bottleScale(bottle?.volume_ml ?? null)}
             complete={pctValid && Boolean(bottle)}
-            volumeMl={bottle?.volume_ml ?? null}
-            volumeLabel={bottle ? `${bottle.volume_ml} ml` : null}
-            caption={
-              parts.length > 0
-                ? parts
-                    .map(
-                      (p) =>
-                        `${brandFlavors.find((f) => f.id === p.flavorId)?.name ?? "Arôme"} ${p.percentage}%`,
-                    )
-                    .join(" + ")
-                : "Sélectionnez vos arômes pour remplir le flacon"
-            }
           />
+          <p className="mt-1 text-center text-xs text-muted-foreground">
+            {bottle ? `${bottle.volume_ml} ml` : "— ml"}
+          </p>
+          <p className="mt-1 text-center text-xs text-muted-foreground">
+            {parts.length > 0
+              ? parts
+                  .map(
+                    (p) =>
+                      `${brandFlavors.find((f) => f.id === p.flavorId)?.name ?? "Arôme"} ${p.percentage}%`,
+                  )
+                  .join(" + ")
+              : "Sélectionnez vos arômes pour remplir le flacon"}
+          </p>
 
           <dl className="mt-5 space-y-1 text-sm">
             <div className="flex justify-between">
@@ -501,5 +594,45 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
     <p className="rounded-lg border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
       {children}
     </p>
+  );
+}
+
+/** Cadre « vitrine premium » autour d'une scène 3D. */
+function ShowcaseFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-xl border border-border/70"
+      style={{
+        backgroundImage:
+          "radial-gradient(90% 70% at 50% 0%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 70%), linear-gradient(180deg, #070b09, #040605)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function ShowcaseOverlay({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+      <span className="rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
+        {children}
+      </span>
+    </div>
+  );
+}
+
+function CarouselNav({ onPrev, onNext }: { onPrev: () => void; onNext: () => void }) {
+  const cls =
+    "absolute top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full border border-border/70 bg-background/60 text-foreground backdrop-blur transition hover:border-accent";
+  return (
+    <>
+      <button type="button" aria-label="Flacon précédent" onClick={onPrev} className={`${cls} left-2`}>
+        ‹
+      </button>
+      <button type="button" aria-label="Flacon suivant" onClick={onNext} className={`${cls} right-2`}>
+        ›
+      </button>
+    </>
   );
 }
