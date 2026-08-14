@@ -14,14 +14,14 @@ export function ShowroomLights({ simple = false }: { simple?: boolean }) {
 }
 
 /** Sol réfléchissant discret sous les flacons. */
-export function StageFloor({ y = -1.3, blur = 2.4, opacity = 0.45 }) {
+export function StageFloor({ y = -1.3, blur = 2.6, opacity = 0.35 }) {
   return (
     <ContactShadows
       position={[0, y, 0]}
       opacity={opacity}
-      scale={10}
+      scale={5}
       blur={blur}
-      far={4}
+      far={2}
       resolution={256}
       color="#000000"
     />

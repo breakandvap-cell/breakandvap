@@ -27,7 +27,7 @@ export default function MixStage3D({
     <div style={{ height }} className="w-full">
       <Canvas
         dpr={[1, isMobile ? 1.25 : 1.8]}
-        camera={{ position: [0, 0.4, 4.4], fov: 38 }}
+        camera={{ position: [0, 0.5, 4.8], fov: 38 }}
         gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
       >
         <ShowroomLights simple={isMobile} />
@@ -44,11 +44,11 @@ export default function MixStage3D({
           />
         </group>
         {/* Podium */}
-        <mesh position={[0, -1.32, 0]} rotation={[0, 0, 0]}>
-          <cylinderGeometry args={[1.25, 1.4, 0.16, 56]} />
+        <mesh position={[0, -1.34, 0]}>
+          <cylinderGeometry args={[0.95, 1.1, 0.14, 56]} />
           <meshStandardMaterial color="#0d1512" roughness={0.35} metalness={0.5} />
         </mesh>
-        <StageFloor y={-1.22} opacity={isMobile ? 0.35 : 0.55} blur={2} />
+        <StageFloor y={-1.26} opacity={isMobile ? 0.25 : 0.35} blur={2.8} />
       </Canvas>
     </div>
   );

@@ -141,9 +141,9 @@ export function BottleMesh({
 
       {/* Halo de sélection */}
       {highlight && (
-        <mesh position={[0, 0, -0.6]}>
-          <circleGeometry args={[1.05, 48]} />
-          <meshBasicMaterial color={from} transparent opacity={0.14} />
+        <mesh position={[0, 0, -0.75]}>
+          <ringGeometry args={[0.95, 1.15, 64]} />
+          <meshBasicMaterial color={from} transparent opacity={0.55} toneMapped={false} />
         </mesh>
       )}
     </group>
