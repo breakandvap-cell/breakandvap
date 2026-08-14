@@ -122,10 +122,11 @@ export async function validateMix(args: {
   }));
   assertMixFlavorsShape(flavors);
 
-  const { priceCents, currency, brand } = await computeMixPriceCents({
+  const { priceCents, currency, brand, bottleVolumeMl } = await computeMixPriceCents({
     bottleProductId: mix.bottle_product_id,
     flavors,
   });
+  await assertNicotineReachable(bottleVolumeMl, Number(mix.nicotine_mg));
 
   const { error: upErr } = await db
     .from("custom_mixes")
