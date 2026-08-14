@@ -469,17 +469,25 @@ export function CustomMixConfigurator() {
 function Step({
   number,
   title,
+  done = false,
   children,
 }: {
   number: number;
   title: string;
+  done?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section>
       <h2 className="mb-3 flex items-center gap-3 text-lg">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-accent/60 text-xs text-accent">
-          {number}
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs transition-all duration-500 ${
+            done
+              ? "scale-110 border-accent bg-accent/20 text-accent shadow-[0_0_18px_-4px_color-mix(in_oklab,var(--accent)_80%,transparent)]"
+              : "border-accent/60 text-accent"
+          }`}
+        >
+          {done ? "✓" : number}
         </span>
         {title}
       </h2>
