@@ -11,6 +11,34 @@ export const MIX_MAX_FLAVORS = 3;
 /** Taux de nicotine maximum autorisé (mg/ml). */
 export const MIX_MAX_NICOTINE_MG = 10;
 
+/** Taux de nicotine réellement atteignables pour une contenance donnée.
+ *  On ne peut ajouter qu'un nombre ENTIER de boosters, et il faut laisser
+ *  de la place pour la base + les arômes (le flacon n'est jamais rempli
+ *  uniquement de boosters). Les taux > MIX_MAX_NICOTINE_MG sont exclus. */
+export function availableNicotineRates(
+  volumeMl: number | null | undefined,
+  cfg: { boosterVolumeMl: number; boosterConcentrationMgPerMl: number },
+): number[] {
+  if (!volumeMl || volumeMl <= 0) return [0];
+  const bv = cfg.boosterVolumeMl > 0 ? cfg.boosterVolumeMl : 10;
+  const conc =
+    cfg.boosterConcentrationMgPerMl > 0 ? cfg.boosterConcentrationMgPerMl : 20;
+  const nMax = Math.max(0, Math.ceil(volumeMl / bv) - 1);
+  const rates: number[] = [];
+  for (let n = 0; n <= nMax; n++) {
+    const rate = Math.round(((n * bv * conc) / volumeMl) * 10) / 10;
+    if (rate > MIX_MAX_NICOTINE_MG) break;
+    if (!rates.includes(rate)) rates.push(rate);
+  }
+  return rates.length > 0 ? rates : [0];
+}
+
+/** Affichage FR d'un taux de mix : "0 mg", "3,3 mg". */
+export function formatMixNicotine(mg: number): string {
+  const r = Math.round(mg * 10) / 10;
+  return `${Number.isInteger(r) ? String(r) : r.toFixed(1).replace(".", ",")} mg`;
+}
+
 export type MixFlavorOption = {
   id: string;
   name: string;
