@@ -1,6 +1,6 @@
 import { Canvas } from "@react-three/fiber";
 import { BottleMesh } from "./bottle-mesh";
-import { ShowroomLights, StageFloor } from "./scene-bits";
+import { ShowroomLights } from "./scene-bits";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 type Props = {
@@ -52,7 +52,6 @@ export default function MixStage3D({
           <ringGeometry args={[0.63, 0.7, 64]} />
           <meshBasicMaterial color={from} transparent opacity={0.5} toneMapped={false} />
         </mesh>
-        <StageFloor y={-1.22} opacity={isMobile ? 0.2 : 0.3} blur={3} />
       </Canvas>
     </div>
   );
