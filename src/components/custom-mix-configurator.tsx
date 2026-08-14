@@ -85,6 +85,28 @@ export function CustomMixConfigurator() {
     settings?.boosterConcentrationMgPerMl && settings.boosterConcentrationMgPerMl > 0
       ? settings.boosterConcentrationMgPerMl
       : 20;
+  const boosterCfg = {
+    boosterVolumeMl:
+      settings?.boosterVolumeMl && settings.boosterVolumeMl > 0
+        ? settings.boosterVolumeMl
+        : 10,
+    boosterConcentrationMgPerMl: concentration,
+  };
+  // Taux atteignables (nombre entier de boosters) pour la contenance choisie.
+  const nicotineOptions = useMemo(
+    () => availableNicotineRates(bottle?.volume_ml ?? null, boosterCfg),
+    [bottle?.volume_ml, boosterCfg.boosterVolumeMl, boosterCfg.boosterConcentrationMgPerMl],
+  );
+  // Changement de contenance : on retombe sur le taux atteignable le plus proche.
+  useEffect(() => {
+    if (nicotineOptions.some((r) => Math.abs(r - nicotine) < 0.05)) return;
+    const nearest = nicotineOptions.reduce(
+      (best, r) => (Math.abs(r - nicotine) < Math.abs(best - nicotine) ? r : best),
+      nicotineOptions[0] ?? 0,
+    );
+    setNicotine(nearest);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nicotineOptions]);
   const baseFill = bottle
     ? Math.max(0, Math.min(1, nicotine / concentration))
     : 0;
