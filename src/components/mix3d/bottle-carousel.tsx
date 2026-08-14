@@ -95,10 +95,11 @@ export default function BottleCarousel3D({
     <div style={{ height }} className="w-full">
       <Canvas
         dpr={[1, isMobile ? 1.25 : 1.8]}
-        camera={{ position: [0, 0.15, 6.2], fov: 36 }}
+        camera={{ position: [0, 0.1, 7 ], fov: 38 }}
         gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
       >
         <ShowroomLights simple={isMobile} />
+        <group position={[0, 0.2, 0]}>
         {items.map((item, i) => (
           <CarouselItemMesh
             key={item.id}
@@ -110,6 +111,7 @@ export default function BottleCarousel3D({
             onSelect={() => onSelect(item.id)}
           />
         ))}
+        </group>
       </Canvas>
     </div>
   );
