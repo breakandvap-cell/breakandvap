@@ -232,6 +232,8 @@ export function CustomMixConfigurator() {
                   from: colors.from,
                   to: colors.to,
                   fill: 0.55,
+                  label: `${b.volume_ml} ml`,
+                  sublabel: brand || "Break Vap",
                 }))}
                 selectedId={bottleId ?? bottles[0]?.id ?? null}
                 onSelect={setBottleId}
@@ -245,6 +247,10 @@ export function CustomMixConfigurator() {
                   const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
                   setBottleId(bottles[Math.min(bottles.length - 1, i + 1)]!.id);
                 }}
+              />
+              <StageTitle
+                title={bottle ? `${bottle.volume_ml} ML` : "CHOISISSEZ"}
+                subtitle={bottle ? formatPrice(bottle.price_cents) : undefined}
               />
               <div className="mt-2 flex flex-wrap justify-center gap-2">
                 {bottles.map((b) => (
@@ -344,6 +350,8 @@ export function CustomMixConfigurator() {
                     from: colors.from,
                     to: colors.to,
                     fill: parts.some((p) => p.flavorId === f.id) ? 0.8 : 0.4,
+                    label: f.name.split(" ")[0] ?? f.name,
+                    sublabel: brand || "Break Vap",
                   }))}
                   selectedId={focusFlavor ?? brandFlavors[0]?.id ?? null}
                   onSelect={(id) => {
@@ -368,6 +376,20 @@ export function CustomMixConfigurator() {
                       brandFlavors[Math.min(brandFlavors.length - 1, i + 1)]!.id,
                     );
                   }}
+                />
+                <StageTitle
+                  title={
+                    brandFlavors.find((f) => f.id === focusFlavor)?.name ??
+                    brandFlavors[0]?.name ??
+                    "ARÔMES"
+                  }
+                  subtitle={
+                    brandFlavors.find((f) => f.id === focusFlavor)
+                      ? formatPrice(
+                          brandFlavors.find((f) => f.id === focusFlavor)!.price_cents,
+                        )
+                      : undefined
+                  }
                 />
               </ShowcaseFrame>
               <div className="flex flex-wrap justify-center gap-2">
@@ -493,10 +515,20 @@ export function CustomMixConfigurator() {
             to={colors.to}
             size={bottleScale(bottle?.volume_ml ?? null)}
             complete={pctValid && Boolean(bottle)}
+            label={bottle ? `${bottle.volume_ml} ml` : undefined}
+            sublabel={brand || "Break Vap"}
           />
-          <p className="mt-1 text-center text-xs text-muted-foreground">
-            {bottle ? `${bottle.volume_ml} ml` : "— ml"}
-          </p>
+          <StageTitle
+            title={
+              parts.length > 0
+                ? (brandFlavors.find((f) => f.id === parts[0]!.flavorId)?.name ??
+                  "MON MIX")
+                : bottle
+                  ? `${bottle.volume_ml} ML`
+                  : "MON MIX"
+            }
+            subtitle={bottle ? `${bottle.volume_ml} ml · ${brand || "Break Vap"}` : undefined}
+          />
           <p className="mt-1 text-center text-xs text-muted-foreground">
             {parts.length > 0
               ? parts
@@ -618,6 +650,34 @@ function ShowcaseOverlay({ children }: { children: React.ReactNode }) {
       <span className="rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
         {children}
       </span>
+    </div>
+  );
+}
+
+/** Titre produit mis en scène sous le flacon. */
+function StageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
+  return (
+    <div className="relative z-10 px-4 pb-4 pt-1 text-center">
+      <p
+        className="text-lg font-semibold uppercase leading-tight tracking-[0.18em] sm:text-2xl"
+        style={{
+          fontFamily: "var(--font-serif)",
+          textShadow:
+            "0 0 18px color-mix(in oklab, var(--accent) 55%, transparent), 0 2px 10px rgba(0,0,0,.6)",
+        }}
+      >
+        {title}
+      </p>
+      <span
+        className="mx-auto mt-2 block h-px w-16 rounded-full"
+        style={{
+          background:
+            "linear-gradient(90deg, transparent, color-mix(in oklab, var(--accent) 85%, transparent), transparent)",
+        }}
+      />
+      {subtitle ? (
+        <p className="mt-2 text-xs tracking-wide text-muted-foreground">{subtitle}</p>
+      ) : null}
     </div>
   );
 }

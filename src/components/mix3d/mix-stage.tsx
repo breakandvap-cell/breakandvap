@@ -11,6 +11,9 @@ type Props = {
   size?: number;
   complete?: boolean;
   height?: number;
+  /** Étiquette du flacon central. */
+  label?: string;
+  sublabel?: string;
 };
 
 /** Flacon central « en construction », posé sur un podium avec reflet. */
@@ -21,13 +24,17 @@ export default function MixStage3D({
   size = 1,
   complete = false,
   height = 300,
+  label,
+  sublabel,
 }: Props) {
   const isMobile = useIsMobile();
   return (
     <div style={{ height }} className="w-full">
       <Canvas
         dpr={[1, isMobile ? 1.25 : 1.8]}
-        camera={{ position: [0, 0.25, 5.4], fov: 36 }}
+        shadows={!isMobile}
+        camera={{ position: [0, -1.05, 5.1], fov: isMobile ? 50 : 44 }}
+        onCreated={({ camera }) => camera.lookAt(0, 0.5, 0)}
         gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
       >
         <ShowroomLights simple={isMobile} />
@@ -41,14 +48,16 @@ export default function MixStage3D({
             float
             simple={isMobile}
             highlight={complete}
+            label={label}
+            sublabel={sublabel}
           />
         </group>
         {/* Podium */}
-        <mesh position={[0, -1.28, 0]}>
+        <mesh position={[0, -1.42, 0]} receiveShadow>
           <cylinderGeometry args={[0.62, 0.72, 0.1, 56]} />
           <meshStandardMaterial color="#101a16" roughness={0.3} metalness={0.6} />
         </mesh>
-        <mesh position={[0, -1.22, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <mesh position={[0, -1.36, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.63, 0.7, 64]} />
           <meshBasicMaterial color={from} transparent opacity={0.5} toneMapped={false} />
         </mesh>
