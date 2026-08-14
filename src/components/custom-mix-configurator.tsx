@@ -73,7 +73,7 @@ export function CustomMixConfigurator() {
     return Math.round(cents);
   }, [bottle, parts, brandFlavors]);
 
-  const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#9aa5b1", to: "#4b5563" };
+  const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
 
   // Volume réellement occupé par la base nicotinée, d'après la concentration
   // des boosters configurée dans les réglages du site :
