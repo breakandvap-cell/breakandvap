@@ -298,19 +298,49 @@ export function CustomMixConfigurator() {
 
         {/* Étape 2 — Nicotine */}
         <Step number={2} title="Réglez votre taux de nicotine" done={nicotine > 0}>
-          <div className="max-w-md space-y-3">
-            <Slider
-              value={[nicotine]}
-              min={0}
-              max={MIX_MAX_NICOTINE_MG}
-              step={1}
-              onValueChange={(v) => setNicotine(v[0] ?? 0)}
-              aria-label="Taux de nicotine"
-            />
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{nicotine} mg/ml</span>
-              <span className="text-xs text-accent">Nicotine offerte, sans supplément</span>
-            </div>
+          <div className="max-w-xl space-y-3">
+            {!bottle ? (
+              <p className="text-sm text-muted-foreground">
+                Choisissez d'abord une contenance à l'étape 1.
+              </p>
+            ) : (
+              <>
+                <div
+                  role="radiogroup"
+                  aria-label="Taux de nicotine"
+                  className="flex flex-wrap gap-2"
+                >
+                  {nicotineOptions.map((r, i) => {
+                    const selected = Math.abs(r - nicotine) < 0.05;
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setNicotine(r)}
+                        className={`rounded-full border px-4 py-1.5 text-sm transition ${
+                          selected
+                            ? "border-accent bg-accent/10 text-accent"
+                            : "border-border text-muted-foreground hover:border-accent/60"
+                        }`}
+                      >
+                        {formatMixNicotine(r)}
+                        <span className="ml-2 text-[10px] uppercase tracking-wider opacity-70">
+                          {i === 0 ? "sans booster" : `${i} booster${i > 1 ? "s" : ""}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Seuls ces taux sont réalisables : un booster de{" "}
+                  {boosterCfg.boosterVolumeMl} ml à {concentration} mg/ml ne se
+                  coupe pas en deux (max {MIX_MAX_NICOTINE_MG} mg).
+                </p>
+                <p className="text-xs text-accent">Nicotine offerte, sans supplément</p>
+              </>
+            )}
           </div>
         </Step>
 
