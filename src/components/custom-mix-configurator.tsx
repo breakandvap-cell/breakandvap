@@ -193,7 +193,7 @@ export function CustomMixConfigurator() {
         </header>
 
         {/* Étape 1 — Flacon */}
-        <Step number={1} title="Choisissez votre contenance">
+        <Step number={1} title="Choisissez votre contenance" done={Boolean(bottle)}>
           {bottlesLoading ? (
             <p className="text-sm text-muted-foreground">Chargement des flacons…</p>
           ) : bottles.length === 0 ? (
@@ -222,7 +222,7 @@ export function CustomMixConfigurator() {
         </Step>
 
         {/* Étape 2 — Nicotine */}
-        <Step number={2} title="Réglez votre taux de nicotine">
+        <Step number={2} title="Réglez votre taux de nicotine" done={nicotine > 0}>
           <div className="max-w-md space-y-3">
             <Slider
               value={[nicotine]}
@@ -240,7 +240,7 @@ export function CustomMixConfigurator() {
         </Step>
 
         {/* Étape 3 — Arômes */}
-        <Step number={3} title="Composez vos arômes">
+        <Step number={3} title="Composez vos arômes" done={pctValid}>
           <div className="mb-4 flex flex-wrap gap-2">
             {MIX_BRANDS.map((b) => {
               const available = (flavorsByBrand?.[b] ?? []).length > 0;
@@ -382,12 +382,25 @@ export function CustomMixConfigurator() {
 
       {/* Colonne visuelle + validation */}
       <aside className="lg:sticky lg:top-6">
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div
+          className="relative overflow-hidden rounded-xl border bg-card p-5 transition-colors duration-500"
+          style={{
+            borderColor: pctValid
+              ? "color-mix(in oklab, var(--accent) 60%, transparent)"
+              : "var(--border)",
+            backgroundImage:
+              "radial-gradient(120% 80% at 50% -10%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 70%)",
+            boxShadow: pctValid
+              ? "0 0 40px -12px color-mix(in oklab, var(--accent) 55%, transparent)"
+              : undefined,
+          }}
+        >
           <MixBottleVisual
             fill={fill}
             baseFill={baseFill}
             from={colors.from}
             to={colors.to}
+            complete={pctValid && Boolean(bottle)}
             volumeMl={bottle?.volume_ml ?? null}
             volumeLabel={bottle ? `${bottle.volume_ml} ml` : null}
             caption={
@@ -429,7 +442,11 @@ export function CustomMixConfigurator() {
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="mt-4 w-full rounded-full bg-accent px-5 py-3 text-sm font-medium text-accent-foreground transition disabled:cursor-not-allowed disabled:opacity-50"
+            className={`mt-4 w-full rounded-full bg-accent px-5 py-3 text-sm font-medium text-accent-foreground transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-50 ${
+              canSubmit
+                ? "scale-[1.02] shadow-[0_0_30px_-6px_color-mix(in_oklab,var(--accent)_70%,transparent)] hover:scale-[1.04]"
+                : ""
+            }`}
           >
             {submitting ? "Validation…" : "Valider et ajouter au panier"}
           </button>
@@ -452,17 +469,25 @@ export function CustomMixConfigurator() {
 function Step({
   number,
   title,
+  done = false,
   children,
 }: {
   number: number;
   title: string;
+  done?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <section>
       <h2 className="mb-3 flex items-center gap-3 text-lg">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full border border-accent/60 text-xs text-accent">
-          {number}
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs transition-all duration-500 ${
+            done
+              ? "scale-110 border-accent bg-accent/20 text-accent shadow-[0_0_18px_-4px_color-mix(in_oklab,var(--accent)_80%,transparent)]"
+              : "border-accent/60 text-accent"
+          }`}
+        >
+          {done ? "✓" : number}
         </span>
         {title}
       </h2>
