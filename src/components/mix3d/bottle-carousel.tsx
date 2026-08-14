@@ -12,6 +12,10 @@ export type CarouselItem = {
   from: string;
   to: string;
   fill?: number;
+  /** Texte principal de l'étiquette. */
+  label?: string;
+  /** Ligne secondaire de l'étiquette. */
+  sublabel?: string;
 };
 
 type Props = {
@@ -75,6 +79,8 @@ function CarouselItemMesh({
         simple={simple}
         ghost={ghost}
         highlight={selected}
+        label={item.label}
+        sublabel={item.sublabel}
       />
     </group>
   );
@@ -95,7 +101,9 @@ export default function BottleCarousel3D({
     <div style={{ height }} className="w-full">
       <Canvas
         dpr={[1, isMobile ? 1.25 : 1.8]}
-        camera={{ position: [0, 0.1, 7 ], fov: 38 }}
+        shadows={!isMobile}
+        camera={{ position: [0, -1.15, 6.2], fov: isMobile ? 52 : 46 }}
+        onCreated={({ camera }) => camera.lookAt(0, 0.55, 0)}
         gl={{ antialias: !isMobile, powerPreference: "high-performance" }}
       >
         <ShowroomLights simple={isMobile} />
