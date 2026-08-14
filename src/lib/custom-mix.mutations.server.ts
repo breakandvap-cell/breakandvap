@@ -2,6 +2,7 @@ import {
   assertMixFlavorsShape,
   assertMixOwnership,
   assertNicotine,
+  assertNicotineReachable,
   computeMixPriceCents,
   type MixFlavorInput,
 } from "./custom-mix.server";
@@ -23,10 +24,11 @@ export async function saveMixDraft(args: {
 }) {
   assertNicotine(args.nicotineMg);
   assertMixFlavorsShape(args.flavors);
-  const { priceCents, currency, brand } = await computeMixPriceCents({
+  const { priceCents, currency, brand, bottleVolumeMl } = await computeMixPriceCents({
     bottleProductId: args.bottleProductId,
     flavors: args.flavors,
   });
+  await assertNicotineReachable(bottleVolumeMl, args.nicotineMg);
 
   const db = await admin();
   let mixId = args.mixId ?? null;
@@ -120,10 +122,11 @@ export async function validateMix(args: {
   }));
   assertMixFlavorsShape(flavors);
 
-  const { priceCents, currency, brand } = await computeMixPriceCents({
+  const { priceCents, currency, brand, bottleVolumeMl } = await computeMixPriceCents({
     bottleProductId: mix.bottle_product_id,
     flavors,
   });
+  await assertNicotineReachable(bottleVolumeMl, Number(mix.nicotine_mg));
 
   const { error: upErr } = await db
     .from("custom_mixes")

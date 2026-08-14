@@ -1,4 +1,9 @@
-import { MIX_BRANDS, MIX_MAX_FLAVORS, MIX_MAX_NICOTINE_MG } from "./custom-mix";
+import {
+  availableNicotineRates,
+  MIX_BRANDS,
+  MIX_MAX_FLAVORS,
+  MIX_MAX_NICOTINE_MG,
+} from "./custom-mix";
 
 export type MixFlavorInput = { flavor_product_id: string; percentage: number };
 
@@ -29,11 +34,36 @@ export function assertMixFlavorsShape(flavors: MixFlavorInput[]) {
 
 export function assertNicotine(nicotineMg: number) {
   if (
-    !Number.isInteger(nicotineMg) ||
+    !Number.isFinite(nicotineMg) ||
     nicotineMg < 0 ||
     nicotineMg > MIX_MAX_NICOTINE_MG
   ) {
     throw new Error(`Le taux de nicotine doit être compris entre 0 et ${MIX_MAX_NICOTINE_MG} mg.`);
+  }
+}
+
+/** Le taux doit correspondre exactement à un nombre entier de boosters
+ *  pour la contenance choisie (aucune valeur arbitraire acceptée). */
+export async function assertNicotineReachable(
+  volumeMl: number | null,
+  nicotineMg: number,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("site_settings")
+    .select("booster_volume_ml, booster_concentration_mg_per_ml")
+    .eq("singleton", true)
+    .maybeSingle();
+  const cfg = {
+    boosterVolumeMl: Number(data?.booster_volume_ml) || 10,
+    boosterConcentrationMgPerMl: Number(data?.booster_concentration_mg_per_ml) || 20,
+  };
+  const rates = availableNicotineRates(volumeMl, cfg);
+  const ok = rates.some((r) => Math.abs(r - nicotineMg) < 0.05);
+  if (!ok) {
+    throw new Error(
+      "Ce taux de nicotine n'est pas réalisable pour cette contenance.",
+    );
   }
 }
 
@@ -53,7 +83,7 @@ type ProductRef = {
 export async function computeMixPriceCents(args: {
   bottleProductId: string;
   flavors: MixFlavorInput[];
-}): Promise<{ priceCents: number; currency: string; brand: string }> {
+}): Promise<{ priceCents: number; currency: string; brand: string; bottleVolumeMl: number }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
   const ids = [args.bottleProductId, ...args.flavors.map((f) => f.flavor_product_id)];
@@ -98,6 +128,7 @@ export async function computeMixPriceCents(args: {
     priceCents: Math.round(bottle.price_cents + flavorsCents),
     currency: bottle.currency ?? "EUR",
     brand: [...brands][0]!,
+    bottleVolumeMl: bottle.volume_ml!,
   };
 }
 
