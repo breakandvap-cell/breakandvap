@@ -3,7 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import { MixBottleVisual } from "@/components/mix-bottle-visual";
+import {
+  BottleCarousel3DClient,
+  MixStage3DClient,
+} from "@/components/mix3d/client-3d";
 import { formatPrice } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import {
@@ -25,6 +28,17 @@ import {
 import { siteSettingsQueryOptions } from "@/lib/site-settings.functions";
 
 type Part = { flavorId: string; percentage: number };
+
+/** Échelle 3D proportionnelle à la contenance (racine cubique). */
+function bottleScale(volumeMl: number | null | undefined): number {
+  const v = volumeMl && volumeMl > 0 ? volumeMl : 50;
+  return Math.max(0.62, Math.min(1.5, Math.cbrt(v / 60)));
+}
+
+/** Teinte d'arôme dérivée des couleurs de marque, pour varier la vitrine. */
+function flavorTint(base: { from: string; to: string }, i: number) {
+  return { from: base.from, to: base.to, hue: (i * 47) % 360 };
+}
 
 export function CustomMixConfigurator() {
   const cart = useCart();
@@ -197,27 +211,60 @@ export function CustomMixConfigurator() {
           {bottlesLoading ? (
             <p className="text-sm text-muted-foreground">Chargement des flacons…</p>
           ) : bottles.length === 0 ? (
-            <EmptyNote>Aucun flacon vide n'est disponible pour le moment.</EmptyNote>
+            <ShowcaseFrame>
+              <BottleCarousel3DClient
+                items={[30, 60, 120, 200].map((v) => ({
+                  id: `ghost-${v}`,
+                  size: bottleScale(v),
+                  from: "#8ea79c",
+                  to: "#3f524a",
+                }))}
+                selectedId={null}
+                onSelect={() => {}}
+                ghost
+              />
+              <ShowcaseOverlay>Bientôt disponible</ShowcaseOverlay>
+            </ShowcaseFrame>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {bottles.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => setBottleId(b.id)}
-                  className={`rounded-lg border px-4 py-3 text-left transition ${
-                    bottleId === b.id
-                      ? "border-accent bg-accent/10"
-                      : "border-border hover:border-accent/60"
-                  }`}
-                >
-                  <span className="block text-sm font-medium">{b.volume_ml} ml</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {formatPrice(b.price_cents)}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <ShowcaseFrame>
+              <BottleCarousel3DClient
+                items={bottles.map((b) => ({
+                  id: b.id,
+                  size: bottleScale(b.volume_ml),
+                  from: colors.from,
+                  to: colors.to,
+                  fill: 0.55,
+                }))}
+                selectedId={bottleId ?? bottles[0]?.id ?? null}
+                onSelect={setBottleId}
+              />
+              <CarouselNav
+                onPrev={() => {
+                  const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
+                  setBottleId(bottles[Math.max(0, i - 1)]!.id);
+                }}
+                onNext={() => {
+                  const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
+                  setBottleId(bottles[Math.min(bottles.length - 1, i + 1)]!.id);
+                }}
+              />
+              <div className="mt-2 flex flex-wrap justify-center gap-2">
+                {bottles.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => setBottleId(b.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
+                      bottleId === b.id
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border text-muted-foreground hover:border-accent/60"
+                    }`}
+                  >
+                    {b.volume_ml} ml · {formatPrice(b.price_cents)}
+                  </button>
+                ))}
+              </div>
+            </ShowcaseFrame>
           )}
         </Step>
 
