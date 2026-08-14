@@ -601,7 +601,7 @@ export function CustomMixConfigurator() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Nicotine</dt>
-              <dd>{nicotine} mg/ml (offerte)</dd>
+              <dd>{formatMixNicotine(nicotine)}/ml (offerte)</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Marque</dt>
