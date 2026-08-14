@@ -54,7 +54,15 @@ export function BottleMesh({
   const liquidY = -BODY_H / 2 + liquidH / 2;
 
   return (
-    <group ref={group} scale={scale}>
+    <group scale={scale}>
+      {/* Halo de sélection (hors rotation) */}
+      {highlight && (
+        <mesh position={[0, 0, -0.75]}>
+          <ringGeometry args={[0.78, 0.9, 64]} />
+          <meshBasicMaterial color={from} transparent opacity={0.55} toneMapped={false} />
+        </mesh>
+      )}
+      <group ref={group}>
       {/* Liquide */}
       {!ghost && fill > 0.001 && (
         <mesh position={[0, liquidY, 0]}>
@@ -139,13 +147,7 @@ export function BottleMesh({
         />
       </mesh>
 
-      {/* Halo de sélection */}
-      {highlight && (
-        <mesh position={[0, 0, -0.75]}>
-          <ringGeometry args={[0.78, 0.9, 64]} />
-          <meshBasicMaterial color={from} transparent opacity={0.55} toneMapped={false} />
-        </mesh>
-      )}
+      </group>
     </group>
   );
 }
