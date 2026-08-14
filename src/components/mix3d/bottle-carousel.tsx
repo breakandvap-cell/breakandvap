@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import { BottleMesh } from "./bottle-mesh";
-import { ShowroomLights, StageFloor } from "./scene-bits";
+import { ShowroomLights } from "./scene-bits";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export type CarouselItem = {
@@ -110,7 +110,6 @@ export default function BottleCarousel3D({
             onSelect={() => onSelect(item.id)}
           />
         ))}
-        <StageFloor y={-1.25} opacity={isMobile ? 0.3 : 0.45} />
       </Canvas>
     </div>
   );
