@@ -24,6 +24,8 @@ export type DefaultBoosterRefs = {
   defaultBoosterIceId: string | null;
 };
 
+export type MixToggle = { customMixEnabled: boolean };
+
 export const DEFAULT_BOOSTER_REFS: DefaultBoosterRefs = {
   defaultBoosterNormaleId: null,
   defaultBoosterSelId: null,
@@ -34,16 +36,21 @@ export const DEFAULT_BOOSTER_REFS: DefaultBoosterRefs = {
 export const siteSettingsQueryOptions = () =>
   queryOptions({
     queryKey: ["site-settings"] as const,
-    queryFn: async (): Promise<BoosterConfig & DefaultBoosterRefs> => {
+    queryFn: async (): Promise<BoosterConfig & DefaultBoosterRefs & MixToggle> => {
       const { data, error } = await supabase
         .from("site_settings")
         .select(
-          "booster_volume_ml, booster_concentration_mg_per_ml, default_booster_normale_id, default_booster_sel_id, default_booster_ice_id",
+          "booster_volume_ml, booster_concentration_mg_per_ml, default_booster_normale_id, default_booster_sel_id, default_booster_ice_id, custom_mix_enabled",
         )
         .eq("singleton", true)
         .maybeSingle();
       if (error) throw new Error(error.message);
-      if (!data) return { ...DEFAULT_BOOSTER_CONFIG, ...DEFAULT_BOOSTER_REFS };
+      if (!data)
+        return {
+          ...DEFAULT_BOOSTER_CONFIG,
+          ...DEFAULT_BOOSTER_REFS,
+          customMixEnabled: true,
+        };
       return {
         boosterVolumeMl: Number(data.booster_volume_ml) || DEFAULT_BOOSTER_CONFIG.boosterVolumeMl,
         boosterConcentrationMgPerMl:
@@ -55,6 +62,8 @@ export const siteSettingsQueryOptions = () =>
           (data as { default_booster_sel_id?: string | null }).default_booster_sel_id ?? null,
         defaultBoosterIceId:
           (data as { default_booster_ice_id?: string | null }).default_booster_ice_id ?? null,
+        customMixEnabled:
+          (data as { custom_mix_enabled?: boolean | null }).custom_mix_enabled ?? true,
       };
     },
   });
