@@ -132,6 +132,186 @@ function MixAdminPage() {
 }
 
 function EnabledSwitch({ enabled, onDone }: { enabled: boolean; onDone: () => void }) {
+  return <EnabledSwitchInner enabled={enabled} onDone={onDone} />;
+}
+
+function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
+  const create = useServerFn(adminCreateMixFlavor);
+  const upload = useServerFn(adminUploadProductPhoto);
+  const [open, setOpen] = useState<MixBrand | null>(null);
+  const [flavor, setFlavor] = useState("");
+  const [price, setPrice] = useState("17.90");
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const reset = () => {
+    setOpen(null);
+    setFlavor("");
+    setPrice("17.90");
+    setPhotoUrl(null);
+  };
+
+  const m = useMutation({
+    mutationFn: async () => {
+      const cents = Math.round(Number(price.replace(",", ".")) * 100);
+      if (!Number.isFinite(cents) || cents < 0) {
+        throw new Error("Prix invalide.");
+      }
+      return create({
+        data: {
+          brand: open as MixBrand,
+          flavor: flavor.trim(),
+          price_cents: cents,
+          photo_url: photoUrl,
+        },
+      });
+    },
+    onSuccess: (p) => {
+      toast.success(`« ${p.name} » créé.`);
+      reset();
+      onDone();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const handleFile = async (file: File | undefined) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const optimized = await optimizeImage(file);
+      const res = await upload({
+        data: {
+          filename: optimized.filename,
+          contentType: optimized.contentType,
+          base64: optimized.base64,
+        },
+      });
+      setPhotoUrl(res.url);
+      toast.success("Photo ajoutée.");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <section className="rounded-lg border border-border bg-card p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-medium">Ajouter un arôme</h2>
+          <p className="text-xs text-muted-foreground">
+            Création rapide d'un arôme « Mon Mix » : nom du goût, photo et prix
+            500 ml. Tous les autres champs sont pré-remplis. Le produit reste
+            modifiable via la fiche produit classique.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {MIX_BRANDS.map((b) => (
+            <button
+              key={b}
+              type="button"
+              onClick={() => setOpen(open === b ? null : b)}
+              className={`inline-flex items-center gap-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                open === b
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border"
+              }`}
+            >
+              <Plus className="h-4 w-4" /> {b}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {open && (
+        <form
+          className="mt-4 grid gap-4 border-t border-border pt-4 sm:grid-cols-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            m.mutate();
+          }}
+        >
+          <div className="sm:col-span-1">
+            <label className="text-sm font-medium" htmlFor="quick-flavor-name">
+              Nom du goût *
+            </label>
+            <input
+              id="quick-flavor-name"
+              value={flavor}
+              onChange={(e) => setFlavor(e.target.value)}
+              placeholder="Fruit du Dragon"
+              className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Nom final : {open} {flavor.trim() || "…"}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium" htmlFor="quick-flavor-price">
+              Prix 500 ml (€) *
+            </label>
+            <input
+              id="quick-flavor-price"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium" htmlFor="quick-flavor-photo">
+              Photo
+            </label>
+            <input
+              id="quick-flavor-photo"
+              type="file"
+              accept="image/*"
+              onChange={(e) => void handleFile(e.target.files?.[0])}
+              className="mt-1 w-full text-sm"
+            />
+            {uploading && (
+              <p className="mt-1 text-xs text-muted-foreground">Envoi…</p>
+            )}
+            {photoUrl && (
+              <img
+                src={photoUrl}
+                alt="Aperçu de l'arôme"
+                loading="lazy"
+                className="mt-2 h-16 w-16 rounded object-cover"
+              />
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 sm:col-span-3">
+            <button
+              type="submit"
+              disabled={m.isPending || uploading || flavor.trim().length < 2}
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+            >
+              {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Créer l'arôme
+            </button>
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-md border border-border px-4 py-2 text-sm"
+            >
+              Annuler
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Stock initial 0 — à ajuster ensuite via la gestion de stock.
+            </span>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function EnabledSwitchInner({ enabled, onDone }: { enabled: boolean; onDone: () => void }) {
   const fn = useServerFn(adminSetMixEnabled);
   const m = useMutation({
     mutationFn: (next: boolean) => fn({ data: { enabled: next } }),
