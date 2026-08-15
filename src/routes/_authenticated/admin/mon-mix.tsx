@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -11,6 +11,7 @@ import {
   adminUpdateMixProductPrice,
   adminDeleteMixRecipe,
   adminCreateMixFlavor,
+  adminDeleteMixProduct,
 } from "@/lib/custom-mix-admin.functions";
 import { adminUploadProductPhoto } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
@@ -102,6 +103,7 @@ function MixAdminPage() {
           published: b.is_published,
           stock_status: b.stock_status,
         }))}
+        editKind="standard"
         onDone={refresh}
       />
 
@@ -117,6 +119,7 @@ function MixAdminPage() {
           published: f.is_published,
           stock_status: f.stock_status,
         }))}
+        editKind="eliquide"
         onDone={refresh}
       />
 
