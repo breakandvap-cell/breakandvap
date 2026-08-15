@@ -78,6 +78,7 @@ function AdminNav() {
       | "/admin/factures"
       | "/admin/categories"
       | "/admin/references-techniques"
+      | "/admin/mon-mix"
       | "/admin/reception-marchandise"
       | "/admin/temoignages"
       | "/admin/promotions"
@@ -91,6 +92,7 @@ function AdminNav() {
     { to: "/admin/produits/a-completer", label: "Produits à compléter" },
     { to: "/admin/categories", label: "Catégories" },
     { to: "/admin/references-techniques", label: "Références techniques" },
+    { to: "/admin/mon-mix", label: "Configurateur Mon Mix" },
     { to: "/admin/reception-marchandise", label: "Réception marchandise" },
     { to: "/admin/commandes", label: "Commandes" },
     { to: "/admin/clients", label: "Clients" },

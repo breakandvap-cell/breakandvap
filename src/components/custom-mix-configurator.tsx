@@ -216,6 +216,18 @@ export function CustomMixConfigurator() {
     }
   };
 
+  // Interrupteur global piloté depuis /admin/mon-mix.
+  if (settings && settings.customMixEnabled === false) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <h2 className="text-lg font-semibold">Configurateur momentanément indisponible</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          « Mon Mix » est temporairement désactivé. Revenez très bientôt : nos arômes
+          reviennent en stock rapidement.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
       <div className="space-y-8">
