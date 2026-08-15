@@ -8,27 +8,33 @@ import type { Database } from "@/integrations/supabase/types";
 export const MIX_BRANDS = ["Alchimix", "Mixologue"] as const;
 export type MixBrand = (typeof MIX_BRANDS)[number];
 
+/** Sous-catégorie qui rend un produit utilisable dans le configurateur. */
+export const MIX_SUBCATEGORY = "Mon Mix";
+
 /** Critères réels de sélection en base pour chaque famille affichée. */
 export const MIX_FAMILY_CRITERIA: Record<
   MixBrand,
-  { brand: string; rangeName?: string }
+  { brand?: string; rangeName?: string }
 > = {
-  Alchimix: { brand: "LiquidLab", rangeName: "Alchimix" },
+  Alchimix: { rangeName: "Alchimix" },
   Mixologue: { brand: "Mixologue" },
 };
 
 const eq = (a: string | null | undefined, b: string) =>
   (a ?? "").trim().toLowerCase() === b.trim().toLowerCase();
 
-/** Détermine la famille DIY d'un produit (null si non éligible). */
+/** Détermine la famille DIY d'un produit (null si non éligible).
+ *  Règle : subcategory = 'Mon Mix', puis gamme Alchimix ou marque Mixologue. */
 export function mixFamilyOf(product: {
-  brand: string | null;
+  brand?: string | null;
   range_name?: string | null;
+  subcategory?: string | null;
 }): MixBrand | null {
+  if (!eq(product.subcategory ?? null, MIX_SUBCATEGORY)) return null;
   for (const family of MIX_BRANDS) {
     const c = MIX_FAMILY_CRITERIA[family];
-    if (!eq(product.brand, c.brand)) continue;
     if (c.rangeName && !eq(product.range_name ?? null, c.rangeName)) continue;
+    if (c.brand && !eq(product.brand ?? null, c.brand)) continue;
     return family;
   }
   return null;
@@ -73,6 +79,7 @@ export type MixFlavorOption = {
   slug: string;
   brand: string | null;
   range_name?: string | null;
+  subcategory?: string | null;
   price_cents: number;
   currency: string;
   photos: string[] | null;
@@ -89,11 +96,9 @@ export const mixFlavorsByBrandQueryOptions = () =>
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, slug, brand, range_name, price_cents, currency, photos, stock_status",
+          "id, name, slug, brand, range_name, subcategory, price_cents, currency, photos, stock_status",
         )
-        .in("brand", [
-          ...new Set(Object.values(MIX_FAMILY_CRITERIA).map((c) => c.brand)),
-        ])
+        .eq("subcategory", MIX_SUBCATEGORY)
         .eq("is_published", true)
         .order("name", { ascending: true });
       if (error) throw new Error(error.message);
