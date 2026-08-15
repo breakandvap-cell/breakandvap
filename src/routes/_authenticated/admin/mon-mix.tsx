@@ -360,20 +360,51 @@ function PriceTable({
   title,
   hint,
   rows,
+  editKind,
   onDone,
 }: {
   title: string;
   hint: string;
   rows: PriceRow[];
+  editKind: "standard" | "eliquide";
   onDone: () => void;
 }) {
   const fn = useServerFn(adminUpdateMixProductPrice);
+  const removeFn = useServerFn(adminDeleteMixProduct);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const m = useMutation({
     mutationFn: (v: { product_id: string; price_cents: number }) => fn({ data: v }),
     onSuccess: () => {
       toast.success("Prix mis à jour.");
       onDone();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+
+  const delM = useMutation({
+    mutationFn: (v: { product_id: string; unpublish: boolean; name: string }) =>
+      removeFn({ data: { product_id: v.product_id, unpublish: v.unpublish } }).then(
+        (res) => ({ ...res, input: v }),
+      ),
+    onSuccess: (res) => {
+      if (res.status === "deleted") {
+        toast.success(`« ${res.input.name} » supprimé.`);
+        onDone();
+        return;
+      }
+      if (res.status === "unpublished") {
+        toast.success(`« ${res.input.name} » dépublié (historique conservé).`);
+        onDone();
+        return;
+      }
+      const detail = res.reasons.join(" · ");
+      if (
+        confirm(
+          `Suppression impossible : ce produit est utilisé dans ${detail}.\n\nVoulez-vous le dépublier à la place (il disparaît de la boutique, l'historique est conservé) ?`,
+        )
+      ) {
+        delM.mutate({ ...res.input, unpublish: true });
+      }
     },
     onError: (e) => toast.error((e as Error).message),
   });
@@ -432,6 +463,29 @@ function PriceTable({
                         className="rounded-md border border-border px-3 py-1 text-xs hover:border-primary"
                       >
                         Enregistrer
+                      </button>
+                      <Link
+                        to={
+                          editKind === "eliquide"
+                            ? "/admin/produits/eliquide/$id"
+                            : "/admin/produits/$id"
+                        }
+                        params={{ id: r.id }}
+                        className="ml-2 inline-block rounded-md border border-border px-3 py-1 text-xs hover:border-primary"
+                      >
+                        Modifier
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={delM.isPending}
+                        onClick={() => {
+                          if (confirm(`Supprimer définitivement « ${r.name} » ?`)) {
+                            delM.mutate({ product_id: r.id, unpublish: false, name: r.name });
+                          }
+                        }}
+                        className="ml-2 inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-xs text-destructive hover:border-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" /> Supprimer
                       </button>
                     </td>
                   </tr>
