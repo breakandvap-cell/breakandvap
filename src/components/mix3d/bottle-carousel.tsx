@@ -16,6 +16,8 @@ export type CarouselItem = {
   label?: string;
   /** Ligne secondaire de l'étiquette. */
   sublabel?: string;
+  /** Photo produit (première image) appliquée en texture. */
+  photoUrl?: string | null;
 };
 
 type Props = {
@@ -81,6 +83,7 @@ function CarouselItemMesh({
         highlight={selected}
         label={item.label}
         sublabel={item.sublabel}
+        photoUrl={item.photoUrl}
       />
     </group>
   );

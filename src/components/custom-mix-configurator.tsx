@@ -406,6 +406,7 @@ export function CustomMixConfigurator() {
                     fill: parts.some((p) => p.flavorId === f.id) ? 0.8 : 0.4,
                     label: f.name.split(" ")[0] ?? f.name,
                     sublabel: brand || "Break Vap",
+                    photoUrl: f.photos?.[0] ?? null,
                   }))}
                   selectedId={focusFlavor ?? brandFlavors[0]?.id ?? null}
                   onSelect={(id) => {
@@ -571,6 +572,12 @@ export function CustomMixConfigurator() {
             complete={pctValid && Boolean(bottle)}
             label={bottle ? `${bottle.volume_ml} ml` : undefined}
             sublabel={brand || "Break Vap"}
+            photoUrl={
+              parts.length > 0
+                ? (brandFlavors.find((f) => f.id === parts[0]!.flavorId)?.photos?.[0] ??
+                  null)
+                : null
+            }
           />
           <StageTitle
             title={

@@ -14,6 +14,8 @@ type Props = {
   /** Étiquette du flacon central. */
   label?: string;
   sublabel?: string;
+  /** Photo produit appliquée en texture sur le flacon. */
+  photoUrl?: string | null;
 };
 
 /** Flacon central « en construction », posé sur un podium avec reflet. */
@@ -26,6 +28,7 @@ export default function MixStage3D({
   height = 300,
   label,
   sublabel,
+  photoUrl,
 }: Props) {
   const isMobile = useIsMobile();
   return (
@@ -50,6 +53,7 @@ export default function MixStage3D({
             highlight={complete}
             label={label}
             sublabel={sublabel}
+            photoUrl={photoUrl}
           />
         </group>
         {/* Podium */}
