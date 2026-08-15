@@ -1,6 +1,7 @@
 import {
   availableNicotineRates,
   mixFamilyOf,
+  mixFlavorContributionCents,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
 } from "./custom-mix";
@@ -80,8 +81,10 @@ type ProductRef = {
   stock_status: string;
 };
 
-/** Recalcule le prix côté serveur : flacon + valeur proportionnelle des arômes.
- *  La nicotine (0 à 10 mg) n'est jamais facturée en supplément. */
+/** Recalcule le prix côté serveur (source de vérité) :
+ *    prix = prix_flacon_vide
+ *         + Σ (pourcentage/100 × volume_flacon × prix_500ml_arôme / 500)
+ *  La nicotine occupe du volume mais reste offerte (0 €). */
 export async function computeMixPriceCents(args: {
   bottleProductId: string;
   flavors: MixFlavorInput[];
@@ -122,7 +125,11 @@ export async function computeMixPriceCents(args: {
     }
     if (p.stock_status === "out_of_stock") throw new Error("Un arôme sélectionné est épuisé.");
     families.add(family);
-    flavorsCents += (p.price_cents * f.percentage) / 100;
+    flavorsCents += mixFlavorContributionCents(
+      p.price_cents,
+      f.percentage,
+      bottle.volume_ml,
+    );
   }
 
   if (families.size !== 1) {
