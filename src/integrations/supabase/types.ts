@@ -270,6 +270,45 @@ export type Database = {
           },
         ]
       }
+      custom_mix_recipes: {
+        Row: {
+          brand: string
+          created_at: string
+          description: string
+          id: string
+          is_active: boolean
+          name: string
+          parts: Json
+          sort_order: number
+          suggested_nicotine_mg: number
+          updated_at: string
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          parts?: Json
+          sort_order?: number
+          suggested_nicotine_mg?: number
+          updated_at?: string
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          description?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          parts?: Json
+          sort_order?: number
+          suggested_nicotine_mg?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       custom_mixes: {
         Row: {
           bottle_product_id: string | null
@@ -972,6 +1011,7 @@ export type Database = {
           booster_concentration_mg_per_ml: number
           booster_volume_ml: number
           created_at: string
+          custom_mix_enabled: boolean
           default_booster_ice_id: string | null
           default_booster_normale_id: string | null
           default_booster_sel_id: string | null
@@ -984,6 +1024,7 @@ export type Database = {
           booster_concentration_mg_per_ml?: number
           booster_volume_ml?: number
           created_at?: string
+          custom_mix_enabled?: boolean
           default_booster_ice_id?: string | null
           default_booster_normale_id?: string | null
           default_booster_sel_id?: string | null
@@ -996,6 +1037,7 @@ export type Database = {
           booster_concentration_mg_per_ml?: number
           booster_volume_ml?: number
           created_at?: string
+          custom_mix_enabled?: boolean
           default_booster_ice_id?: string | null
           default_booster_normale_id?: string | null
           default_booster_sel_id?: string | null
