@@ -2,9 +2,37 @@ import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-/** Marques autorisées dans le configurateur DIY (jamais mélangées). */
+/** Familles autorisées dans le configurateur DIY (jamais mélangées).
+ *  Attention : « Alchimix » est une GAMME de la marque LiquidLab,
+ *  « Mixologue » est une marque sans gamme. */
 export const MIX_BRANDS = ["Alchimix", "Mixologue"] as const;
 export type MixBrand = (typeof MIX_BRANDS)[number];
+
+/** Critères réels de sélection en base pour chaque famille affichée. */
+export const MIX_FAMILY_CRITERIA: Record<
+  MixBrand,
+  { brand: string; rangeName?: string }
+> = {
+  Alchimix: { brand: "LiquidLab", rangeName: "Alchimix" },
+  Mixologue: { brand: "Mixologue" },
+};
+
+const eq = (a: string | null | undefined, b: string) =>
+  (a ?? "").trim().toLowerCase() === b.trim().toLowerCase();
+
+/** Détermine la famille DIY d'un produit (null si non éligible). */
+export function mixFamilyOf(product: {
+  brand: string | null;
+  range_name?: string | null;
+}): MixBrand | null {
+  for (const family of MIX_BRANDS) {
+    const c = MIX_FAMILY_CRITERIA[family];
+    if (!eq(product.brand, c.brand)) continue;
+    if (c.rangeName && !eq(product.range_name ?? null, c.rangeName)) continue;
+    return family;
+  }
+  return null;
+}
 
 /** Nombre maximum d'arômes dans un mix. */
 export const MIX_MAX_FLAVORS = 3;
@@ -44,6 +72,7 @@ export type MixFlavorOption = {
   name: string;
   slug: string;
   brand: string | null;
+  range_name?: string | null;
   price_cents: number;
   currency: string;
   photos: string[] | null;
@@ -59,8 +88,12 @@ export const mixFlavorsByBrandQueryOptions = () =>
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("id, name, slug, brand, price_cents, currency, photos, stock_status")
-        .in("brand", [...MIX_BRANDS])
+        .select(
+          "id, name, slug, brand, range_name, price_cents, currency, photos, stock_status",
+        )
+        .in("brand", [
+          ...new Set(Object.values(MIX_FAMILY_CRITERIA).map((c) => c.brand)),
+        ])
         .eq("is_published", true)
         .order("name", { ascending: true });
       if (error) throw new Error(error.message);
@@ -69,8 +102,8 @@ export const mixFlavorsByBrandQueryOptions = () =>
         Mixologue: [],
       };
       for (const p of (data ?? []) as MixFlavorOption[]) {
-        const brand = p.brand as MixBrand | null;
-        if (brand && map[brand]) map[brand].push(p);
+        const family = mixFamilyOf(p);
+        if (family) map[family].push(p);
       }
       return map;
     },

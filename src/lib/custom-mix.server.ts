@@ -1,6 +1,6 @@
 import {
   availableNicotineRates,
-  MIX_BRANDS,
+  mixFamilyOf,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
 } from "./custom-mix";
@@ -70,6 +70,7 @@ export async function assertNicotineReachable(
 type ProductRef = {
   id: string;
   brand: string | null;
+  range_name: string | null;
   price_cents: number;
   currency: string;
   category: string;
@@ -89,7 +90,9 @@ export async function computeMixPriceCents(args: {
   const ids = [args.bottleProductId, ...args.flavors.map((f) => f.flavor_product_id)];
   const { data, error } = await supabaseAdmin
     .from("products")
-    .select("id, brand, price_cents, currency, category, volume_ml, is_published, stock_status")
+    .select(
+      "id, brand, range_name, price_cents, currency, category, volume_ml, is_published, stock_status",
+    )
     .in("id", ids);
   if (error) throw new Error(error.message);
 
@@ -107,27 +110,28 @@ export async function computeMixPriceCents(args: {
     throw new Error("Ce flacon n'est plus en stock.");
   }
 
-  const brands = new Set<string>();
+  const families = new Set<string>();
   let flavorsCents = 0;
   for (const f of args.flavors) {
     const p = byId.get(f.flavor_product_id);
     if (!p || !p.is_published) throw new Error("Arôme introuvable ou indisponible.");
-    if (!p.brand || !(MIX_BRANDS as readonly string[]).includes(p.brand)) {
+    const family = mixFamilyOf(p);
+    if (!family) {
       throw new Error("Seuls les arômes Alchimix ou Mixologue sont autorisés.");
     }
     if (p.stock_status === "out_of_stock") throw new Error("Un arôme sélectionné est épuisé.");
-    brands.add(p.brand);
+    families.add(family);
     flavorsCents += (p.price_cents * f.percentage) / 100;
   }
 
-  if (brands.size !== 1) {
+  if (families.size !== 1) {
     throw new Error("Tous les arômes d'un mix doivent appartenir à la même marque.");
   }
 
   return {
     priceCents: Math.round(bottle.price_cents + flavorsCents),
     currency: bottle.currency ?? "EUR",
-    brand: [...brands][0]!,
+    brand: [...families][0]!,
     bottleVolumeMl: bottle.volume_ml!,
   };
 }
