@@ -45,38 +45,14 @@ export const MIX_MAX_FLAVORS = 3;
 /** Taux de nicotine maximum autorisé (mg/ml). */
 export const MIX_MAX_NICOTINE_MG = 10;
 
-/** Contenance de référence des arômes vendus au flacon (prix catalogue). */
+/** Contenance de référence des arômes vendus au flacon (vente directe boutique). */
 export const MIX_FLAVOR_REFERENCE_VOLUME_ML = 500;
 
-/** Contribution d'un arôme au prix d'un mix, au prorata :
- *  (pourcentage / 100) × volume_flacon × (prix_500ml / 500).
- *  La nicotine occupe du volume mais reste offerte (0 €). */
-export function mixFlavorContributionCents(
-  flavorPrice500Cents: number,
-  percentage: number,
-  bottleVolumeMl: number,
-): number {
-  if (!Number.isFinite(flavorPrice500Cents) || !Number.isFinite(percentage)) return 0;
-  if (!bottleVolumeMl || bottleVolumeMl <= 0) return 0;
-  return (
-    (percentage / 100) *
-    bottleVolumeMl *
-    (flavorPrice500Cents / MIX_FLAVOR_REFERENCE_VOLUME_ML)
-  );
-}
-
-/** Prix complet d'un mix : flacon vide + arômes au prorata (nicotine offerte). */
-export function computeMixTotalCents(args: {
-  bottlePriceCents: number;
-  bottleVolumeMl: number;
-  parts: Array<{ price500Cents: number; percentage: number }>;
-}): number {
-  const flavors = args.parts.reduce(
-    (sum, p) =>
-      sum + mixFlavorContributionCents(p.price500Cents, p.percentage, args.bottleVolumeMl),
-    0,
-  );
-  return Math.round(args.bottlePriceCents + flavors);
+/** Prix d'un mix personnalisé : prix FIXE par contenance.
+ *  Il ne dépend ni des arômes choisis, ni de leur nombre, ni des pourcentages,
+ *  ni du taux de nicotine (toujours offerte). */
+export function computeMixTotalCents(args: { bottlePriceCents: number }): number {
+  return Math.round(args.bottlePriceCents);
 }
 
 /** Taux de nicotine réellement atteignables pour une contenance donnée.
