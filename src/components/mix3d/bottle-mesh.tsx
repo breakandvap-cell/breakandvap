@@ -1,6 +1,13 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
-import { CanvasTexture, SRGBColorSpace, type Group } from "three";
+import {
+  CanvasTexture,
+  ClampToEdgeWrapping,
+  SRGBColorSpace,
+  Texture,
+  TextureLoader,
+  type Group,
+} from "three";
 import { FloatShadow } from "./scene-bits";
 
 export type BottleMeshProps = {
@@ -25,10 +32,62 @@ export type BottleMeshProps = {
   label?: string;
   /** Ligne secondaire de l'étiquette. */
   sublabel?: string;
+  /** Photo produit appliquée sur la face avant du flacon. */
+  photoUrl?: string | null;
 };
 
 const BODY_H = 1.5;
 const BODY_R = 0.42;
+
+/** Panneau photo : arc frontal du flacon (limite la déformation de biais). */
+const PANEL_THETA = 1.9;
+const PANEL_H = 0.66;
+const PANEL_ASPECT = ((BODY_R + 0.02) * PANEL_THETA) / PANEL_H;
+
+/** Charge la première photo produit en texture, avec recadrage « cover ». */
+function usePhotoTexture(url?: string | null) {
+  const [tex, setTex] = useState<Texture | null>(null);
+  useEffect(() => {
+    if (!url) {
+      setTex(null);
+      return;
+    }
+    let cancelled = false;
+    const loader = new TextureLoader();
+    loader.setCrossOrigin("anonymous");
+    loader.load(
+      url,
+      (t) => {
+        if (cancelled) {
+          t.dispose();
+          return;
+        }
+        t.colorSpace = SRGBColorSpace;
+        t.anisotropy = 4;
+        t.wrapS = t.wrapT = ClampToEdgeWrapping;
+        const w = t.image?.width ?? 1;
+        const h = t.image?.height ?? 1;
+        const ratio = w / h;
+        if (ratio > PANEL_ASPECT) {
+          t.repeat.x = PANEL_ASPECT / ratio;
+          t.offset.x = (1 - t.repeat.x) / 2;
+        } else {
+          t.repeat.y = ratio / PANEL_ASPECT;
+          t.offset.y = (1 - t.repeat.y) / 2;
+        }
+        t.needsUpdate = true;
+        setTex(t);
+      },
+      undefined,
+      () => setTex(null),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+  useEffect(() => () => tex?.dispose(), [tex]);
+  return tex;
+}
 
 /** Étiquette dessinée en canvas puis appliquée sur le corps du flacon. */
 function useLabelTexture(label?: string, sublabel?: string, accent = "#2fe39a") {
@@ -92,10 +151,12 @@ export function BottleMesh({
   highlight = false,
   label,
   sublabel,
+  photoUrl,
 }: BottleMeshProps) {
   const group = useRef<Group>(null);
   const lift = useRef<Group>(null);
   const t0 = useRef(Math.random() * 10);
+  const photoTex = usePhotoTexture(ghost ? null : photoUrl);
   const labelTex = useLabelTexture(ghost ? undefined : label, sublabel);
 
   useFrame((state, delta) => {
@@ -233,6 +294,30 @@ export function BottleMesh({
               />
             )}
           </mesh>
+
+          {/* Photo produit sur la face avant (arc frontal, sans distorsion) */}
+          {photoTex && (
+            <mesh position={[0, -0.16, 0]}>
+              <cylinderGeometry
+                args={[
+                  BODY_R + 0.028,
+                  BODY_R + 0.028,
+                  PANEL_H,
+                  48,
+                  1,
+                  true,
+                  -PANEL_THETA / 2,
+                  PANEL_THETA,
+                ]}
+              />
+              <meshStandardMaterial
+                map={photoTex}
+                roughness={0.55}
+                metalness={0.05}
+                side={2}
+              />
+            </mesh>
+          )}
         </group>
       </group>
     </group>
