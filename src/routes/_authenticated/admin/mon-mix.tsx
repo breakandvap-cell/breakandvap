@@ -609,7 +609,11 @@ function RecipesManager({
               </button>
               <button
                 type="button"
-                onClick={() => delM.mutate(r.id!)}
+                onClick={() => {
+                  if (confirm(`Supprimer définitivement la recette « ${r.name} » ?`)) {
+                    delM.mutate(r.id!);
+                  }
+                }}
                 className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1 text-xs text-destructive hover:border-destructive"
               >
                 <Trash2 className="h-3 w-3" /> Supprimer
