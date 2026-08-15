@@ -588,8 +588,6 @@ function LivePreview({
 }) {
   const [bottleId, setBottleId] = useState<string | null>(data.bottles[0]?.id ?? null);
   const bottle = data.bottles.find((b) => b.id === bottleId) ?? null;
-  const flavor = data.flavors[0] ?? null;
-
   const rates = useMemo(
     () =>
       availableNicotineRates(bottle?.volume_ml ?? null, {
