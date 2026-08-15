@@ -19,7 +19,8 @@ import {
   MIX_BRAND_COLORS,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
-  MIX_RECIPES,
+  mixRecipesQueryOptions,
+  computeMixTotalCents,
   type MixBrand,
   type MixFlavorOption,
 } from "@/lib/custom-mix";
@@ -49,6 +50,7 @@ export function CustomMixConfigurator() {
   );
   const { data: flavorsByBrand } = useQuery(mixFlavorsByBrandQueryOptions());
   const { data: settings } = useQuery(siteSettingsQueryOptions());
+  const { data: recipes = [] } = useQuery(mixRecipesQueryOptions());
 
   const [bottleId, setBottleId] = useState<string | null>(null);
   const [nicotine, setNicotine] = useState(0);
@@ -65,14 +67,18 @@ export function CustomMixConfigurator() {
   const totalPct = parts.reduce((s, p) => s + p.percentage, 0);
   const pctValid = parts.length > 0 && Math.round(totalPct) === 100;
 
+  // Estimation INDICATIVE : même formule prorata que le serveur, qui reste
+  // seul juge du prix figé lors de l'ajout au panier.
   const estimatedCents = useMemo(() => {
     if (!bottle) return 0;
-    let cents = bottle.price_cents;
-    for (const p of parts) {
-      const f = brandFlavors.find((x) => x.id === p.flavorId);
-      if (f) cents += (f.price_cents * p.percentage) / 100;
-    }
-    return Math.round(cents);
+    return computeMixTotalCents({
+      bottlePriceCents: bottle.price_cents,
+      bottleVolumeMl: bottle.volume_ml ?? 0,
+      parts: parts.flatMap((p) => {
+        const f = brandFlavors.find((x) => x.id === p.flavorId);
+        return f ? [{ price500Cents: f.price_cents, percentage: p.percentage }] : [];
+      }),
+    });
   }, [bottle, parts, brandFlavors]);
 
   const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
@@ -140,14 +146,12 @@ export function CustomMixConfigurator() {
   };
 
   const applyRecipe = (recipeId: string) => {
-    const recipe = MIX_RECIPES.find((r) => r.id === recipeId);
+    const recipe = recipes.find((r) => r.id === recipeId);
     if (!recipe) return;
     const list = flavorsByBrand?.[recipe.brand] ?? [];
     const resolved: Part[] = [];
     for (const part of recipe.parts) {
-      const match = list.find(
-        (f) => f.name.toLowerCase().includes(part.flavorName.toLowerCase()),
-      );
+      const match = list.find((f) => f.id === part.flavor_product_id);
       if (!match) continue;
       resolved.push({ flavorId: match.id, percentage: part.percentage });
     }
@@ -157,7 +161,7 @@ export function CustomMixConfigurator() {
     }
     setBrand(recipe.brand);
     setParts(resolved);
-    setNicotine(Math.min(recipe.suggestedNicotineMg, MIX_MAX_NICOTINE_MG));
+    setNicotine(Math.min(recipe.suggested_nicotine_mg, MIX_MAX_NICOTINE_MG));
   };
 
   const canSubmit = Boolean(bottle) && pctValid && !submitting;
@@ -212,6 +216,18 @@ export function CustomMixConfigurator() {
     }
   };
 
+  // Interrupteur global piloté depuis /admin/mon-mix.
+  if (settings && settings.customMixEnabled === false) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-8 text-center">
+        <h2 className="text-lg font-semibold">Configurateur momentanément indisponible</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          « Mon Mix » est temporairement désactivé. Revenez très bientôt : nos arômes
+          reviennent en stock rapidement.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
       <div className="space-y-8">
@@ -510,13 +526,19 @@ export function CustomMixConfigurator() {
         {/* Étape 4 — Recettes */}
         <Step number={4} title="Recettes populaires">
           <div className="grid gap-3 sm:grid-cols-2">
-            {MIX_RECIPES.map((r) => {
+            {recipes.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                Aucune recette proposée pour le moment.
+              </p>
+            )}
+            {recipes.map((r) => {
               const list = flavorsByBrand?.[r.brand] ?? [];
-              const ready = r.parts.every((part) =>
-                list.some((f) =>
-                  f.name.toLowerCase().includes(part.flavorName.toLowerCase()),
-                ),
-              );
+              const resolved = r.parts.map((part) => ({
+                part,
+                flavor: list.find((f) => f.id === part.flavor_product_id) ?? null,
+              }));
+              const ready =
+                r.parts.length > 0 && resolved.every((x) => x.flavor !== null);
               return (
                 <button
                   key={r.id}
@@ -535,7 +557,12 @@ export function CustomMixConfigurator() {
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">{r.description}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    {r.parts.map((p) => `${p.flavorName} ${p.percentage}%`).join(" · ")}
+                    {resolved
+                      .map(
+                        (x) =>
+                          `${x.flavor?.name ?? "Arôme indisponible"} ${x.part.percentage}%`,
+                      )
+                      .join(" · ")}
                   </p>
                   {!ready && (
                     <p className="mt-2 text-[11px] uppercase tracking-wider text-muted-foreground">

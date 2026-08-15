@@ -45,6 +45,40 @@ export const MIX_MAX_FLAVORS = 3;
 /** Taux de nicotine maximum autorisé (mg/ml). */
 export const MIX_MAX_NICOTINE_MG = 10;
 
+/** Contenance de référence des arômes vendus au flacon (prix catalogue). */
+export const MIX_FLAVOR_REFERENCE_VOLUME_ML = 500;
+
+/** Contribution d'un arôme au prix d'un mix, au prorata :
+ *  (pourcentage / 100) × volume_flacon × (prix_500ml / 500).
+ *  La nicotine occupe du volume mais reste offerte (0 €). */
+export function mixFlavorContributionCents(
+  flavorPrice500Cents: number,
+  percentage: number,
+  bottleVolumeMl: number,
+): number {
+  if (!Number.isFinite(flavorPrice500Cents) || !Number.isFinite(percentage)) return 0;
+  if (!bottleVolumeMl || bottleVolumeMl <= 0) return 0;
+  return (
+    (percentage / 100) *
+    bottleVolumeMl *
+    (flavorPrice500Cents / MIX_FLAVOR_REFERENCE_VOLUME_ML)
+  );
+}
+
+/** Prix complet d'un mix : flacon vide + arômes au prorata (nicotine offerte). */
+export function computeMixTotalCents(args: {
+  bottlePriceCents: number;
+  bottleVolumeMl: number;
+  parts: Array<{ price500Cents: number; percentage: number }>;
+}): number {
+  const flavors = args.parts.reduce(
+    (sum, p) =>
+      sum + mixFlavorContributionCents(p.price500Cents, p.percentage, args.bottleVolumeMl),
+    0,
+  );
+  return Math.round(args.bottlePriceCents + flavors);
+}
+
 /** Taux de nicotine réellement atteignables pour une contenance donnée.
  *  On ne peut ajouter qu'un nombre ENTIER de boosters, et il faut laisser
  *  de la place pour la base + les arômes (le flacon n'est jamais rempli
@@ -154,63 +188,41 @@ export const MIX_BRAND_COLORS: Record<MixBrand, { from: string; to: string }> = 
   Mixologue: { from: "#ffd27a", to: "#e0761f" },
 };
 
-export type MixRecipe = {
+export type MixRecipePart = { flavor_product_id: string; percentage: number };
+
+export type MixRecipeRow = {
   id: string;
   name: string;
   description: string;
   brand: MixBrand;
-  /** Noms d'arômes attendus + pourcentage. Résolus dynamiquement si présents. */
-  parts: { flavorName: string; percentage: number }[];
-  suggestedNicotineMg: number;
+  parts: MixRecipePart[];
+  suggested_nicotine_mg: number;
+  sort_order: number;
+  is_active: boolean;
 };
 
-/** Recettes populaires proposées en un clic. Elles s'activent automatiquement
- *  dès que les arômes correspondants existent en base pour la marque. */
-export const MIX_RECIPES: MixRecipe[] = [
-  {
-    id: "fruits-rouges-glaces",
-    name: "Fruits rouges glacés",
-    description: "Le classique gourmand rafraîchi par une pointe de menthe.",
-    brand: "Alchimix",
-    parts: [
-      { flavorName: "Fraise", percentage: 50 },
-      { flavorName: "Framboise", percentage: 30 },
-      { flavorName: "Menthe", percentage: 20 },
-    ],
-    suggestedNicotineMg: 6,
-  },
-  {
-    id: "tropical-sunset",
-    name: "Tropical Sunset",
-    description: "Mangue solaire, ananas juteux et fruit de la passion.",
-    brand: "Alchimix",
-    parts: [
-      { flavorName: "Mangue", percentage: 40 },
-      { flavorName: "Ananas", percentage: 40 },
-      { flavorName: "Fruit de la passion", percentage: 20 },
-    ],
-    suggestedNicotineMg: 3,
-  },
-  {
-    id: "gourmand-vanille",
-    name: "Gourmand vanillé",
-    description: "Vanille crémeuse et caramel, pour une vape dessert.",
-    brand: "Mixologue",
-    parts: [
-      { flavorName: "Vanille", percentage: 60 },
-      { flavorName: "Caramel", percentage: 40 },
-    ],
-    suggestedNicotineMg: 6,
-  },
-  {
-    id: "menthe-polaire",
-    name: "Menthe polaire",
-    description: "Fraîcheur intense, simple et efficace.",
-    brand: "Mixologue",
-    parts: [
-      { flavorName: "Menthe", percentage: 70 },
-      { flavorName: "Eucalyptus", percentage: 30 },
-    ],
-    suggestedNicotineMg: 10,
-  },
-];
+/** Recettes populaires pilotées depuis l'espace gérant (/admin/mon-mix). */
+export const mixRecipesQueryOptions = () =>
+  queryOptions({
+    queryKey: ["custom-mix-recipes"] as const,
+    queryFn: async (): Promise<MixRecipeRow[]> => {
+      const { data, error } = await supabase
+        .from("custom_mix_recipes")
+        .select("id, name, description, brand, parts, suggested_nicotine_mg, sort_order, is_active")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true });
+      if (error) throw new Error(error.message);
+      return (data ?? []).map((r) => ({
+        id: r.id,
+        name: r.name,
+        description: r.description ?? "",
+        brand: (MIX_BRANDS as readonly string[]).includes(r.brand)
+          ? (r.brand as MixBrand)
+          : "Alchimix",
+        parts: Array.isArray(r.parts) ? (r.parts as unknown as MixRecipePart[]) : [],
+        suggested_nicotine_mg: Number(r.suggested_nicotine_mg) || 0,
+        sort_order: r.sort_order ?? 0,
+        is_active: r.is_active,
+      }));
+    },
+  });
