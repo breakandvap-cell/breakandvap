@@ -199,6 +199,100 @@ export const adminDeleteMixRecipe = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+/**
+ * Supprime un produit du configurateur (flacon vide ou arôme « Mon Mix »),
+ * après vérification qu'il n'est référencé nulle part dans l'historique.
+ * Si des références existent, la suppression est refusée : l'admin peut alors
+ * rappeler la fonction avec `unpublish: true` pour dépublier le produit.
+ */
+export const adminDeleteMixProduct = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        product_id: z.string().uuid(),
+        unpublish: z.boolean().default(false),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const supabaseAdmin = await db();
+
+    const { data: p, error } = await supabaseAdmin
+      .from("products")
+      .select("id, name, category, subcategory")
+      .eq("id", data.product_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!p) throw new Error("Produit introuvable.");
+    const eligible = p.subcategory === "Mon Mix" || p.category === "accessoire_vape";
+    if (!eligible) {
+      throw new Error("Ce produit ne fait pas partie du configurateur Mon Mix.");
+    }
+
+    if (data.unpublish) {
+      const { error: upErr } = await supabaseAdmin
+        .from("products")
+        .update({ is_published: false })
+        .eq("id", data.product_id);
+      if (upErr) throw new Error(upErr.message);
+      return { status: "unpublished" as const, reasons: [] as string[] };
+    }
+
+    const [orderRes, mixFlavorRes, mixBottleRes, recipeRes] = await Promise.all([
+      supabaseAdmin
+        .from("order_items")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", data.product_id),
+      supabaseAdmin
+        .from("custom_mix_flavors")
+        .select("id", { count: "exact", head: true })
+        .eq("flavor_product_id", data.product_id),
+      supabaseAdmin
+        .from("custom_mixes")
+        .select("id", { count: "exact", head: true })
+        .eq("bottle_product_id", data.product_id),
+      supabaseAdmin.from("custom_mix_recipes").select("id, name, parts"),
+    ]);
+
+    for (const r of [orderRes, mixFlavorRes, mixBottleRes, recipeRes]) {
+      if (r.error) throw new Error(r.error.message);
+    }
+
+    const reasons: string[] = [];
+    if ((orderRes.count ?? 0) > 0) {
+      reasons.push(`${orderRes.count} ligne(s) de commande`);
+    }
+    if ((mixFlavorRes.count ?? 0) > 0) {
+      reasons.push(`${mixFlavorRes.count} mix personnalisé(s) (arôme)`);
+    }
+    if ((mixBottleRes.count ?? 0) > 0) {
+      reasons.push(`${mixBottleRes.count} mix personnalisé(s) (flacon)`);
+    }
+    const usedInRecipes = (recipeRes.data ?? []).filter((r) =>
+      (Array.isArray(r.parts) ? (r.parts as Array<{ flavor_product_id?: string }>) : []).some(
+        (part) => part?.flavor_product_id === data.product_id,
+      ),
+    );
+    if (usedInRecipes.length > 0) {
+      reasons.push(
+        `${usedInRecipes.length} recette(s) : ${usedInRecipes.map((r) => r.name).join(", ")}`,
+      );
+    }
+
+    if (reasons.length > 0) {
+      return { status: "referenced" as const, reasons };
+    }
+
+    const { error: delErr } = await supabaseAdmin
+      .from("products")
+      .delete()
+      .eq("id", data.product_id);
+    if (delErr) throw new Error(delErr.message);
+    return { status: "deleted" as const, reasons: [] as string[] };
+  });
+
 /** Création rapide d'un arôme « Mon Mix » (Alchimix ou Mixologue). */
 const quickFlavorSchema = z.object({
   brand: z.enum(MIX_BRANDS),
