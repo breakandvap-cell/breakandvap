@@ -75,6 +75,7 @@ type ProductRef = {
   currency: string;
   category: string;
   volume_ml: number | null;
+  subcategory: string | null;
   is_published: boolean;
   stock_status: string;
 };
@@ -91,7 +92,7 @@ export async function computeMixPriceCents(args: {
   const { data, error } = await supabaseAdmin
     .from("products")
     .select(
-      "id, brand, range_name, price_cents, currency, category, volume_ml, is_published, stock_status",
+      "id, brand, range_name, subcategory, price_cents, currency, category, volume_ml, is_published, stock_status",
     )
     .in("id", ids);
   if (error) throw new Error(error.message);
