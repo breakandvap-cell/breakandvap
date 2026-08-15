@@ -67,19 +67,12 @@ export function CustomMixConfigurator() {
   const totalPct = parts.reduce((s, p) => s + p.percentage, 0);
   const pctValid = parts.length > 0 && Math.round(totalPct) === 100;
 
-  // Estimation INDICATIVE : même formule prorata que le serveur, qui reste
-  // seul juge du prix figé lors de l'ajout au panier.
-  const estimatedCents = useMemo(() => {
-    if (!bottle) return 0;
-    return computeMixTotalCents({
-      bottlePriceCents: bottle.price_cents,
-      bottleVolumeMl: bottle.volume_ml ?? 0,
-      parts: parts.flatMap((p) => {
-        const f = brandFlavors.find((x) => x.id === p.flavorId);
-        return f ? [{ price500Cents: f.price_cents, percentage: p.percentage }] : [];
-      }),
-    });
-  }, [bottle, parts, brandFlavors]);
+  // Prix FIXE par contenance : il ne dépend ni des arômes ni de la nicotine.
+  // Le serveur reste seul juge du prix figé lors de l'ajout au panier.
+  const estimatedCents = useMemo(
+    () => (bottle ? computeMixTotalCents({ bottlePriceCents: bottle.price_cents }) : 0),
+    [bottle],
+  );
 
   const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
 
