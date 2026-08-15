@@ -10,7 +10,10 @@ import {
   adminSetMixEnabled,
   adminUpdateMixProductPrice,
   adminDeleteMixRecipe,
+  adminCreateMixFlavor,
 } from "@/lib/custom-mix-admin.functions";
+import { adminUploadProductPhoto } from "@/lib/admin.functions";
+import { optimizeImage } from "@/lib/image-optimize";
 import {
   MIX_BRANDS,
   MIX_MAX_FLAVORS,
@@ -101,6 +104,8 @@ function MixAdminPage() {
         }))}
         onDone={refresh}
       />
+
+      <QuickFlavorCreator onDone={refresh} />
 
       <PriceTable
         title="Prix de vente au flacon 500 ml (vente directe boutique)"
