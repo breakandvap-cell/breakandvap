@@ -198,3 +198,64 @@ export const adminDeleteMixRecipe = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
+
+/** Création rapide d'un arôme « Mon Mix » (Alchimix ou Mixologue). */
+const quickFlavorSchema = z.object({
+  brand: z.enum(MIX_BRANDS),
+  flavor: z.string().trim().min(2).max(60),
+  price_cents: z.number().int().min(0).max(1_000_000),
+  photo_url: z.string().url().nullable().optional(),
+});
+
+function slugify(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+export const adminCreateMixFlavor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => quickFlavorSchema.parse(d))
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const supabaseAdmin = await db();
+
+    const name = `${data.brand} ${data.flavor}`;
+    const base = slugify(name) || "arome-mon-mix";
+    const { data: taken } = await supabaseAdmin
+      .from("products")
+      .select("slug")
+      .like("slug", `${base}%`);
+    const used = new Set(((taken ?? []) as Array<{ slug: string }>).map((r) => r.slug));
+    let slug = base;
+    let i = 2;
+    while (used.has(slug)) slug = `${base}-${i++}`;
+
+    const row = {
+      slug,
+      name,
+      description: `Arôme ${data.flavor} de la gamme ${data.brand}, à utiliser dans votre mix personnalisé.`,
+      category: "e_liquide" as const,
+      subcategory: "Mon Mix",
+      brand: data.brand === "Alchimix" ? "LiquidLab" : "Mixologue",
+      range_name: data.brand === "Alchimix" ? "Alchimix" : null,
+      volume_ml: 500,
+      price_cents: data.price_cents,
+      stock: 0,
+      stock_status: "out_of_stock" as const,
+      is_published: true,
+      photos: data.photo_url ? [data.photo_url] : [],
+    };
+
+    const { data: ins, error } = await supabaseAdmin
+      .from("products")
+      .insert(row)
+      .select("id, slug, name")
+      .single();
+    if (error) throw new Error(error.message);
+    return ins;
+  });
