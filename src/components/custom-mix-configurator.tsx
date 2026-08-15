@@ -572,6 +572,12 @@ export function CustomMixConfigurator() {
             complete={pctValid && Boolean(bottle)}
             label={bottle ? `${bottle.volume_ml} ml` : undefined}
             sublabel={brand || "Break Vap"}
+            photoUrl={
+              parts.length > 0
+                ? (brandFlavors.find((f) => f.id === parts[0]!.flavorId)?.photos?.[0] ??
+                  null)
+                : null
+            }
           />
           <StageTitle
             title={
