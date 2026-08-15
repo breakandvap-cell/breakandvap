@@ -562,7 +562,6 @@ export function CustomMixConfigurator() {
             })}
           </div>
         </Step>
-        </Step>
       </div>
 
       {/* Colonne visuelle + validation */}
