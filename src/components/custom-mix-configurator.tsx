@@ -406,6 +406,7 @@ export function CustomMixConfigurator() {
                     fill: parts.some((p) => p.flavorId === f.id) ? 0.8 : 0.4,
                     label: f.name.split(" ")[0] ?? f.name,
                     sublabel: brand || "Break Vap",
+                    photoUrl: f.photos?.[0] ?? null,
                   }))}
                   selectedId={focusFlavor ?? brandFlavors[0]?.id ?? null}
                   onSelect={(id) => {
