@@ -1,7 +1,6 @@
 import {
   availableNicotineRates,
   mixFamilyOf,
-  mixFlavorContributionCents,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
 } from "./custom-mix";
@@ -82,9 +81,8 @@ type ProductRef = {
 };
 
 /** Recalcule le prix côté serveur (source de vérité) :
- *    prix = prix_flacon_vide
- *         + Σ (pourcentage/100 × volume_flacon × prix_500ml_arôme / 500)
- *  La nicotine occupe du volume mais reste offerte (0 €). */
+ *    prix = prix FIXE du flacon choisi (par contenance).
+ *  Les arômes, leurs pourcentages et la nicotine n'influencent pas le prix. */
 export async function computeMixPriceCents(args: {
   bottleProductId: string;
   flavors: MixFlavorInput[];
@@ -115,7 +113,6 @@ export async function computeMixPriceCents(args: {
   }
 
   const families = new Set<string>();
-  let flavorsCents = 0;
   for (const f of args.flavors) {
     const p = byId.get(f.flavor_product_id);
     if (!p || !p.is_published) throw new Error("Arôme introuvable ou indisponible.");
@@ -125,11 +122,6 @@ export async function computeMixPriceCents(args: {
     }
     if (p.stock_status === "out_of_stock") throw new Error("Un arôme sélectionné est épuisé.");
     families.add(family);
-    flavorsCents += mixFlavorContributionCents(
-      p.price_cents,
-      f.percentage,
-      bottle.volume_ml,
-    );
   }
 
   if (families.size !== 1) {
@@ -137,7 +129,7 @@ export async function computeMixPriceCents(args: {
   }
 
   return {
-    priceCents: Math.round(bottle.price_cents + flavorsCents),
+    priceCents: Math.round(bottle.price_cents),
     currency: bottle.currency ?? "EUR",
     brand: [...families][0]!,
     bottleVolumeMl: bottle.volume_ml!,

@@ -90,8 +90,8 @@ function MixAdminPage() {
       <EnabledSwitch enabled={data.enabled} onDone={refresh} />
 
       <PriceTable
-        title="Flacons vides disponibles"
-        hint="Prix de base du mix : le prix du flacon choisi par le client."
+        title="Flacons vides disponibles — prix final du mix"
+        hint="Prix fixe du mix par contenance : peu importe les arômes, les pourcentages ou le taux de nicotine (toujours offerte)."
         rows={data.bottles.map((b) => ({
           id: b.id,
           name: `${b.name}${b.volume_ml ? ` — ${b.volume_ml} ml` : ""}`,
@@ -103,8 +103,8 @@ function MixAdminPage() {
       />
 
       <PriceTable
-        title="Arômes Mon Mix (prix pour 500 ml)"
-        hint="Base du calcul au prorata : (% arôme / 100) × contenance × prix 500 ml / 500."
+        title="Prix de vente au flacon 500 ml (vente directe boutique)"
+        hint="N'intervient plus dans le prix d'un mix personnalisé : sert uniquement à la vente du flacon 500 ml prêt à vaper en boutique."
         rows={data.flavors.map((f) => ({
           id: f.id,
           name: `${f.name} — ${mixFamilyOf(f) ?? "hors famille"}`,
@@ -588,8 +588,6 @@ function LivePreview({
 }) {
   const [bottleId, setBottleId] = useState<string | null>(data.bottles[0]?.id ?? null);
   const bottle = data.bottles.find((b) => b.id === bottleId) ?? null;
-  const flavor = data.flavors[0] ?? null;
-
   const rates = useMemo(
     () =>
       availableNicotineRates(bottle?.volume_ml ?? null, {
@@ -599,14 +597,9 @@ function LivePreview({
     [bottle?.volume_ml, data.boosterVolumeMl, data.boosterConcentrationMgPerMl],
   );
 
-  const example =
-    bottle && flavor
-      ? computeMixTotalCents({
-          bottlePriceCents: bottle.price_cents,
-          bottleVolumeMl: bottle.volume_ml ?? 0,
-          parts: [{ price500Cents: flavor.price_cents, percentage: 100 }],
-        })
-      : null;
+  const example = bottle
+    ? computeMixTotalCents({ bottlePriceCents: bottle.price_cents })
+    : null;
 
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-4">
@@ -633,11 +626,11 @@ function LivePreview({
         Taux de nicotine proposés :{" "}
         {rates.map((r) => formatMixNicotine(r)).join(" · ") || "—"}
       </p>
-      {example != null && flavor && bottle && (
+      {example != null && bottle && (
         <p className="text-sm">
-          Exemple : flacon {formatPrice(bottle.price_cents)} + 100 % « {flavor.name} » (
-          {formatPrice(flavor.price_cents)}/500 ml) ={" "}
-          <strong>{formatPrice(example)}</strong> pour {bottle.volume_ml} ml.
+          Exemple : flacon {bottle.volume_ml ?? "—"} ml choisi ={" "}
+          <strong>{formatPrice(example)}</strong>, peu importe la composition (1, 2 ou 3
+          arômes) et le taux de nicotine, toujours offert.
         </p>
       )}
     </section>
