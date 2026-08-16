@@ -70,11 +70,13 @@ export const siteSettingsQueryOptions = () =>
           (data as { default_booster_ice_id?: string | null }).default_booster_ice_id ?? null,
         customMixEnabled:
           (data as { custom_mix_enabled?: boolean | null }).custom_mix_enabled ?? true,
-        mixBulkBoosterPriceCents:
-          Number(
+        mixBulkBoosterPriceCents: (() => {
+          const raw = Number(
             (data as { mix_bulk_booster_price_cents?: number | null })
               .mix_bulk_booster_price_cents,
-          ) || 100,
+          );
+          return Number.isFinite(raw) && raw >= 0 ? raw : 100;
+        })(),
       };
     },
   });
