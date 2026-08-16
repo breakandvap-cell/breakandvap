@@ -404,7 +404,17 @@ export function CustomMixConfigurator() {
         </Step>
 
         {/* Étape 3 — Arômes */}
-        <Step number={3} title="Composez vos arômes" done={pctValid}>
+        <Step
+          number={3}
+          title={isBulk ? "Choisissez votre arôme" : "Composez vos arômes"}
+          done={pctValid}
+        >
+          {isBulk && (
+            <p className="mb-4 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+              Sur le format {MIX_BULK_VOLUME_ML} ml, le mélange n'est pas possible :
+              un seul arôme, automatiquement à 100 %.
+            </p>
+          )}
           <div className="mb-4 flex flex-wrap gap-2">
             {MIX_BRANDS.map((b) => {
               const available = (flavorsByBrand?.[b] ?? []).length > 0;
