@@ -1016,6 +1016,7 @@ export type Database = {
           default_booster_normale_id: string | null
           default_booster_sel_id: string | null
           general_wheel_enabled: boolean
+          mix_bulk_booster_price_cents: number
           singleton: boolean
           updated_at: string
           welcome_wheel_enabled: boolean
@@ -1029,6 +1030,7 @@ export type Database = {
           default_booster_normale_id?: string | null
           default_booster_sel_id?: string | null
           general_wheel_enabled?: boolean
+          mix_bulk_booster_price_cents?: number
           singleton?: boolean
           updated_at?: string
           welcome_wheel_enabled?: boolean
@@ -1042,6 +1044,7 @@ export type Database = {
           default_booster_normale_id?: string | null
           default_booster_sel_id?: string | null
           general_wheel_enabled?: boolean
+          mix_bulk_booster_price_cents?: number
           singleton?: boolean
           updated_at?: string
           welcome_wheel_enabled?: boolean
