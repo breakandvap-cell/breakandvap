@@ -104,6 +104,41 @@ export function CustomMixConfigurator() {
     setNicotine(nearest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nicotineOptions]);
+
+  // Nombre de boosters correspondant au taux choisi (facturés sur le 500 ml).
+  const boostersCount = boostersForNicotineRate(
+    bottle?.volume_ml ?? null,
+    nicotine,
+    boosterCfg,
+  );
+  const bulkBoosterPriceCents = settings?.mixBulkBoosterPriceCents ?? 100;
+
+  // Prix FIXE par contenance (arômes et pourcentages sans effet).
+  // Seul le format 500 ml ajoute le prix des boosters de nicotine.
+  // Le serveur reste seul juge du prix figé lors de l'ajout au panier.
+  const estimatedCents = useMemo(
+    () =>
+      bottle
+        ? computeMixTotalCents({
+            bottlePriceCents: bottle.price_cents,
+            boostersCount: isBulk ? boostersCount : 0,
+            boosterUnitPriceCents: isBulk ? bulkBoosterPriceCents : 0,
+          })
+        : 0,
+    [bottle, isBulk, boostersCount, bulkBoosterPriceCents],
+  );
+
+  // Le 500 ml n'accepte qu'un seul arôme : on ramène la composition à 100 %.
+  useEffect(() => {
+    if (!isBulk) return;
+    setParts((cur) =>
+      cur.length === 0
+        ? cur
+        : cur.length === 1 && cur[0]!.percentage === 100
+          ? cur
+          : [{ flavorId: cur[0]!.flavorId, percentage: 100 }],
+    );
+  }, [isBulk]);
   const baseFill = bottle
     ? Math.max(0, Math.min(1, nicotine / concentration))
     : 0;
