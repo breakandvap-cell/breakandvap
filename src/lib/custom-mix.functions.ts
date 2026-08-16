@@ -10,7 +10,6 @@ const flavorSchema = z.object({
 const saveSchema = z.object({
   mixId: z.string().uuid().nullable().optional(),
   sessionId: z.string().min(8).max(128),
-  userId: z.string().uuid().nullable().optional(),
   bottleProductId: z.string().uuid(),
   nicotineMg: z.number().int().min(0).max(MIX_MAX_NICOTINE_MG),
   flavors: z.array(flavorSchema).min(1).max(MIX_MAX_FLAVORS),
@@ -21,7 +20,8 @@ export const saveCustomMixDraft = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => saveSchema.parse(d))
   .handler(async ({ data }) => {
     const { saveMixDraft } = await import("./custom-mix.mutations.server");
-    return saveMixDraft(data);
+    const { resolveOptionalUserId } = await import("./auth-optional.server");
+    return saveMixDraft({ ...data, userId: await resolveOptionalUserId() });
   });
 
 /** Fige le prix du mix côté serveur et passe le mix en « validated ». */
@@ -31,13 +31,13 @@ export const validateCustomMix = createServerFn({ method: "POST" })
       .object({
         mixId: z.string().uuid(),
         sessionId: z.string().min(8).max(128),
-        userId: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
     const { validateMix } = await import("./custom-mix.mutations.server");
-    return validateMix(data);
+    const { resolveOptionalUserId } = await import("./auth-optional.server");
+    return validateMix({ ...data, userId: await resolveOptionalUserId() });
   });
 
 /** Relit un mix (brouillon ou validé) à partir de son id + session. */
@@ -47,11 +47,11 @@ export const getCustomMix = createServerFn({ method: "POST" })
       .object({
         mixId: z.string().uuid(),
         sessionId: z.string().min(8).max(128),
-        userId: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data }) => {
     const { readMix } = await import("./custom-mix.mutations.server");
-    return readMix(data);
+    const { resolveOptionalUserId } = await import("./auth-optional.server");
+    return readMix({ ...data, userId: await resolveOptionalUserId() });
   });
