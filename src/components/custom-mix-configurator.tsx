@@ -154,6 +154,13 @@ export function CustomMixConfigurator() {
     );
 
   const toggleFlavor = (flavorId: string) => {
+    if (isBulk) {
+      // Format 500 ml : sélection unique, toujours à 100 %.
+      setParts((cur) =>
+        cur[0]?.flavorId === flavorId ? [] : [{ flavorId, percentage: 100 }],
+      );
+      return;
+    }
     setParts((cur) => {
       const exists = cur.find((p) => p.flavorId === flavorId);
       if (exists) return cur.filter((p) => p.flavorId !== flavorId);
