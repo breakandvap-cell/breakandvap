@@ -12,11 +12,14 @@ import { useCart } from "@/lib/cart";
 import {
   getMixSessionId,
   availableNicotineRates,
+  boostersForNicotineRate,
+  isBulkMixFormat,
   formatMixNicotine,
   mixBottlesQueryOptions,
   mixFlavorsByBrandQueryOptions,
   MIX_BRANDS,
   MIX_BRAND_COLORS,
+  MIX_BULK_VOLUME_ML,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
   mixRecipesQueryOptions,
@@ -60,19 +63,14 @@ export function CustomMixConfigurator() {
   const [focusFlavor, setFocusFlavor] = useState<string | null>(null);
 
   const bottle = bottles.find((b) => b.id === bottleId) ?? null;
+  /** Format 500 ml : un seul arôme à 100 % et nicotine payante. */
+  const isBulk = isBulkMixFormat(bottle?.volume_ml);
   const brandFlavors: MixFlavorOption[] = brand
     ? (flavorsByBrand?.[brand] ?? [])
     : [];
 
   const totalPct = parts.reduce((s, p) => s + p.percentage, 0);
   const pctValid = parts.length > 0 && Math.round(totalPct) === 100;
-
-  // Prix FIXE par contenance : il ne dépend ni des arômes ni de la nicotine.
-  // Le serveur reste seul juge du prix figé lors de l'ajout au panier.
-  const estimatedCents = useMemo(
-    () => (bottle ? computeMixTotalCents({ bottlePriceCents: bottle.price_cents }) : 0),
-    [bottle],
-  );
 
   const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
 
