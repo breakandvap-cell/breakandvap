@@ -40,7 +40,9 @@ export const adminMixConfig = createServerFn({ method: "POST" })
         .order("sort_order", { ascending: true }),
       supabaseAdmin
         .from("site_settings")
-        .select("custom_mix_enabled, booster_volume_ml, booster_concentration_mg_per_ml")
+        .select(
+          "custom_mix_enabled, booster_volume_ml, booster_concentration_mg_per_ml, mix_bulk_booster_price_cents",
+        )
         .eq("singleton", true)
         .maybeSingle(),
     ]);
@@ -57,7 +59,30 @@ export const adminMixConfig = createServerFn({ method: "POST" })
       boosterVolumeMl: Number(settingsRes.data?.booster_volume_ml) || 10,
       boosterConcentrationMgPerMl:
         Number(settingsRes.data?.booster_concentration_mg_per_ml) || 20,
+      bulkBoosterPriceCents: (() => {
+        const raw = Number(settingsRes.data?.mix_bulk_booster_price_cents);
+        return Number.isFinite(raw) && raw >= 0 ? raw : 100;
+      })(),
     };
+  });
+
+/** Prix par booster de nicotine sur le format 500 ml. */
+export const adminSetMixBulkBoosterPrice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ price_cents: z.number().int().min(0).max(100_000) }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const supabaseAdmin = await db();
+    const { error } = await supabaseAdmin
+      .from("site_settings")
+      .upsert(
+        { singleton: true, mix_bulk_booster_price_cents: data.price_cents },
+        { onConflict: "singleton" },
+      );
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 /** Met à jour le prix d'un flacon vide ou d'un arôme « Mon Mix ». */
