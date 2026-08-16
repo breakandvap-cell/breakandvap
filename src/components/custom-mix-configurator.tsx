@@ -12,11 +12,14 @@ import { useCart } from "@/lib/cart";
 import {
   getMixSessionId,
   availableNicotineRates,
+  boostersForNicotineRate,
+  isBulkMixFormat,
   formatMixNicotine,
   mixBottlesQueryOptions,
   mixFlavorsByBrandQueryOptions,
   MIX_BRANDS,
   MIX_BRAND_COLORS,
+  MIX_BULK_VOLUME_ML,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
   mixRecipesQueryOptions,
@@ -60,19 +63,14 @@ export function CustomMixConfigurator() {
   const [focusFlavor, setFocusFlavor] = useState<string | null>(null);
 
   const bottle = bottles.find((b) => b.id === bottleId) ?? null;
+  /** Format 500 ml : un seul arôme à 100 % et nicotine payante. */
+  const isBulk = isBulkMixFormat(bottle?.volume_ml);
   const brandFlavors: MixFlavorOption[] = brand
     ? (flavorsByBrand?.[brand] ?? [])
     : [];
 
   const totalPct = parts.reduce((s, p) => s + p.percentage, 0);
   const pctValid = parts.length > 0 && Math.round(totalPct) === 100;
-
-  // Prix FIXE par contenance : il ne dépend ni des arômes ni de la nicotine.
-  // Le serveur reste seul juge du prix figé lors de l'ajout au panier.
-  const estimatedCents = useMemo(
-    () => (bottle ? computeMixTotalCents({ bottlePriceCents: bottle.price_cents }) : 0),
-    [bottle],
-  );
 
   const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
 
@@ -106,6 +104,41 @@ export function CustomMixConfigurator() {
     setNicotine(nearest);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nicotineOptions]);
+
+  // Nombre de boosters correspondant au taux choisi (facturés sur le 500 ml).
+  const boostersCount = boostersForNicotineRate(
+    bottle?.volume_ml ?? null,
+    nicotine,
+    boosterCfg,
+  );
+  const bulkBoosterPriceCents = settings?.mixBulkBoosterPriceCents ?? 100;
+
+  // Prix FIXE par contenance (arômes et pourcentages sans effet).
+  // Seul le format 500 ml ajoute le prix des boosters de nicotine.
+  // Le serveur reste seul juge du prix figé lors de l'ajout au panier.
+  const estimatedCents = useMemo(
+    () =>
+      bottle
+        ? computeMixTotalCents({
+            bottlePriceCents: bottle.price_cents,
+            boostersCount: isBulk ? boostersCount : 0,
+            boosterUnitPriceCents: isBulk ? bulkBoosterPriceCents : 0,
+          })
+        : 0,
+    [bottle, isBulk, boostersCount, bulkBoosterPriceCents],
+  );
+
+  // Le 500 ml n'accepte qu'un seul arôme : on ramène la composition à 100 %.
+  useEffect(() => {
+    if (!isBulk) return;
+    setParts((cur) =>
+      cur.length === 0
+        ? cur
+        : cur.length === 1 && cur[0]!.percentage === 100
+          ? cur
+          : [{ flavorId: cur[0]!.flavorId, percentage: 100 }],
+    );
+  }, [isBulk]);
   const baseFill = bottle
     ? Math.max(0, Math.min(1, nicotine / concentration))
     : 0;
@@ -121,6 +154,13 @@ export function CustomMixConfigurator() {
     );
 
   const toggleFlavor = (flavorId: string) => {
+    if (isBulk) {
+      // Format 500 ml : sélection unique, toujours à 100 %.
+      setParts((cur) =>
+        cur[0]?.flavorId === flavorId ? [] : [{ flavorId, percentage: 100 }],
+      );
+      return;
+    }
     setParts((cur) => {
       const exists = cur.find((p) => p.flavorId === flavorId);
       if (exists) return cur.filter((p) => p.flavorId !== flavorId);
@@ -347,14 +387,34 @@ export function CustomMixConfigurator() {
                   {boosterCfg.boosterVolumeMl} ml à {concentration} mg/ml ne se
                   coupe pas en deux (max {MIX_MAX_NICOTINE_MG} mg).
                 </p>
-                <p className="text-xs text-accent">Nicotine offerte, sans supplément</p>
+                {isBulk ? (
+                  <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-xs text-accent">
+                    Nicotine payante sur ce format ({formatPrice(bulkBoosterPriceCents)}{" "}
+                    par booster). Chaque booster est fourni séparément.
+                    {boostersCount > 0
+                      ? ` Sélection actuelle : ${boostersCount} booster${boostersCount > 1 ? "s" : ""} — ${formatPrice(boostersCount * bulkBoosterPriceCents)}.`
+                      : ""}
+                  </p>
+                ) : (
+                  <p className="text-xs text-accent">Nicotine offerte, sans supplément</p>
+                )}
               </>
             )}
           </div>
         </Step>
 
         {/* Étape 3 — Arômes */}
-        <Step number={3} title="Composez vos arômes" done={pctValid}>
+        <Step
+          number={3}
+          title={isBulk ? "Choisissez votre arôme" : "Composez vos arômes"}
+          done={pctValid}
+        >
+          {isBulk && (
+            <p className="mb-4 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
+              Sur le format {MIX_BULK_VOLUME_ML} ml, le mélange n'est pas possible :
+              un seul arôme, automatiquement à 100 %.
+            </p>
+          )}
           <div className="mb-4 flex flex-wrap gap-2">
             {MIX_BRANDS.map((b) => {
               const available = (flavorsByBrand?.[b] ?? []).length > 0;
@@ -447,13 +507,7 @@ export function CustomMixConfigurator() {
                     brandFlavors[0]?.name ??
                     "ARÔMES"
                   }
-                  subtitle={
-                    brandFlavors.find((f) => f.id === focusFlavor)
-                      ? formatPrice(
-                          brandFlavors.find((f) => f.id === focusFlavor)!.price_cents,
-                        )
-                      : undefined
-                  }
+                  subtitle={brand ?? undefined}
                 />
               </ShowcaseFrame>
               <div className="flex flex-wrap justify-center gap-2">
@@ -473,13 +527,23 @@ export function CustomMixConfigurator() {
                           : "border-border text-muted-foreground hover:border-accent/60"
                       }`}
                     >
-                      {f.name} · {formatPrice(f.price_cents)}
+                      {f.name}
                     </button>
                   );
                 })}
               </div>
 
-              {parts.length > 0 && (
+              {parts.length > 0 && isBulk && (
+                <div className="rounded-lg border border-border bg-card p-4 text-sm">
+                  <span className="text-accent">
+                    {brandFlavors.find((x) => x.id === parts[0]!.flavorId)?.name ??
+                      "Arôme"}
+                  </span>{" "}
+                  — 100 % (arôme unique sur le format {MIX_BULK_VOLUME_ML} ml).
+                </div>
+              )}
+
+              {parts.length > 0 && !isBulk && (
                 <div className="space-y-3 rounded-lg border border-border bg-card p-4">
                   {parts.map((p) => {
                     const f = brandFlavors.find((x) => x.id === p.flavorId);
@@ -628,7 +692,16 @@ export function CustomMixConfigurator() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Nicotine</dt>
-              <dd>{formatMixNicotine(nicotine)}/ml (offerte)</dd>
+              <dd>
+                {formatMixNicotine(nicotine)}/ml{" "}
+                {isBulk
+                  ? boostersCount > 0
+                    ? `(${boostersCount} booster${boostersCount > 1 ? "s" : ""} · ${formatPrice(
+                        boostersCount * bulkBoosterPriceCents,
+                      )})`
+                    : "(sans booster)"
+                  : "(offerte)"}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Marque</dt>
@@ -643,6 +716,14 @@ export function CustomMixConfigurator() {
             Le prix définitif est recalculé et vérifié par nos serveurs lors de l'ajout au
             panier et de la commande.
           </p>
+
+          {isBulk && (
+            <p className="mt-3 rounded-lg border border-accent/40 bg-accent/5 p-3 text-xs text-accent">
+              Le flacon {MIX_BULK_VOLUME_ML} ml est vendu avec l'arôme uniquement. La
+              nicotine, si ajoutée, est fournie séparément. Vous devrez utiliser votre
+              propre flacon vide pour mélanger le tout à la maison.
+            </p>
+          )}
 
           <button
             type="button"

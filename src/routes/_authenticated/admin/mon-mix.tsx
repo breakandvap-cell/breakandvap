@@ -12,6 +12,7 @@ import {
   adminDeleteMixRecipe,
   adminCreateMixFlavor,
   adminDeleteMixProduct,
+  adminSetMixBulkBoosterPrice,
 } from "@/lib/custom-mix-admin.functions";
 import { adminUploadProductPhoto } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
@@ -94,8 +95,8 @@ function MixAdminPage() {
       <EnabledSwitch enabled={data.enabled} onDone={refresh} />
 
       <PriceTable
-        title="Flacons vides disponibles — prix final du mix"
-        hint="Prix fixe du mix par contenance : peu importe les arômes, les pourcentages ou le taux de nicotine (toujours offerte)."
+        title="Flacons disponibles — prix final du mix"
+        hint="Prix fixe du mix par contenance : peu importe les arômes ou les pourcentages. Nicotine offerte, sauf sur le format 500 ml (arôme seul, un seul arôme à 100 %, boosters facturés)."
         rows={data.bottles.map((b) => ({
           id: b.id,
           name: `${b.name}${b.volume_ml ? ` — ${b.volume_ml} ml` : ""}`,
@@ -104,6 +105,11 @@ function MixAdminPage() {
           stock_status: b.stock_status,
         }))}
         editKind="standard"
+        onDone={refresh}
+      />
+
+      <BulkBoosterPrice
+        priceCents={data.bulkBoosterPriceCents}
         onDone={refresh}
       />
 
@@ -136,6 +142,62 @@ function MixAdminPage() {
 
 function EnabledSwitch({ enabled, onDone }: { enabled: boolean; onDone: () => void }) {
   return <EnabledSwitchInner enabled={enabled} onDone={onDone} />;
+}
+
+/** Prix par booster de nicotine sur le format 500 ml (nicotine payante). */
+function BulkBoosterPrice({
+  priceCents,
+  onDone,
+}: {
+  priceCents: number;
+  onDone: () => void;
+}) {
+  const fn = useServerFn(adminSetMixBulkBoosterPrice);
+  const [value, setValue] = useState((priceCents / 100).toFixed(2));
+  const m = useMutation({
+    mutationFn: async () => {
+      const cents = Math.round(Number(value.replace(",", ".")) * 100);
+      if (!Number.isFinite(cents) || cents < 0) throw new Error("Prix invalide.");
+      return fn({ data: { price_cents: cents } });
+    },
+    onSuccess: () => {
+      toast.success("Prix par booster mis à jour.");
+      onDone();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  return (
+    <section className="flex flex-wrap items-end justify-between gap-4 rounded-lg border border-border bg-card p-4">
+      <div>
+        <h2 className="text-sm font-medium">
+          Prix par booster nicotine sur 500 ml
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          Uniquement pour le format 500 ml (nicotine payante, boosters fournis
+          séparément). Les autres contenances gardent la nicotine offerte.
+        </p>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          aria-label="Prix par booster en euros"
+          className="h-11 w-28 rounded-md border border-input bg-background px-3 text-base"
+        />
+        <span className="text-sm text-muted-foreground">€</span>
+        <button
+          type="button"
+          disabled={m.isPending}
+          onClick={() => m.mutate()}
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+        >
+          {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+          Enregistrer
+        </button>
+      </div>
+    </section>
+  );
 }
 
 function QuickFlavorCreator({ onDone }: { onDone: () => void }) {

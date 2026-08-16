@@ -27,6 +27,7 @@ export async function saveMixDraft(args: {
   const { priceCents, currency, brand, bottleVolumeMl } = await computeMixPriceCents({
     bottleProductId: args.bottleProductId,
     flavors: args.flavors,
+    nicotineMg: args.nicotineMg,
   });
   await assertNicotineReachable(bottleVolumeMl, args.nicotineMg);
 
@@ -125,6 +126,7 @@ export async function validateMix(args: {
   const { priceCents, currency, brand, bottleVolumeMl } = await computeMixPriceCents({
     bottleProductId: mix.bottle_product_id,
     flavors,
+    nicotineMg: Number(mix.nicotine_mg),
   });
   await assertNicotineReachable(bottleVolumeMl, Number(mix.nicotine_mg));
 
@@ -202,6 +204,7 @@ export async function priceMixForOrder(args: {
   const { priceCents, currency, brand } = await computeMixPriceCents({
     bottleProductId: mix.bottle_product_id,
     flavors,
+    nicotineMg: Number(mix.nicotine_mg),
   });
 
   const { data: prods, error: pErr } = await db

@@ -1,5 +1,8 @@
 import {
   availableNicotineRates,
+  boostersForNicotineRate,
+  computeMixTotalCents,
+  isBulkMixFormat,
   mixFamilyOf,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
@@ -80,12 +83,40 @@ type ProductRef = {
   stock_status: string;
 };
 
+/** Réglages boosters + prix booster du format 500 ml (source de vérité serveur). */
+export async function readMixSettings(): Promise<{
+  boosterVolumeMl: number;
+  boosterConcentrationMgPerMl: number;
+  bulkBoosterPriceCents: number;
+}> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("site_settings")
+    .select(
+      "booster_volume_ml, booster_concentration_mg_per_ml, mix_bulk_booster_price_cents",
+    )
+    .eq("singleton", true)
+    .maybeSingle();
+  const bulk = Number(
+    (data as { mix_bulk_booster_price_cents?: number | null } | null)
+      ?.mix_bulk_booster_price_cents,
+  );
+  return {
+    boosterVolumeMl: Number(data?.booster_volume_ml) || 10,
+    boosterConcentrationMgPerMl: Number(data?.booster_concentration_mg_per_ml) || 20,
+    bulkBoosterPriceCents: Number.isFinite(bulk) && bulk >= 0 ? bulk : 100,
+  };
+}
+
 /** Recalcule le prix côté serveur (source de vérité) :
  *    prix = prix FIXE du flacon choisi (par contenance).
- *  Les arômes, leurs pourcentages et la nicotine n'influencent pas le prix. */
+ *  Les arômes et leurs pourcentages n'influencent jamais le prix.
+ *  La nicotine est offerte, SAUF sur le format 500 ml : chaque booster y est
+ *  facturé au tarif défini en admin. */
 export async function computeMixPriceCents(args: {
   bottleProductId: string;
   flavors: MixFlavorInput[];
+  nicotineMg?: number;
 }): Promise<{ priceCents: number; currency: string; brand: string; bottleVolumeMl: number }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -126,6 +157,31 @@ export async function computeMixPriceCents(args: {
 
   if (families.size !== 1) {
     throw new Error("Tous les arômes d'un mix doivent appartenir à la même marque.");
+  }
+
+  // Format 500 ml : un seul arôme, obligatoirement à 100 %.
+  if (isBulkMixFormat(bottle.volume_ml)) {
+    if (args.flavors.length !== 1 || Math.abs(args.flavors[0]!.percentage - 100) > 1e-6) {
+      throw new Error(
+        "Le format 500 ml n'accepte qu'un seul arôme, obligatoirement à 100 %.",
+      );
+    }
+    const cfg = await readMixSettings();
+    const boosters = boostersForNicotineRate(
+      bottle.volume_ml,
+      Number(args.nicotineMg ?? 0),
+      cfg,
+    );
+    return {
+      priceCents: computeMixTotalCents({
+        bottlePriceCents: bottle.price_cents,
+        boostersCount: boosters,
+        boosterUnitPriceCents: cfg.bulkBoosterPriceCents,
+      }),
+      currency: bottle.currency ?? "EUR",
+      brand: [...families][0]!,
+      bottleVolumeMl: bottle.volume_ml!,
+    };
   }
 
   return {

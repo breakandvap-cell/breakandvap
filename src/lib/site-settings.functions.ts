@@ -26,6 +26,9 @@ export type DefaultBoosterRefs = {
 
 export type MixToggle = { customMixEnabled: boolean };
 
+/** Prix par booster de nicotine sur le format 500 ml de « Mon Mix ». */
+export type MixBulkPricing = { mixBulkBoosterPriceCents: number };
+
 export const DEFAULT_BOOSTER_REFS: DefaultBoosterRefs = {
   defaultBoosterNormaleId: null,
   defaultBoosterSelId: null,
@@ -36,11 +39,13 @@ export const DEFAULT_BOOSTER_REFS: DefaultBoosterRefs = {
 export const siteSettingsQueryOptions = () =>
   queryOptions({
     queryKey: ["site-settings"] as const,
-    queryFn: async (): Promise<BoosterConfig & DefaultBoosterRefs & MixToggle> => {
+    queryFn: async (): Promise<
+      BoosterConfig & DefaultBoosterRefs & MixToggle & MixBulkPricing
+    > => {
       const { data, error } = await supabase
         .from("site_settings")
         .select(
-          "booster_volume_ml, booster_concentration_mg_per_ml, default_booster_normale_id, default_booster_sel_id, default_booster_ice_id, custom_mix_enabled",
+          "booster_volume_ml, booster_concentration_mg_per_ml, default_booster_normale_id, default_booster_sel_id, default_booster_ice_id, custom_mix_enabled, mix_bulk_booster_price_cents",
         )
         .eq("singleton", true)
         .maybeSingle();
@@ -50,6 +55,7 @@ export const siteSettingsQueryOptions = () =>
           ...DEFAULT_BOOSTER_CONFIG,
           ...DEFAULT_BOOSTER_REFS,
           customMixEnabled: true,
+          mixBulkBoosterPriceCents: 100,
         };
       return {
         boosterVolumeMl: Number(data.booster_volume_ml) || DEFAULT_BOOSTER_CONFIG.boosterVolumeMl,
@@ -64,6 +70,13 @@ export const siteSettingsQueryOptions = () =>
           (data as { default_booster_ice_id?: string | null }).default_booster_ice_id ?? null,
         customMixEnabled:
           (data as { custom_mix_enabled?: boolean | null }).custom_mix_enabled ?? true,
+        mixBulkBoosterPriceCents: (() => {
+          const raw = Number(
+            (data as { mix_bulk_booster_price_cents?: number | null })
+              .mix_bulk_booster_price_cents,
+          );
+          return Number.isFinite(raw) && raw >= 0 ? raw : 100;
+        })(),
       };
     },
   });
