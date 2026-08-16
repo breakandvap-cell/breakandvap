@@ -387,7 +387,17 @@ export function CustomMixConfigurator() {
                   {boosterCfg.boosterVolumeMl} ml à {concentration} mg/ml ne se
                   coupe pas en deux (max {MIX_MAX_NICOTINE_MG} mg).
                 </p>
-                <p className="text-xs text-accent">Nicotine offerte, sans supplément</p>
+                {isBulk ? (
+                  <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-xs text-accent">
+                    Nicotine payante sur ce format ({formatPrice(bulkBoosterPriceCents)}{" "}
+                    par booster). Chaque booster est fourni séparément.
+                    {boostersCount > 0
+                      ? ` Sélection actuelle : ${boostersCount} booster${boostersCount > 1 ? "s" : ""} — ${formatPrice(boostersCount * bulkBoosterPriceCents)}.`
+                      : ""}
+                  </p>
+                ) : (
+                  <p className="text-xs text-accent">Nicotine offerte, sans supplément</p>
+                )}
               </>
             )}
           </div>
