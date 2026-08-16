@@ -507,13 +507,7 @@ export function CustomMixConfigurator() {
                     brandFlavors[0]?.name ??
                     "ARÔMES"
                   }
-                  subtitle={
-                    brandFlavors.find((f) => f.id === focusFlavor)
-                      ? formatPrice(
-                          brandFlavors.find((f) => f.id === focusFlavor)!.price_cents,
-                        )
-                      : undefined
-                  }
+                  subtitle={brand ?? undefined}
                 />
               </ShowcaseFrame>
               <div className="flex flex-wrap justify-center gap-2">
@@ -533,13 +527,23 @@ export function CustomMixConfigurator() {
                           : "border-border text-muted-foreground hover:border-accent/60"
                       }`}
                     >
-                      {f.name} · {formatPrice(f.price_cents)}
+                      {f.name}
                     </button>
                   );
                 })}
               </div>
 
-              {parts.length > 0 && (
+              {parts.length > 0 && isBulk && (
+                <div className="rounded-lg border border-border bg-card p-4 text-sm">
+                  <span className="text-accent">
+                    {brandFlavors.find((x) => x.id === parts[0]!.flavorId)?.name ??
+                      "Arôme"}
+                  </span>{" "}
+                  — 100 % (arôme unique sur le format {MIX_BULK_VOLUME_ML} ml).
+                </div>
+              )}
+
+              {parts.length > 0 && !isBulk && (
                 <div className="space-y-3 rounded-lg border border-border bg-card p-4">
                   {parts.map((p) => {
                     const f = brandFlavors.find((x) => x.id === p.flavorId);
