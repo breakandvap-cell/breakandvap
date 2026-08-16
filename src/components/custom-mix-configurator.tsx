@@ -692,7 +692,16 @@ export function CustomMixConfigurator() {
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Nicotine</dt>
-              <dd>{formatMixNicotine(nicotine)}/ml (offerte)</dd>
+              <dd>
+                {formatMixNicotine(nicotine)}/ml{" "}
+                {isBulk
+                  ? boostersCount > 0
+                    ? `(${boostersCount} booster${boostersCount > 1 ? "s" : ""} · ${formatPrice(
+                        boostersCount * bulkBoosterPriceCents,
+                      )})`
+                    : "(sans booster)"
+                  : "(offerte)"}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Marque</dt>
@@ -707,6 +716,14 @@ export function CustomMixConfigurator() {
             Le prix définitif est recalculé et vérifié par nos serveurs lors de l'ajout au
             panier et de la commande.
           </p>
+
+          {isBulk && (
+            <p className="mt-3 rounded-lg border border-accent/40 bg-accent/5 p-3 text-xs text-accent">
+              Le flacon {MIX_BULK_VOLUME_ML} ml est vendu avec l'arôme uniquement. La
+              nicotine, si ajoutée, est fournie séparément. Vous devrez utiliser votre
+              propre flacon vide pour mélanger le tout à la maison.
+            </p>
+          )}
 
           <button
             type="button"
