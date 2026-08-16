@@ -48,11 +48,44 @@ export const MIX_MAX_NICOTINE_MG = 10;
 /** Contenance de référence des arômes vendus au flacon (vente directe boutique). */
 export const MIX_FLAVOR_REFERENCE_VOLUME_ML = 500;
 
+/** Format spécial « gros volume » : un seul arôme à 100 %, nicotine payante,
+ *  vendu sans flacon vide (l'arôme et les boosters sont fournis séparément). */
+export const MIX_BULK_VOLUME_ML = 500;
+
+/** Prix par booster de nicotine sur le format 500 ml (paramétrable en admin). */
+export const DEFAULT_MIX_BULK_BOOSTER_PRICE_CENTS = 100;
+
+export function isBulkMixFormat(volumeMl: number | null | undefined): boolean {
+  return Number(volumeMl) === MIX_BULK_VOLUME_ML;
+}
+
+/** Nombre entier de boosters correspondant à un taux atteignable. */
+export function boostersForNicotineRate(
+  volumeMl: number | null | undefined,
+  rateMgPerMl: number,
+  cfg: { boosterVolumeMl: number; boosterConcentrationMgPerMl: number },
+): number {
+  if (!volumeMl || volumeMl <= 0 || rateMgPerMl <= 0) return 0;
+  const bv = cfg.boosterVolumeMl > 0 ? cfg.boosterVolumeMl : 10;
+  const conc =
+    cfg.boosterConcentrationMgPerMl > 0 ? cfg.boosterConcentrationMgPerMl : 20;
+  const perBooster = (bv * conc) / volumeMl;
+  if (perBooster <= 0) return 0;
+  return Math.max(0, Math.round(rateMgPerMl / perBooster));
+}
+
 /** Prix d'un mix personnalisé : prix FIXE par contenance.
- *  Il ne dépend ni des arômes choisis, ni de leur nombre, ni des pourcentages,
- *  ni du taux de nicotine (toujours offerte). */
-export function computeMixTotalCents(args: { bottlePriceCents: number }): number {
-  return Math.round(args.bottlePriceCents);
+ *  Il ne dépend ni des arômes choisis, ni de leur nombre, ni des pourcentages.
+ *  La nicotine est offerte, SAUF sur le format 500 ml où chaque booster est
+ *  facturé (prix unitaire paramétrable en admin). */
+export function computeMixTotalCents(args: {
+  bottlePriceCents: number;
+  boostersCount?: number;
+  boosterUnitPriceCents?: number;
+}): number {
+  const boosters = Math.max(0, Math.round(args.boostersCount ?? 0));
+  const unit = Math.max(0, Math.round(args.boosterUnitPriceCents ?? 0));
+  return Math.round(args.bottlePriceCents) + boosters * unit;
 }
 
 /** Taux de nicotine réellement atteignables pour une contenance donnée.
