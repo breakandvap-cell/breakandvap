@@ -129,15 +129,16 @@ function FloatingBottle({
             style={{ height, width: height * 0.34 }}
           />
         )}
-        {total > 0 && (
+        {total > 0 && photo && (
           <span
             className="bar-fill"
-            style={{ height: `${Math.round(total * 62)}%` }}
+            style={{ ["--bottle-mask" as string]: `url(${photo})` }}
             aria-hidden
           >
+            {/* Intérieur utile du flacon : ~8 % → ~72 % de la hauteur de l'image */}
             {layers.map((l) => {
-              const bottom = total > 0 ? (cursor / total) * 100 : 0;
-              const h = total > 0 ? (l.ratio / total) * 100 : 0;
+              const bottom = 8 + cursor * 64;
+              const h = l.ratio * 64;
               cursor += l.ratio;
               return (
                 <span
@@ -151,7 +152,10 @@ function FloatingBottle({
                 />
               );
             })}
-            <span className="bar-fill__top" />
+            <span
+              className="bar-fill__top"
+              style={{ bottom: `${8 + total * 64}%` }}
+            />
           </span>
         )}
       </span>
