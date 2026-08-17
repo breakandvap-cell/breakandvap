@@ -789,13 +789,42 @@ html, body { overflow-x: hidden; }
   animation: bar-slide-in .55s cubic-bezier(.22,.9,.26,1) both;
 }
 .bar-bottle--right { animation-name: bar-slide-in-right; }
+.bar-bottle__body {
+  position: relative;
+  display: block;
+  animation: bar-float var(--float-dur, 4.2s) ease-in-out var(--float-delay, 0s) infinite;
+  will-change: transform;
+}
 .bar-bottle__img {
   display: block;
   width: auto;
   object-fit: contain;
-  animation: bar-float var(--float-dur, 4.2s) ease-in-out var(--float-delay, 0s) infinite;
   filter: drop-shadow(0 10px 18px rgba(0,0,0,.55));
-  will-change: transform;
+}
+/* Niveau de liquide superposé au flacon */
+.bar-fill {
+  position: absolute;
+  left: 24%;
+  right: 24%;
+  bottom: 6%;
+  overflow: hidden;
+  border-radius: 0 0 34% 34% / 0 0 10% 10%;
+  pointer-events: none;
+  transition: height 700ms cubic-bezier(.22,1,.36,1);
+  box-shadow: inset 0 6px 12px -6px rgba(255,255,255,.35);
+}
+.bar-fill__layer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  transition: height 700ms cubic-bezier(.22,1,.36,1), bottom 700ms cubic-bezier(.22,1,.36,1), background-color 500ms ease;
+  opacity: .72;
+}
+.bar-fill__top {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 5px;
+  background: linear-gradient(180deg, rgba(255,255,255,.65), transparent);
 }
 .bar-bottle__shadow {
   margin-top: 2px;
@@ -826,11 +855,36 @@ html, body { overflow-x: hidden; }
 /* Flacons non sélectionnés : reculent en arrière-plan */
 .bar-bottle--back .bar-bottle__img { filter: brightness(.6) saturate(.8) drop-shadow(0 8px 14px rgba(0,0,0,.5)); }
 
+/* Enseigne de marque rétro-éclairée (étape 3) */
+.bar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  min-height: 74px;
+  padding: .8rem 1.4rem;
+  border-radius: 12px;
+  border: 2px solid color-mix(in oklab, var(--accent) 55%, transparent);
+  background: rgba(4, 8, 5, .8);
+  box-shadow:
+    0 0 30px -6px color-mix(in oklab, var(--accent) 60%, transparent),
+    inset 0 0 34px -12px color-mix(in oklab, var(--accent) 45%, transparent);
+  transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
+}
+.bar-brand:hover:not(:disabled) { transform: translateY(-2px) scale(1.03); }
+.bar-brand--active {
+  border-color: color-mix(in oklab, var(--accent) 95%, white 5%);
+  box-shadow:
+    0 0 46px -4px color-mix(in oklab, var(--accent) 80%, transparent),
+    inset 0 0 40px -10px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+.bar-brand__img { max-height: 56px; width: auto; object-fit: contain; }
+
 @media (max-width: 767px) {
   .bar__spot { display: none; }
   .bar-shelf__led { box-shadow: 0 0 10px 2px color-mix(in oklab, var(--accent) 45%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .bar-bottle, .bar-bottle__img, .bar-bottle__shadow,
+  .bar-bottle, .bar-bottle__body, .bar-bottle__shadow,
   .bar__spot, .bar-shelf__led, .bar-sign { animation: none !important; }
 }
