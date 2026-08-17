@@ -718,7 +718,7 @@ export function CustomMixConfigurator() {
                 <FloatingBottle
                   photo={bottle.photos?.[0] ?? null}
                   alt={`Flacon ${bottle.volume_ml} ml`}
-                  height={bottleHeight(bottle.volume_ml, step >= 1 ? 158 : 118)}
+                  height={bottleHeight(bottle.volume_ml, step >= 1 ? 205 : 130)}
                   fill={fillLayers}
                 />
                 <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-accent">
