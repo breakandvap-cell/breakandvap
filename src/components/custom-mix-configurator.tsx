@@ -582,6 +582,7 @@ export function CustomMixConfigurator() {
                   {MIX_BRANDS.map((b) => {
                     const available = (flavorsByBrand?.[b] ?? []).length > 0;
                     const active = brand === b;
+                    const logo = MIX_BRAND_LOGOS[b];
                     return (
                       <button
                         key={b}
@@ -592,22 +593,43 @@ export function CustomMixConfigurator() {
                           setParts([]);
                           setStep(3);
                         }}
-                        className={`bar-sign text-sm transition ${
-                          active ? "scale-105" : "opacity-80 hover:opacity-100"
-                        } ${available ? "" : "cursor-not-allowed opacity-40"}`}
-                        style={
-                          active
-                            ? {
-                                borderColor: MIX_BRAND_COLORS[b].from,
-                                color: MIX_BRAND_COLORS[b].from,
-                              }
-                            : undefined
-                        }
+                        aria-pressed={active}
+                        className={`bar-brand ${active ? "bar-brand--active" : "opacity-85 hover:opacity-100"} ${
+                          available ? "" : "cursor-not-allowed opacity-40"
+                        }`}
+                        style={active ? { borderColor: MIX_BRAND_COLORS[b].from } : undefined}
                       >
-                        {b}
-                        {!available && (
-                          <span className="ml-2 text-[9px] tracking-normal">bientôt</span>
-                        )}
+                        <span className="flex flex-col items-center gap-1">
+                          {logo ? (
+                            <img
+                              src={logo}
+                              alt={`Logo ${b}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="bar-brand__img"
+                            />
+                          ) : (
+                            <>
+                              <span
+                                className="text-sm font-extrabold uppercase tracking-[0.2em]"
+                                style={{
+                                  color: MIX_BRAND_COLORS[b].from,
+                                  textShadow: `0 0 16px ${MIX_BRAND_COLORS[b].from}`,
+                                }}
+                              >
+                                {b}
+                              </span>
+                              <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                                Logo {b} — emplacement réservé
+                              </span>
+                            </>
+                          )}
+                          {!available && (
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                              bientôt
+                            </span>
+                          )}
+                        </span>
                       </button>
                     );
                   })}
