@@ -197,6 +197,36 @@ export const MIX_BRAND_COLORS: Record<MixBrand, { from: string; to: string }> = 
   Mixologue: { from: "#ffd27a", to: "#e0761f" },
 };
 
+/** Logos de marque affichés sur l'enseigne du bar (étape 3).
+ *  Laisser vide tant que le visuel officiel n'est pas fourni :
+ *  l'interface affiche alors un emplacement « Logo … » en attente. */
+export const MIX_BRAND_LOGOS: Record<MixBrand, string | null> = {
+  Alchimix: null,
+  Mixologue: null,
+};
+
+/** Part du flacon réellement occupée par les boosters de nicotine (0 → 1). */
+export function nicotineVolumeRatio(
+  volumeMl: number | null | undefined,
+  boostersCount: number,
+  cfg: { boosterVolumeMl: number },
+): number {
+  if (!volumeMl || volumeMl <= 0) return 0;
+  const bv = cfg.boosterVolumeMl > 0 ? cfg.boosterVolumeMl : 10;
+  return Math.max(0, Math.min(1, (boostersCount * bv) / volumeMl));
+}
+
+/** Couleur d'un arôme dans le flacon : teinte dérivée de la marque + index. */
+export function flavorFillColor(brand: MixBrand | null, index: number): string {
+  const hues: Record<MixBrand, number[]> = {
+    Alchimix: [200, 168, 262],
+    Mixologue: [38, 12, 96],
+  };
+  const list = brand ? hues[brand] : [140, 168, 96];
+  const h = list[index % list.length] ?? 140;
+  return `hsl(${h} 78% 58%)`;
+}
+
 export type MixRecipePart = { flavor_product_id: string; percentage: number };
 
 export type MixRecipeRow = {

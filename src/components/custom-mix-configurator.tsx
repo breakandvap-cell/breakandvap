@@ -15,11 +15,14 @@ import {
   mixFlavorsByBrandQueryOptions,
   MIX_BRANDS,
   MIX_BRAND_COLORS,
+  MIX_BRAND_LOGOS,
   MIX_BULK_VOLUME_ML,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
   mixRecipesQueryOptions,
   computeMixTotalCents,
+  nicotineVolumeRatio,
+  flavorFillColor,
   type MixBrand,
   type MixFlavorOption,
 } from "@/lib/custom-mix";
@@ -30,6 +33,9 @@ import {
 import { siteSettingsQueryOptions } from "@/lib/site-settings.functions";
 
 type Part = { flavorId: string; percentage: number };
+
+/** Couche de liquide affichée dans le flacon (du bas vers le haut). */
+type FillLayer = { color: string; ratio: number; key: string };
 
 /** Hauteur d'affichage du flacon, proportionnelle à la contenance (jamais déformée). */
 function bottleHeight(volumeMl: number | null | undefined, base = 120): number {
@@ -84,6 +90,7 @@ function FloatingBottle({
   delay = 0,
   dim = false,
   fromRight = false,
+  fill,
 }: {
   photo?: string | null;
   alt: string;
@@ -91,32 +98,67 @@ function FloatingBottle({
   delay?: number;
   dim?: boolean;
   fromRight?: boolean;
+  /** Couches de liquide superposées à la photo (remplissage progressif). */
+  fill?: FillLayer[];
 }) {
   const style = {
     "--float-dur": `${(4 + (delay % 3) * 0.35).toFixed(2)}s`,
     "--float-delay": `${delay * 0.35}s`,
-    width: height * 0.44,
   } as React.CSSProperties;
+  const layers = (fill ?? []).filter((l) => l.ratio > 0.001);
+  const total = Math.min(1, layers.reduce((s, l) => s + l.ratio, 0));
+  let cursor = 0;
   return (
     <span
       className={`bar-bottle ${fromRight ? "bar-bottle--right" : ""} ${dim ? "bar-bottle--back" : ""}`}
       style={style}
     >
-      {photo ? (
-        <img
-          src={photo}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          className="bar-bottle__img"
-          style={{ height, maxWidth: "100%" }}
-        />
-      ) : (
-        <span
-          className="bar-bottle__img rounded-[10px] border border-accent/30 bg-[linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.03))]"
-          style={{ height, width: height * 0.34 }}
-        />
-      )}
+      <span className="bar-bottle__body" style={{ height }}>
+        {photo ? (
+          <img
+            src={photo}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            className="bar-bottle__img"
+            style={{ height }}
+          />
+        ) : (
+          <span
+            className="bar-bottle__img rounded-[10px] border border-accent/30 bg-[linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.03))]"
+            style={{ height, width: height * 0.34 }}
+          />
+        )}
+        {total > 0 && photo && (
+          <span
+            className="bar-fill"
+            style={{ ["--bottle-mask" as string]: `url(${photo})` }}
+            aria-hidden
+          >
+            {/* Intérieur utile du flacon : ~8 % → ~72 % de la hauteur de l'image */}
+            {layers.map((l) => {
+              const bottom = 8 + cursor * 64;
+              const h = l.ratio * 64;
+              cursor += l.ratio;
+              return (
+                <span
+                  key={l.key}
+                  className="bar-fill__layer"
+                  style={{
+                    bottom: `${bottom}%`,
+                    height: `${h}%`,
+                    backgroundColor: l.color,
+                  }}
+                />
+              );
+            })}
+            <span
+              className="bar-fill__top"
+              style={{ bottom: `${8 + total * 64}%` }}
+            />
+          </span>
+        )}
+      </span>
       <span className="bar-bottle__shadow" />
     </span>
   );
@@ -388,9 +430,28 @@ export function CustomMixConfigurator() {
     .map((p) => ({ part: p, flavor: brandFlavors.find((f) => f.id === p.flavorId) }))
     .filter((x) => x.flavor);
 
+  // Remplissage visuel du flacon : base nicotinée (boosters) puis arômes.
+  const nicoRatio = nicotineVolumeRatio(
+    bottle?.volume_ml ?? null,
+    boostersCount,
+    boosterCfg,
+  );
+  const fillLayers: FillLayer[] = [];
+  if (nicoRatio > 0) {
+    fillLayers.push({ key: "nicotine", color: "hsl(140 72% 55%)", ratio: nicoRatio });
+  }
+  const flavorSpace = Math.max(0, 1 - nicoRatio);
+  selectedFlavors.forEach(({ part }, i) => {
+    fillLayers.push({
+      key: part.flavorId,
+      color: flavorFillColor(brand, i),
+      ratio: flavorSpace * (part.percentage / 100),
+    });
+  });
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
-      <div className="space-y-6">
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="min-w-0 space-y-6">
         <header>
           <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
             Atelier DIY
@@ -405,7 +466,7 @@ export function CustomMixConfigurator() {
         </header>
 
         {/* Scène : décor identique à toutes les étapes */}
-        <div className="bar px-3 pb-4 pt-3 sm:px-5">
+        <div className="bar min-w-0 max-w-full overflow-hidden px-3 pb-4 pt-3 sm:px-5">
           <BarBackdrop />
           <StepRail steps={steps} current={step} onGo={(i) => steps[i]?.enabled && setStep(i)} />
 
@@ -524,6 +585,7 @@ export function CustomMixConfigurator() {
                   {MIX_BRANDS.map((b) => {
                     const available = (flavorsByBrand?.[b] ?? []).length > 0;
                     const active = brand === b;
+                    const logo = MIX_BRAND_LOGOS[b];
                     return (
                       <button
                         key={b}
@@ -534,22 +596,43 @@ export function CustomMixConfigurator() {
                           setParts([]);
                           setStep(3);
                         }}
-                        className={`bar-sign text-sm transition ${
-                          active ? "scale-105" : "opacity-80 hover:opacity-100"
-                        } ${available ? "" : "cursor-not-allowed opacity-40"}`}
-                        style={
-                          active
-                            ? {
-                                borderColor: MIX_BRAND_COLORS[b].from,
-                                color: MIX_BRAND_COLORS[b].from,
-                              }
-                            : undefined
-                        }
+                        aria-pressed={active}
+                        className={`bar-brand ${active ? "bar-brand--active" : "opacity-85 hover:opacity-100"} ${
+                          available ? "" : "cursor-not-allowed opacity-40"
+                        }`}
+                        style={active ? { borderColor: MIX_BRAND_COLORS[b].from } : undefined}
                       >
-                        {b}
-                        {!available && (
-                          <span className="ml-2 text-[9px] tracking-normal">bientôt</span>
-                        )}
+                        <span className="flex flex-col items-center gap-1">
+                          {logo ? (
+                            <img
+                              src={logo}
+                              alt={`Logo ${b}`}
+                              loading="lazy"
+                              decoding="async"
+                              className="bar-brand__img"
+                            />
+                          ) : (
+                            <>
+                              <span
+                                className="text-sm font-extrabold uppercase tracking-[0.2em]"
+                                style={{
+                                  color: MIX_BRAND_COLORS[b].from,
+                                  textShadow: `0 0 16px ${MIX_BRAND_COLORS[b].from}`,
+                                }}
+                              >
+                                {b}
+                              </span>
+                              <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                                Logo {b} — emplacement réservé
+                              </span>
+                            </>
+                          )}
+                          {!available && (
+                            <span className="text-[9px] uppercase tracking-widest text-muted-foreground">
+                              bientôt
+                            </span>
+                          )}
+                        </span>
                       </button>
                     );
                   })}
@@ -579,7 +662,7 @@ export function CustomMixConfigurator() {
                   </p>
                 ) : (
                   <div className="mt-4">
-                    <div className="flex items-end justify-center gap-3 overflow-x-auto px-1 pb-1 sm:gap-5">
+                    <div className="flex max-w-full items-end justify-start gap-3 overflow-x-auto px-1 pb-1 sm:justify-center sm:gap-5">
                       {brandFlavors.map((f, i) => {
                         const selected = parts.some((p) => p.flavorId === f.id);
                         return (
@@ -588,18 +671,18 @@ export function CustomMixConfigurator() {
                             type="button"
                             onClick={() => toggleFlavor(f.id)}
                             aria-pressed={selected}
-                            className="group w-[86px] shrink-0 text-center transition sm:w-[100px]"
+                            className="group w-[112px] shrink-0 text-center transition sm:w-[132px]"
                           >
                             <FloatingBottle
                               photo={f.photos?.[0] ?? null}
                               alt={f.name}
-                              height={82}
+                              height={124}
                               delay={i}
                               dim={parts.length > 0 && !selected}
                               fromRight
                             />
                             <span
-                              className={`mt-2 block truncate text-[11px] ${
+                              className={`mt-2 block truncate text-xs ${
                                 selected ? "text-accent" : "text-muted-foreground"
                               }`}
                             >
@@ -610,10 +693,21 @@ export function CustomMixConfigurator() {
                       })}
                     </div>
                     <ShelfPlank />
-                    <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                      {parts.length}/{maxFlavors} arôme{maxFlavors > 1 ? "s" : ""} au
-                      comptoir
-                    </p>
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px]">
+                      <span className="text-muted-foreground">
+                        {parts.length}/{maxFlavors} arôme{maxFlavors > 1 ? "s" : ""} au
+                        comptoir
+                      </span>
+                      <span
+                        className={`rounded-full border px-3 py-1 font-medium ${
+                          pctValid
+                            ? "border-accent/60 bg-accent/10 text-accent"
+                            : "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
+                        }`}
+                      >
+                        Total : {Math.round(totalPct)} % / 100 %
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -627,11 +721,17 @@ export function CustomMixConfigurator() {
                 <FloatingBottle
                   photo={bottle.photos?.[0] ?? null}
                   alt={`Flacon ${bottle.volume_ml} ml`}
-                  height={bottleHeight(bottle.volume_ml, 118)}
+                  height={bottleHeight(bottle.volume_ml, step >= 1 ? 205 : 130)}
+                  fill={fillLayers}
                 />
-                <span className="mt-1 block text-[11px] uppercase tracking-[0.2em] text-accent">
+                <span className="mt-1 block text-xs uppercase tracking-[0.2em] text-accent">
                   {bottle.volume_ml} ml
                 </span>
+                {step >= 1 && (
+                  <span className="block text-[10px] uppercase tracking-widest text-muted-foreground">
+                    {formatMixNicotine(nicotine)}/ml
+                  </span>
+                )}
               </span>
             ) : (
               <span className="pb-6 text-xs uppercase tracking-[0.25em] text-muted-foreground">
@@ -659,12 +759,35 @@ export function CustomMixConfigurator() {
         {/* Dosage des arômes (hors 500 ml) */}
         {step === 3 && brand && parts.length > 0 && !isBulk && (
           <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Dosage des arômes</p>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  pctValid
+                    ? "border-accent/60 bg-accent/10 text-accent"
+                    : "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
+                }`}
+              >
+                Total : {Math.round(totalPct)} % / 100 %
+              </span>
+            </div>
             {parts.map((p) => {
               const f = brandFlavors.find((x) => x.id === p.flavorId);
               return (
                 <div key={p.flavorId} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span>{f?.name ?? "Arôme"}</span>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-3 w-3 rounded-full"
+                        style={{
+                          backgroundColor: flavorFillColor(
+                            brand,
+                            parts.findIndex((x) => x.flavorId === p.flavorId),
+                          ),
+                        }}
+                      />
+                      {f?.name ?? "Arôme"}
+                    </span>
                     <span className="font-medium">{p.percentage} %</span>
                   </div>
                   <Slider
@@ -678,11 +801,10 @@ export function CustomMixConfigurator() {
                 </div>
               );
             })}
-            <p className={`text-xs ${pctValid ? "text-accent" : "text-destructive"}`}>
-              Total : {Math.round(totalPct)} %{" "}
+            <p className={`text-xs ${pctValid ? "text-accent" : "text-muted-foreground"}`}>
               {pctValid
-                ? "— composition équilibrée."
-                : "— le total doit être exactement de 100 % pour valider."}
+                ? "Composition équilibrée."
+                : "Le total doit être exactement de 100 % pour valider."}
             </p>
           </div>
         )}
