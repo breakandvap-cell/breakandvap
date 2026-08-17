@@ -3,10 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
-import {
-  BottleCarousel3DClient,
-  MixStage3DClient,
-} from "@/components/mix3d/client-3d";
 import { formatPrice } from "@/lib/products";
 import { useCart } from "@/lib/cart";
 import {
@@ -35,13 +31,147 @@ import { siteSettingsQueryOptions } from "@/lib/site-settings.functions";
 
 type Part = { flavorId: string; percentage: number };
 
-/** Échelle 3D proportionnelle à la contenance (racine cubique). */
-function bottleScale(volumeMl: number | null | undefined): number {
-  const v = volumeMl && volumeMl > 0 ? volumeMl : 50;
-  return Math.max(0.62, Math.min(1.5, Math.cbrt(v / 60)));
+/** Hauteur d'affichage du flacon, proportionnelle à la contenance (jamais déformée). */
+function bottleHeight(volumeMl: number | null | undefined, base = 120): number {
+  const v = volumeMl && volumeMl > 0 ? volumeMl : 60;
+  return Math.round(base * Math.max(0.72, Math.min(1.45, Math.cbrt(v / 60))));
 }
 
+/* ------------------------------------------------------------------ */
+/* Décor « bar virtuel »                                               */
+/* ------------------------------------------------------------------ */
 
+/** Fond du bar : tasseaux bois, spots plafond, enseigne rétro-éclairée. */
+function BarBackdrop({ sign }: { sign?: React.ReactNode }) {
+  return (
+    <div aria-hidden={!sign} className="pointer-events-none absolute inset-0">
+      <div className="bar__wood" />
+      <div className="bar__panel" />
+      <div className="bar__spot bar__spot--l" />
+      <div className="bar__spot bar__spot--c" />
+      <div className="bar__spot bar__spot--r" />
+      <div className="absolute inset-x-0 top-4 flex justify-center px-4">
+        {sign ?? (
+          <span className="bar-sign text-[10px] sm:text-xs">Break Vap &amp; CBD</span>
+        )}
+      </div>
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(120% 90% at 50% 120%, transparent 45%, rgba(0,0,0,.75) 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
+/** Planche d'étagère avec bande LED verte. */
+function ShelfPlank() {
+  return (
+    <div className="bar-shelf mt-2">
+      <div className="bar-shelf__plank" />
+      <div className="bar-shelf__led" />
+    </div>
+  );
+}
+
+/** Flacon photo en vue frontale : flottaison + ombre elliptique synchronisée. */
+function FloatingBottle({
+  photo,
+  alt,
+  height,
+  delay = 0,
+  dim = false,
+  fromRight = false,
+}: {
+  photo?: string | null;
+  alt: string;
+  height: number;
+  delay?: number;
+  dim?: boolean;
+  fromRight?: boolean;
+}) {
+  const style = {
+    "--float-dur": `${(4 + (delay % 3) * 0.35).toFixed(2)}s`,
+    "--float-delay": `${delay * 0.35}s`,
+    width: height * 0.44,
+  } as React.CSSProperties;
+  return (
+    <span
+      className={`bar-bottle ${fromRight ? "bar-bottle--right" : ""} ${dim ? "bar-bottle--back" : ""}`}
+      style={style}
+    >
+      {photo ? (
+        <img
+          src={photo}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          className="bar-bottle__img"
+          style={{ height, maxWidth: "100%" }}
+        />
+      ) : (
+        <span
+          className="bar-bottle__img rounded-[10px] border border-accent/30 bg-[linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.03))]"
+          style={{ height, width: height * 0.34 }}
+        />
+      )}
+      <span className="bar-bottle__shadow" />
+    </span>
+  );
+}
+
+/** Comptoir sombre : les éléments sélectionnés s'y posent. */
+function BarCounter({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative mt-6">
+      <div className="relative z-10 flex min-h-[150px] items-end justify-center gap-6 px-4 pb-2">
+        {children}
+      </div>
+      <div className="bar-counter h-14 sm:h-16">
+        <div className="bar-counter__led" />
+      </div>
+    </div>
+  );
+}
+
+/** Fil d'Ariane discret des étapes, en overlay. */
+function StepRail({
+  steps,
+  current,
+  onGo,
+}: {
+  steps: { label: string; enabled: boolean }[];
+  current: number;
+  onGo: (i: number) => void;
+}) {
+  return (
+    <div className="absolute left-1/2 top-14 z-20 flex -translate-x-1/2 gap-1.5 rounded-full border border-accent/20 bg-background/50 px-2 py-1 backdrop-blur sm:top-16">
+      {steps.map((s, i) => (
+        <button
+          key={s.label}
+          type="button"
+          disabled={!s.enabled}
+          onClick={() => onGo(i)}
+          aria-current={current === i}
+          title={s.label}
+          className={`h-1.5 rounded-full transition-all ${
+            current === i
+              ? "w-6 bg-accent shadow-[0_0_10px_color-mix(in_oklab,var(--accent)_70%,transparent)]"
+              : s.enabled
+                ? "w-3 bg-accent/40 hover:bg-accent/70"
+                : "w-3 bg-muted-foreground/25"
+          }`}
+        >
+          <span className="sr-only">{s.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 
 export function CustomMixConfigurator() {
   const cart = useCart();
@@ -60,7 +190,7 @@ export function CustomMixConfigurator() {
   const [brand, setBrand] = useState<MixBrand | null>(null);
   const [parts, setParts] = useState<Part[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [focusFlavor, setFocusFlavor] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
 
   const bottle = bottles.find((b) => b.id === bottleId) ?? null;
   /** Format 500 ml : un seul arôme à 100 % et nicotine payante. */
@@ -72,12 +202,6 @@ export function CustomMixConfigurator() {
   const totalPct = parts.reduce((s, p) => s + p.percentage, 0);
   const pctValid = parts.length > 0 && Math.round(totalPct) === 100;
 
-  const colors = brand ? MIX_BRAND_COLORS[brand] : { from: "#7cffc4", to: "#1f6b4a" };
-
-  // Volume réellement occupé par la base nicotinée, d'après la concentration
-  // des boosters configurée dans les réglages du site :
-  //   volume_base = (mg/ml voulus × contenance) / concentration_booster
-  // soit une fraction du flacon = nicotine / concentration.
   const concentration =
     settings?.boosterConcentrationMgPerMl && settings.boosterConcentrationMgPerMl > 0
       ? settings.boosterConcentrationMgPerMl
@@ -105,7 +229,6 @@ export function CustomMixConfigurator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nicotineOptions]);
 
-  // Nombre de boosters correspondant au taux choisi (facturés sur le 500 ml).
   const boostersCount = boostersForNicotineRate(
     bottle?.volume_ml ?? null,
     nicotine,
@@ -115,7 +238,6 @@ export function CustomMixConfigurator() {
 
   // Prix FIXE par contenance (arômes et pourcentages sans effet).
   // Seul le format 500 ml ajoute le prix des boosters de nicotine.
-  // Le serveur reste seul juge du prix figé lors de l'ajout au panier.
   const estimatedCents = useMemo(
     () =>
       bottle
@@ -139,14 +261,6 @@ export function CustomMixConfigurator() {
           : [{ flavorId: cur[0]!.flavorId, percentage: 100 }],
     );
   }, [isBulk]);
-  const baseFill = bottle
-    ? Math.max(0, Math.min(1, nicotine / concentration))
-    : 0;
-  // Les arômes remplissent le volume restant : 100 % de composition = flacon plein.
-  const fill = Math.min(
-    1,
-    baseFill + (1 - baseFill) * (Math.min(100, Math.max(0, totalPct)) / 100),
-  );
 
   const setPart = (flavorId: string, percentage: number) =>
     setParts((cur) =>
@@ -169,7 +283,6 @@ export function CustomMixConfigurator() {
         return cur;
       }
       const next = [...cur, { flavorId, percentage: 0 }];
-      // Répartition équitable automatique
       const even = Math.floor(100 / next.length);
       return next.map((p, i) => ({
         ...p,
@@ -195,6 +308,7 @@ export function CustomMixConfigurator() {
     setBrand(recipe.brand);
     setParts(resolved);
     setNicotine(Math.min(recipe.suggested_nicotine_mg, MIX_MAX_NICOTINE_MG));
+    setStep(3);
   };
 
   const canSubmit = Boolean(bottle) && pctValid && !submitting;
@@ -242,6 +356,7 @@ export function CustomMixConfigurator() {
       toast.success("Votre mix personnalisé a été ajouté au panier.");
       setParts([]);
       setNicotine(0);
+      setStep(0);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Impossible de valider ce mix.");
     } finally {
@@ -261,9 +376,21 @@ export function CustomMixConfigurator() {
       </div>
     );
   }
+
+  const steps = [
+    { label: "Contenance", enabled: true },
+    { label: "Nicotine", enabled: Boolean(bottle) },
+    { label: "Marque", enabled: Boolean(bottle) },
+    { label: "Arômes", enabled: Boolean(bottle) && Boolean(brand) },
+  ];
+  const maxFlavors = isBulk ? 1 : MIX_MAX_FLAVORS;
+  const selectedFlavors = parts
+    .map((p) => ({ part: p, flavor: brandFlavors.find((f) => f.id === p.flavorId) }))
+    .filter((x) => x.flavor);
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
-      <div className="space-y-8">
+      <div className="space-y-6">
         <header>
           <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
             Atelier DIY
@@ -272,93 +399,82 @@ export function CustomMixConfigurator() {
             Mon Mix personnalisé
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-            Composez votre e-liquide sur mesure : choisissez votre flacon, votre taux de
-            nicotine et jusqu'à {MIX_MAX_FLAVORS} arômes d'une même marque.
+            Composez votre e-liquide au comptoir : contenance, nicotine, marque et
+            jusqu'à {MIX_MAX_FLAVORS} arômes d'une même maison.
           </p>
         </header>
 
-        {/* Étape 1 — Flacon */}
-        <Step number={1} title="Choisissez votre contenance" done={Boolean(bottle)}>
-          {bottlesLoading ? (
-            <p className="text-sm text-muted-foreground">Chargement des flacons…</p>
-          ) : bottles.length === 0 ? (
-            <ShowcaseFrame>
-              <BottleCarousel3DClient
-                items={[30, 60, 120, 200].map((v) => ({
-                  id: `ghost-${v}`,
-                  size: bottleScale(v),
-                  from: "#8ea79c",
-                  to: "#3f524a",
-                }))}
-                selectedId={null}
-                onSelect={() => {}}
-                ghost
-              />
-              <ShowcaseOverlay>Bientôt disponible</ShowcaseOverlay>
-            </ShowcaseFrame>
-          ) : (
-            <ShowcaseFrame>
-              <BottleCarousel3DClient
-                items={bottles.map((b) => ({
-                  id: b.id,
-                  size: bottleScale(b.volume_ml),
-                  from: colors.from,
-                  to: colors.to,
-                  fill: 0.55,
-                  label: `${b.volume_ml} ml`,
-                  sublabel: brand || "Break Vap",
-                }))}
-                selectedId={bottleId ?? bottles[0]?.id ?? null}
-                onSelect={setBottleId}
-              />
-              <CarouselNav
-                onPrev={() => {
-                  const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
-                  setBottleId(bottles[Math.max(0, i - 1)]!.id);
-                }}
-                onNext={() => {
-                  const i = Math.max(0, bottles.findIndex((b) => b.id === bottleId));
-                  setBottleId(bottles[Math.min(bottles.length - 1, i + 1)]!.id);
-                }}
-              />
-              <StageTitle
-                title={bottle ? `${bottle.volume_ml} ML` : "CHOISISSEZ"}
-                subtitle={bottle ? formatPrice(bottle.price_cents) : undefined}
-              />
-              <div className="mt-2 flex flex-wrap justify-center gap-2">
-                {bottles.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => setBottleId(b.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                      bottleId === b.id
-                        ? "border-accent bg-accent/10 text-accent"
-                        : "border-border text-muted-foreground hover:border-accent/60"
-                    }`}
-                  >
-                    {b.volume_ml} ml · {formatPrice(b.price_cents)}
-                  </button>
-                ))}
-              </div>
-            </ShowcaseFrame>
-          )}
-        </Step>
+        {/* Scène : décor identique à toutes les étapes */}
+        <div className="bar px-3 pb-4 pt-3 sm:px-5">
+          <BarBackdrop />
+          <StepRail steps={steps} current={step} onGo={(i) => steps[i]?.enabled && setStep(i)} />
 
-        {/* Étape 2 — Nicotine */}
-        <Step number={2} title="Réglez votre taux de nicotine" done={nicotine > 0}>
-          <div className="max-w-xl space-y-3">
-            {!bottle ? (
-              <p className="text-sm text-muted-foreground">
-                Choisissez d'abord une contenance à l'étape 1.
-              </p>
-            ) : (
-              <>
-                <div
-                  role="radiogroup"
-                  aria-label="Taux de nicotine"
-                  className="flex flex-wrap gap-2"
-                >
+          <div className="relative z-10 pt-24 sm:pt-28">
+            {/* ---------- Étape 1 — Contenance ---------- */}
+            {step === 0 && (
+              <div>
+                <SceneTitle
+                  eyebrow="Étape 1"
+                  title="Choisissez votre contenance"
+                  hint="Cliquez sur un flacon : il glisse jusqu'au comptoir."
+                />
+                {bottlesLoading ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    Chargement des flacons…
+                  </p>
+                ) : bottles.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    Flacons bientôt disponibles.
+                  </p>
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex items-end justify-center gap-3 overflow-x-auto px-1 pb-1 sm:gap-6">
+                      {bottles.map((b, i) => (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => {
+                            setBottleId(b.id);
+                            setStep(1);
+                          }}
+                          className="group shrink-0 rounded-lg px-1 pb-1 text-center transition focus:outline-none"
+                          aria-pressed={bottleId === b.id}
+                        >
+                          <FloatingBottle
+                            photo={b.photos?.[0] ?? null}
+                            alt={`Flacon ${b.volume_ml} ml`}
+                            height={bottleHeight(b.volume_ml, 96)}
+                            delay={i}
+                            dim={Boolean(bottleId) && bottleId !== b.id}
+                          />
+                          <span className="mt-2 block text-xs text-foreground/90 group-hover:text-accent">
+                            {b.volume_ml} ml
+                          </span>
+                          <span className="block text-[11px] text-muted-foreground">
+                            {formatPrice(b.price_cents)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                    <ShelfPlank />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ---------- Étape 2 — Nicotine ---------- */}
+            {step === 1 && (
+              <div>
+                <SceneTitle
+                  eyebrow="Étape 2"
+                  title="Réglez votre taux de nicotine"
+                  hint={
+                    isBulk
+                      ? `Nicotine payante sur ce format (${formatPrice(bulkBoosterPriceCents)} / booster).`
+                      : "Nicotine offerte, sans supplément."
+                  }
+                />
+                <div className="mt-4 flex flex-wrap justify-center gap-2">
                   {nicotineOptions.map((r, i) => {
                     const selected = Math.abs(r - nicotine) < 0.05;
                     return (
@@ -368,10 +484,10 @@ export function CustomMixConfigurator() {
                         role="radio"
                         aria-checked={selected}
                         onClick={() => setNicotine(r)}
-                        className={`rounded-full border px-4 py-1.5 text-sm transition ${
+                        className={`rounded-full border px-4 py-1.5 text-sm backdrop-blur transition ${
                           selected
-                            ? "border-accent bg-accent/10 text-accent"
-                            : "border-border text-muted-foreground hover:border-accent/60"
+                            ? "border-accent bg-accent/15 text-accent shadow-[0_0_20px_-6px_color-mix(in_oklab,var(--accent)_80%,transparent)]"
+                            : "border-border/70 bg-background/40 text-muted-foreground hover:border-accent/60"
                         }`}
                       >
                         {formatMixNicotine(r)}
@@ -382,206 +498,198 @@ export function CustomMixConfigurator() {
                     );
                   })}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="mx-auto mt-3 max-w-xl text-center text-[11px] text-muted-foreground">
                   Seuls ces taux sont réalisables : un booster de{" "}
-                  {boosterCfg.boosterVolumeMl} ml à {concentration} mg/ml ne se
-                  coupe pas en deux (max {MIX_MAX_NICOTINE_MG} mg).
+                  {boosterCfg.boosterVolumeMl} ml à {concentration} mg/ml ne se coupe pas
+                  en deux (max {MIX_MAX_NICOTINE_MG} mg).
+                  {isBulk && boostersCount > 0
+                    ? ` Sélection actuelle : ${boostersCount} booster${boostersCount > 1 ? "s" : ""} — ${formatPrice(boostersCount * bulkBoosterPriceCents)}.`
+                    : ""}
                 </p>
-                {isBulk ? (
-                  <p className="rounded-lg border border-accent/40 bg-accent/5 p-3 text-xs text-accent">
-                    Nicotine payante sur ce format ({formatPrice(bulkBoosterPriceCents)}{" "}
-                    par booster). Chaque booster est fourni séparément.
-                    {boostersCount > 0
-                      ? ` Sélection actuelle : ${boostersCount} booster${boostersCount > 1 ? "s" : ""} — ${formatPrice(boostersCount * bulkBoosterPriceCents)}.`
-                      : ""}
-                  </p>
-                ) : (
-                  <p className="text-xs text-accent">Nicotine offerte, sans supplément</p>
-                )}
-              </>
-            )}
-          </div>
-        </Step>
-
-        {/* Étape 3 — Arômes */}
-        <Step
-          number={3}
-          title={isBulk ? "Choisissez votre arôme" : "Composez vos arômes"}
-          done={pctValid}
-        >
-          {isBulk && (
-            <p className="mb-4 rounded-lg border border-border bg-card p-3 text-xs text-muted-foreground">
-              Sur le format {MIX_BULK_VOLUME_ML} ml, le mélange n'est pas possible :
-              un seul arôme, automatiquement à 100 %.
-            </p>
-          )}
-          <div className="mb-4 flex flex-wrap gap-2">
-            {MIX_BRANDS.map((b) => {
-              const available = (flavorsByBrand?.[b] ?? []).length > 0;
-              return (
-                <button
-                  key={b}
-                  type="button"
-                  disabled={!available}
-                  onClick={() => {
-                    setBrand(b);
-                    setParts([]);
-                  }}
-                  className={`rounded-full border px-4 py-1.5 text-sm transition ${
-                    brand === b
-                      ? "border-accent bg-accent/10"
-                      : "border-border hover:border-accent/60"
-                  } ${available ? "" : "cursor-not-allowed opacity-50"}`}
-                >
-                  {b}
-                  {!available && (
-                    <span className="ml-2 text-[10px] uppercase tracking-wider">
-                      Bientôt disponible
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {!brand ? (
-            <p className="text-sm text-muted-foreground">
-              Sélectionnez d'abord une marque : les arômes ne se mélangent pas entre marques.
-            </p>
-          ) : brandFlavors.length === 0 ? (
-            <ShowcaseFrame>
-              <BottleCarousel3DClient
-                items={[0, 1, 2].map((i) => ({
-                  id: `ghost-flavor-${i}`,
-                  size: 1,
-                  from: "#8ea79c",
-                  to: "#3f524a",
-                }))}
-                selectedId={null}
-                onSelect={() => {}}
-                ghost
-              />
-              <ShowcaseOverlay>Arômes {brand} bientôt disponibles</ShowcaseOverlay>
-            </ShowcaseFrame>
-          ) : (
-            <div className="space-y-4">
-              <ShowcaseFrame>
-                <BottleCarousel3DClient
-                  items={brandFlavors.map((f) => ({
-                    id: f.id,
-                    size: 1,
-                    from: colors.from,
-                    to: colors.to,
-                    fill: parts.some((p) => p.flavorId === f.id) ? 0.8 : 0.4,
-                    label: f.name.split(" ")[0] ?? f.name,
-                    sublabel: brand || "Break Vap",
-                    photoUrl: f.photos?.[0] ?? null,
-                  }))}
-                  selectedId={focusFlavor ?? brandFlavors[0]?.id ?? null}
-                  onSelect={(id) => {
-                    setFocusFlavor(id);
-                    toggleFlavor(id);
-                  }}
-                />
-                <CarouselNav
-                  onPrev={() => {
-                    const i = Math.max(
-                      0,
-                      brandFlavors.findIndex((f) => f.id === focusFlavor),
-                    );
-                    setFocusFlavor(brandFlavors[Math.max(0, i - 1)]!.id);
-                  }}
-                  onNext={() => {
-                    const i = Math.max(
-                      0,
-                      brandFlavors.findIndex((f) => f.id === focusFlavor),
-                    );
-                    setFocusFlavor(
-                      brandFlavors[Math.min(brandFlavors.length - 1, i + 1)]!.id,
-                    );
-                  }}
-                />
-                <StageTitle
-                  title={
-                    brandFlavors.find((f) => f.id === focusFlavor)?.name ??
-                    brandFlavors[0]?.name ??
-                    "ARÔMES"
-                  }
-                  subtitle={brand ?? undefined}
-                />
-              </ShowcaseFrame>
-              <div className="flex flex-wrap justify-center gap-2">
-                {brandFlavors.map((f) => {
-                  const selected = parts.some((p) => p.flavorId === f.id);
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => {
-                        setFocusFlavor(f.id);
-                        toggleFlavor(f.id);
-                      }}
-                      className={`rounded-full border px-3 py-1.5 text-xs transition ${
-                        selected
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-border text-muted-foreground hover:border-accent/60"
-                      }`}
-                    >
-                      {f.name}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {parts.length > 0 && isBulk && (
-                <div className="rounded-lg border border-border bg-card p-4 text-sm">
-                  <span className="text-accent">
-                    {brandFlavors.find((x) => x.id === parts[0]!.flavorId)?.name ??
-                      "Arôme"}
-                  </span>{" "}
-                  — 100 % (arôme unique sur le format {MIX_BULK_VOLUME_ML} ml).
+                <div className="mt-4 text-center">
+                  <NextButton onClick={() => setStep(2)}>Choisir la marque</NextButton>
                 </div>
-              )}
+              </div>
+            )}
 
-              {parts.length > 0 && !isBulk && (
-                <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-                  {parts.map((p) => {
-                    const f = brandFlavors.find((x) => x.id === p.flavorId);
+            {/* ---------- Étape 3 — Marque ---------- */}
+            {step === 2 && (
+              <div>
+                <SceneTitle
+                  eyebrow="Étape 3"
+                  title="Choisissez votre maison d'arômes"
+                  hint="Les arômes ne se mélangent pas entre marques."
+                />
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-4">
+                  {MIX_BRANDS.map((b) => {
+                    const available = (flavorsByBrand?.[b] ?? []).length > 0;
+                    const active = brand === b;
                     return (
-                      <div key={p.flavorId} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <span>{f?.name ?? "Arôme"}</span>
-                          <span className="font-medium">{p.percentage} %</span>
-                        </div>
-                        <Slider
-                          value={[p.percentage]}
-                          min={0}
-                          max={100}
-                          step={5}
-                          onValueChange={(v) => setPart(p.flavorId, v[0] ?? 0)}
-                          aria-label={`Pourcentage ${f?.name ?? ""}`}
-                        />
-                      </div>
+                      <button
+                        key={b}
+                        type="button"
+                        disabled={!available}
+                        onClick={() => {
+                          setBrand(b);
+                          setParts([]);
+                          setStep(3);
+                        }}
+                        className={`bar-sign text-sm transition ${
+                          active ? "scale-105" : "opacity-80 hover:opacity-100"
+                        } ${available ? "" : "cursor-not-allowed opacity-40"}`}
+                        style={
+                          active
+                            ? {
+                                borderColor: MIX_BRAND_COLORS[b].from,
+                                color: MIX_BRAND_COLORS[b].from,
+                              }
+                            : undefined
+                        }
+                      >
+                        {b}
+                        {!available && (
+                          <span className="ml-2 text-[9px] tracking-normal">bientôt</span>
+                        )}
+                      </button>
                     );
                   })}
-                  <p
-                    className={`text-xs ${
-                      pctValid ? "text-accent" : "text-destructive"
-                    }`}
-                  >
-                    Total : {Math.round(totalPct)} %{" "}
-                    {pctValid
-                      ? "— composition équilibrée."
-                      : "— le total doit être exactement de 100 % pour valider."}
-                  </p>
                 </div>
-              )}
-            </div>
-          )}
-        </Step>
+              </div>
+            )}
 
-        {/* Étape 4 — Recettes */}
-        <Step number={4} title="Recettes populaires">
+            {/* ---------- Étape 4 — Arômes ---------- */}
+            {step === 3 && (
+              <div>
+                <SceneTitle
+                  eyebrow="Étape 4"
+                  title={isBulk ? "Choisissez votre arôme" : "Composez vos arômes"}
+                  hint={
+                    isBulk
+                      ? `Format ${MIX_BULK_VOLUME_ML} ml : un seul arôme, automatiquement à 100 %.`
+                      : `Jusqu'à ${MIX_MAX_FLAVORS} arômes ${brand ?? ""} — total 100 %.`
+                  }
+                />
+                {!brand ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Sélectionnez d'abord une marque à l'étape 3.
+                  </p>
+                ) : brandFlavors.length === 0 ? (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    Arômes {brand} bientôt disponibles.
+                  </p>
+                ) : (
+                  <div className="mt-4">
+                    <div className="flex items-end justify-center gap-3 overflow-x-auto px-1 pb-1 sm:gap-5">
+                      {brandFlavors.map((f, i) => {
+                        const selected = parts.some((p) => p.flavorId === f.id);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => toggleFlavor(f.id)}
+                            aria-pressed={selected}
+                            className="group w-[86px] shrink-0 text-center transition sm:w-[100px]"
+                          >
+                            <FloatingBottle
+                              photo={f.photos?.[0] ?? null}
+                              alt={f.name}
+                              height={82}
+                              delay={i}
+                              dim={parts.length > 0 && !selected}
+                              fromRight
+                            />
+                            <span
+                              className={`mt-2 block truncate text-[11px] ${
+                                selected ? "text-accent" : "text-muted-foreground"
+                              }`}
+                            >
+                              {f.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <ShelfPlank />
+                    <p className="mt-3 text-center text-[11px] text-muted-foreground">
+                      {parts.length}/{maxFlavors} arôme{maxFlavors > 1 ? "s" : ""} au
+                      comptoir
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Comptoir : flacon retenu + arômes posés */}
+          <BarCounter>
+            {bottle ? (
+              <span className="text-center">
+                <FloatingBottle
+                  photo={bottle.photos?.[0] ?? null}
+                  alt={`Flacon ${bottle.volume_ml} ml`}
+                  height={bottleHeight(bottle.volume_ml, 118)}
+                />
+                <span className="mt-1 block text-[11px] uppercase tracking-[0.2em] text-accent">
+                  {bottle.volume_ml} ml
+                </span>
+              </span>
+            ) : (
+              <span className="pb-6 text-xs uppercase tracking-[0.25em] text-muted-foreground">
+                Comptoir vide
+              </span>
+            )}
+            {selectedFlavors.map(({ part, flavor }, i) => (
+              <span key={part.flavorId} className="text-center">
+                <FloatingBottle
+                  photo={flavor!.photos?.[0] ?? null}
+                  alt={flavor!.name}
+                  height={72}
+                  delay={i + 1}
+                  fromRight
+                />
+                <span className="mt-1 block max-w-[90px] truncate text-[10px] text-muted-foreground">
+                  {flavor!.name}
+                </span>
+                <span className="block text-[11px] text-accent">{part.percentage} %</span>
+              </span>
+            ))}
+          </BarCounter>
+        </div>
+
+        {/* Dosage des arômes (hors 500 ml) */}
+        {step === 3 && brand && parts.length > 0 && !isBulk && (
+          <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+            {parts.map((p) => {
+              const f = brandFlavors.find((x) => x.id === p.flavorId);
+              return (
+                <div key={p.flavorId} className="space-y-1">
+                  <div className="flex items-center justify-between text-sm">
+                    <span>{f?.name ?? "Arôme"}</span>
+                    <span className="font-medium">{p.percentage} %</span>
+                  </div>
+                  <Slider
+                    value={[p.percentage]}
+                    min={0}
+                    max={100}
+                    step={5}
+                    onValueChange={(v) => setPart(p.flavorId, v[0] ?? 0)}
+                    aria-label={`Pourcentage ${f?.name ?? ""}`}
+                  />
+                </div>
+              );
+            })}
+            <p className={`text-xs ${pctValid ? "text-accent" : "text-destructive"}`}>
+              Total : {Math.round(totalPct)} %{" "}
+              {pctValid
+                ? "— composition équilibrée."
+                : "— le total doit être exactement de 100 % pour valider."}
+            </p>
+          </div>
+        )}
+
+        {/* Recettes populaires */}
+        <section>
+          <h2 className="mb-3 text-lg">Recettes populaires</h2>
           <div className="grid gap-3 sm:grid-cols-2">
             {recipes.length === 0 && (
               <p className="text-sm text-muted-foreground">
@@ -630,10 +738,10 @@ export function CustomMixConfigurator() {
               );
             })}
           </div>
-        </Step>
+        </section>
       </div>
 
-      {/* Colonne visuelle + validation */}
+      {/* Récapitulatif + validation */}
       <aside className="lg:sticky lg:top-6">
         <div
           className="relative overflow-hidden rounded-xl border bg-card p-5 transition-colors duration-500"
@@ -648,44 +756,10 @@ export function CustomMixConfigurator() {
               : undefined,
           }}
         >
-          <MixStage3DClient
-            fill={fill}
-            from={colors.from}
-            to={colors.to}
-            size={bottleScale(bottle?.volume_ml ?? null)}
-            complete={pctValid && Boolean(bottle)}
-            label={bottle ? `${bottle.volume_ml} ml` : undefined}
-            sublabel={brand || "Break Vap"}
-            photoUrl={
-              parts.length > 0
-                ? (brandFlavors.find((f) => f.id === parts[0]!.flavorId)?.photos?.[0] ??
-                  null)
-                : null
-            }
-          />
-          <StageTitle
-            title={
-              parts.length > 0
-                ? (brandFlavors.find((f) => f.id === parts[0]!.flavorId)?.name ??
-                  "MON MIX")
-                : bottle
-                  ? `${bottle.volume_ml} ML`
-                  : "MON MIX"
-            }
-            subtitle={bottle ? `${bottle.volume_ml} ml · ${brand || "Break Vap"}` : undefined}
-          />
-          <p className="mt-1 text-center text-xs text-muted-foreground">
-            {parts.length > 0
-              ? parts
-                  .map(
-                    (p) =>
-                      `${brandFlavors.find((f) => f.id === p.flavorId)?.name ?? "Arôme"} ${p.percentage}%`,
-                  )
-                  .join(" + ")
-              : "Sélectionnez vos arômes pour remplir le flacon"}
+          <p className="text-center text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
+            Votre mix
           </p>
-
-          <dl className="mt-5 space-y-1 text-sm">
+          <dl className="mt-4 space-y-1 text-sm">
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Flacon</dt>
               <dd>{bottle ? `${bottle.volume_ml} ml` : "—"}</dd>
@@ -706,6 +780,16 @@ export function CustomMixConfigurator() {
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Marque</dt>
               <dd>{brand ?? "—"}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Arômes</dt>
+              <dd className="text-right">
+                {selectedFlavors.length > 0
+                  ? selectedFlavors
+                      .map((x) => `${x.flavor!.name} ${x.part.percentage}%`)
+                      .join(" + ")
+                  : "—"}
+              </dd>
             </div>
             <div className="mt-2 flex items-baseline justify-between border-t border-border pt-2">
               <dt className="text-muted-foreground">Prix indicatif</dt>
@@ -753,108 +837,48 @@ export function CustomMixConfigurator() {
   );
 }
 
-function Step({
-  number,
+function SceneTitle({
+  eyebrow,
   title,
-  done = false,
-  children,
+  hint,
 }: {
-  number: number;
+  eyebrow: string;
   title: string;
-  done?: boolean;
-  children: React.ReactNode;
+  hint?: string;
 }) {
   return (
-    <section>
-      <h2 className="mb-3 flex items-center gap-3 text-lg">
-        <span
-          className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs transition-all duration-500 ${
-            done
-              ? "scale-110 border-accent bg-accent/20 text-accent shadow-[0_0_18px_-4px_color-mix(in_oklab,var(--accent)_80%,transparent)]"
-              : "border-accent/60 text-accent"
-          }`}
-        >
-          {done ? "✓" : number}
-        </span>
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-function EmptyNote({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="rounded-lg border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
-      {children}
-    </p>
-  );
-}
-
-/** Cadre « vitrine premium » autour d'une scène 3D. */
-function ShowcaseFrame({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="relative overflow-hidden rounded-xl border border-border/70"
-      style={{
-        backgroundImage:
-          "radial-gradient(90% 70% at 50% 0%, color-mix(in oklab, var(--accent) 14%, transparent), transparent 70%), linear-gradient(180deg, #070b09, #040605)",
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function ShowcaseOverlay({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-      <span className="rounded-full border border-border/70 bg-background/70 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-muted-foreground backdrop-blur">
-        {children}
-      </span>
-    </div>
-  );
-}
-
-/** Titre produit mis en scène sous le flacon. */
-function StageTitle({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <div className="relative z-10 px-4 pb-4 pt-1 text-center">
-      <p
-        className="text-lg font-semibold uppercase leading-tight tracking-[0.18em] sm:text-2xl"
+    <div className="text-center">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-accent/80">{eyebrow}</p>
+      <h2
+        className="mt-1 text-base uppercase tracking-[0.12em] sm:text-lg"
         style={{
           fontFamily: "var(--font-serif)",
-          textShadow:
-            "0 0 18px color-mix(in oklab, var(--accent) 55%, transparent), 0 2px 10px rgba(0,0,0,.6)",
+          textShadow: "0 0 18px color-mix(in oklab, var(--accent) 45%, transparent)",
         }}
       >
         {title}
-      </p>
-      <span
-        className="mx-auto mt-2 block h-px w-16 rounded-full"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent, color-mix(in oklab, var(--accent) 85%, transparent), transparent)",
-        }}
-      />
-      {subtitle ? (
-        <p className="mt-2 text-xs tracking-wide text-muted-foreground">{subtitle}</p>
+      </h2>
+      {hint ? (
+        <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>
       ) : null}
     </div>
   );
 }
 
-function CarouselNav({ onPrev, onNext }: { onPrev: () => void; onNext: () => void }) {
-  const cls =
-    "absolute top-1/2 -translate-y-1/2 grid h-10 w-10 place-items-center rounded-full border border-border/70 bg-background/60 text-foreground backdrop-blur transition hover:border-accent";
+function NextButton({
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
-    <>
-      <button type="button" aria-label="Flacon précédent" onClick={onPrev} className={`${cls} left-2`}>
-        ‹
-      </button>
-      <button type="button" aria-label="Flacon suivant" onClick={onNext} className={`${cls} right-2`}>
-        ›
-      </button>
-    </>
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full border border-accent/60 bg-accent/10 px-5 py-2 text-sm text-accent transition hover:bg-accent/20"
+    >
+      {children}
+    </button>
   );
 }
