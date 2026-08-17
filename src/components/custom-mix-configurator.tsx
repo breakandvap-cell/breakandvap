@@ -756,12 +756,35 @@ export function CustomMixConfigurator() {
         {/* Dosage des arômes (hors 500 ml) */}
         {step === 3 && brand && parts.length > 0 && !isBulk && (
           <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium">Dosage des arômes</p>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-medium ${
+                  pctValid
+                    ? "border-accent/60 bg-accent/10 text-accent"
+                    : "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
+                }`}
+              >
+                Total : {Math.round(totalPct)} % / 100 %
+              </span>
+            </div>
             {parts.map((p) => {
               const f = brandFlavors.find((x) => x.id === p.flavorId);
               return (
                 <div key={p.flavorId} className="space-y-1">
                   <div className="flex items-center justify-between text-sm">
-                    <span>{f?.name ?? "Arôme"}</span>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className="inline-block h-3 w-3 rounded-full"
+                        style={{
+                          backgroundColor: flavorFillColor(
+                            brand,
+                            parts.findIndex((x) => x.flavorId === p.flavorId),
+                          ),
+                        }}
+                      />
+                      {f?.name ?? "Arôme"}
+                    </span>
                     <span className="font-medium">{p.percentage} %</span>
                   </div>
                   <Slider
@@ -775,11 +798,10 @@ export function CustomMixConfigurator() {
                 </div>
               );
             })}
-            <p className={`text-xs ${pctValid ? "text-accent" : "text-destructive"}`}>
-              Total : {Math.round(totalPct)} %{" "}
+            <p className={`text-xs ${pctValid ? "text-accent" : "text-muted-foreground"}`}>
               {pctValid
-                ? "— composition équilibrée."
-                : "— le total doit être exactement de 100 % pour valider."}
+                ? "Composition équilibrée."
+                : "Le total doit être exactement de 100 % pour valider."}
             </p>
           </div>
         )}
