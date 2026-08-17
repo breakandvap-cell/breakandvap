@@ -15,11 +15,14 @@ import {
   mixFlavorsByBrandQueryOptions,
   MIX_BRANDS,
   MIX_BRAND_COLORS,
+  MIX_BRAND_LOGOS,
   MIX_BULK_VOLUME_ML,
   MIX_MAX_FLAVORS,
   MIX_MAX_NICOTINE_MG,
   mixRecipesQueryOptions,
   computeMixTotalCents,
+  nicotineVolumeRatio,
+  flavorFillColor,
   type MixBrand,
   type MixFlavorOption,
 } from "@/lib/custom-mix";
@@ -30,6 +33,9 @@ import {
 import { siteSettingsQueryOptions } from "@/lib/site-settings.functions";
 
 type Part = { flavorId: string; percentage: number };
+
+/** Couche de liquide affichée dans le flacon (du bas vers le haut). */
+type FillLayer = { color: string; ratio: number; key: string };
 
 /** Hauteur d'affichage du flacon, proportionnelle à la contenance (jamais déformée). */
 function bottleHeight(volumeMl: number | null | undefined, base = 120): number {
@@ -84,6 +90,7 @@ function FloatingBottle({
   delay = 0,
   dim = false,
   fromRight = false,
+  fill,
 }: {
   photo?: string | null;
   alt: string;
@@ -91,32 +98,64 @@ function FloatingBottle({
   delay?: number;
   dim?: boolean;
   fromRight?: boolean;
+  /** Couches de liquide superposées à la photo (remplissage progressif). */
+  fill?: FillLayer[];
 }) {
   const style = {
     "--float-dur": `${(4 + (delay % 3) * 0.35).toFixed(2)}s`,
     "--float-delay": `${delay * 0.35}s`,
     width: height * 0.44,
   } as React.CSSProperties;
+  const layers = (fill ?? []).filter((l) => l.ratio > 0.001);
+  const total = Math.min(1, layers.reduce((s, l) => s + l.ratio, 0));
+  let cursor = 0;
   return (
     <span
       className={`bar-bottle ${fromRight ? "bar-bottle--right" : ""} ${dim ? "bar-bottle--back" : ""}`}
       style={style}
     >
-      {photo ? (
-        <img
-          src={photo}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          className="bar-bottle__img"
-          style={{ height, maxWidth: "100%" }}
-        />
-      ) : (
-        <span
-          className="bar-bottle__img rounded-[10px] border border-accent/30 bg-[linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.03))]"
-          style={{ height, width: height * 0.34 }}
-        />
-      )}
+      <span className="bar-bottle__body" style={{ height }}>
+        {photo ? (
+          <img
+            src={photo}
+            alt={alt}
+            loading="lazy"
+            decoding="async"
+            className="bar-bottle__img"
+            style={{ height, maxWidth: "100%" }}
+          />
+        ) : (
+          <span
+            className="bar-bottle__img rounded-[10px] border border-accent/30 bg-[linear-gradient(180deg,rgba(255,255,255,.14),rgba(255,255,255,.03))]"
+            style={{ height, width: height * 0.34 }}
+          />
+        )}
+        {total > 0 && (
+          <span
+            className="bar-fill"
+            style={{ height: `${Math.round(total * 62)}%` }}
+            aria-hidden
+          >
+            {layers.map((l) => {
+              const bottom = total > 0 ? (cursor / total) * 100 : 0;
+              const h = total > 0 ? (l.ratio / total) * 100 : 0;
+              cursor += l.ratio;
+              return (
+                <span
+                  key={l.key}
+                  className="bar-fill__layer"
+                  style={{
+                    bottom: `${bottom}%`,
+                    height: `${h}%`,
+                    backgroundColor: l.color,
+                  }}
+                />
+              );
+            })}
+            <span className="bar-fill__top" />
+          </span>
+        )}
+      </span>
       <span className="bar-bottle__shadow" />
     </span>
   );
