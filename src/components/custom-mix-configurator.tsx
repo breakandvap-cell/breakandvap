@@ -104,7 +104,6 @@ function FloatingBottle({
   const style = {
     "--float-dur": `${(4 + (delay % 3) * 0.35).toFixed(2)}s`,
     "--float-delay": `${delay * 0.35}s`,
-    width: height * 0.44,
   } as React.CSSProperties;
   const layers = (fill ?? []).filter((l) => l.ratio > 0.001);
   const total = Math.min(1, layers.reduce((s, l) => s + l.ratio, 0));
@@ -122,7 +121,7 @@ function FloatingBottle({
             loading="lazy"
             decoding="async"
             className="bar-bottle__img"
-            style={{ height, maxWidth: "100%" }}
+            style={{ height }}
           />
         ) : (
           <span
