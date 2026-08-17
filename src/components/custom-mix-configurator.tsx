@@ -450,8 +450,8 @@ export function CustomMixConfigurator() {
   });
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
-      <div className="space-y-6">
+    <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
+      <div className="min-w-0 space-y-6">
         <header>
           <p className="text-[11px] uppercase tracking-[0.25em] text-muted-foreground">
             Atelier DIY
@@ -466,7 +466,7 @@ export function CustomMixConfigurator() {
         </header>
 
         {/* Scène : décor identique à toutes les étapes */}
-        <div className="bar px-3 pb-4 pt-3 sm:px-5">
+        <div className="bar min-w-0 max-w-full overflow-hidden px-3 pb-4 pt-3 sm:px-5">
           <BarBackdrop />
           <StepRail steps={steps} current={step} onGo={(i) => steps[i]?.enabled && setStep(i)} />
 
@@ -662,7 +662,7 @@ export function CustomMixConfigurator() {
                   </p>
                 ) : (
                   <div className="mt-4">
-                    <div className="flex items-end justify-center gap-3 overflow-x-auto px-1 pb-1 sm:gap-5">
+                    <div className="flex max-w-full items-end justify-start gap-3 overflow-x-auto px-1 pb-1 sm:justify-center sm:gap-5">
                       {brandFlavors.map((f, i) => {
                         const selected = parts.some((p) => p.flavorId === f.id);
                         return (
