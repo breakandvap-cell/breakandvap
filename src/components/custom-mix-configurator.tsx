@@ -427,6 +427,25 @@ export function CustomMixConfigurator() {
     .map((p) => ({ part: p, flavor: brandFlavors.find((f) => f.id === p.flavorId) }))
     .filter((x) => x.flavor);
 
+  // Remplissage visuel du flacon : base nicotinée (boosters) puis arômes.
+  const nicoRatio = nicotineVolumeRatio(
+    bottle?.volume_ml ?? null,
+    boostersCount,
+    boosterCfg,
+  );
+  const fillLayers: FillLayer[] = [];
+  if (nicoRatio > 0) {
+    fillLayers.push({ key: "nicotine", color: "hsl(140 72% 55%)", ratio: nicoRatio });
+  }
+  const flavorSpace = Math.max(0, 1 - nicoRatio);
+  selectedFlavors.forEach(({ part }, i) => {
+    fillLayers.push({
+      key: part.flavorId,
+      color: flavorFillColor(brand, i),
+      ratio: flavorSpace * (part.percentage / 100),
+    });
+  });
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_320px] lg:items-start">
       <div className="space-y-6">
