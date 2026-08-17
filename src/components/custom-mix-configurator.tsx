@@ -668,18 +668,18 @@ export function CustomMixConfigurator() {
                             type="button"
                             onClick={() => toggleFlavor(f.id)}
                             aria-pressed={selected}
-                            className="group w-[86px] shrink-0 text-center transition sm:w-[100px]"
+                            className="group w-[112px] shrink-0 text-center transition sm:w-[132px]"
                           >
                             <FloatingBottle
                               photo={f.photos?.[0] ?? null}
                               alt={f.name}
-                              height={82}
+                              height={124}
                               delay={i}
                               dim={parts.length > 0 && !selected}
                               fromRight
                             />
                             <span
-                              className={`mt-2 block truncate text-[11px] ${
+                              className={`mt-2 block truncate text-xs ${
                                 selected ? "text-accent" : "text-muted-foreground"
                               }`}
                             >
@@ -690,10 +690,21 @@ export function CustomMixConfigurator() {
                       })}
                     </div>
                     <ShelfPlank />
-                    <p className="mt-3 text-center text-[11px] text-muted-foreground">
-                      {parts.length}/{maxFlavors} arôme{maxFlavors > 1 ? "s" : ""} au
-                      comptoir
-                    </p>
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2 text-[11px]">
+                      <span className="text-muted-foreground">
+                        {parts.length}/{maxFlavors} arôme{maxFlavors > 1 ? "s" : ""} au
+                        comptoir
+                      </span>
+                      <span
+                        className={`rounded-full border px-3 py-1 font-medium ${
+                          pctValid
+                            ? "border-accent/60 bg-accent/10 text-accent"
+                            : "border-yellow-500/60 bg-yellow-500/10 text-yellow-400"
+                        }`}
+                      >
+                        Total : {Math.round(totalPct)} % / 100 %
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
