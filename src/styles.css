@@ -816,14 +816,15 @@ html, body { overflow-x: hidden; }
 }
 .bar-fill__layer {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 30%;
+  right: 30%;
+  border-radius: 0 0 40% 40% / 0 0 12% 12%;
   transition: height 700ms cubic-bezier(.22,1,.36,1), bottom 700ms cubic-bezier(.22,1,.36,1), background-color 500ms ease;
   opacity: .72;
 }
 .bar-fill__top {
   position: absolute;
-  left: 0; right: 0;
+  left: 30%; right: 30%;
   height: 4px;
   background: linear-gradient(180deg, rgba(255,255,255,.7), transparent);
   transition: bottom 700ms cubic-bezier(.22,1,.36,1);
