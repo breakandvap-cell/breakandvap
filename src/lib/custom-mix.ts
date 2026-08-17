@@ -1,6 +1,8 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import alchimixLogo from "@/assets/logo-alchimix.jpeg.asset.json";
+import mixologueLogo from "@/assets/logo-mixologue.jpeg.asset.json";
 
 /** Familles autorisées dans le configurateur DIY (jamais mélangées).
  *  Attention : « Alchimix » est une GAMME de la marque LiquidLab,
@@ -201,8 +203,8 @@ export const MIX_BRAND_COLORS: Record<MixBrand, { from: string; to: string }> = 
  *  Laisser vide tant que le visuel officiel n'est pas fourni :
  *  l'interface affiche alors un emplacement « Logo … » en attente. */
 export const MIX_BRAND_LOGOS: Record<MixBrand, string | null> = {
-  Alchimix: null,
-  Mixologue: null,
+  Alchimix: alchimixLogo.url,
+  Mixologue: mixologueLogo.url,
 };
 
 /** Part du flacon réellement occupée par les boosters de nicotine (0 → 1). */

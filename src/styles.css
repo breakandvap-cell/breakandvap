@@ -881,7 +881,18 @@ html, body { overflow-x: hidden; }
     0 0 46px -4px color-mix(in oklab, var(--accent) 80%, transparent),
     inset 0 0 40px -10px color-mix(in oklab, var(--accent) 60%, transparent);
 }
-.bar-brand__img { max-height: 56px; width: auto; object-fit: contain; }
+.bar-brand__img {
+  max-height: 72px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  filter: drop-shadow(0 0 14px rgba(0, 255, 140, 0.35));
+  transition: filter 300ms ease, transform 300ms ease;
+}
+.bar-brand:hover:not(:disabled) .bar-brand__img,
+.bar-brand--active .bar-brand__img {
+  filter: drop-shadow(0 0 22px rgba(0, 255, 140, 0.7)) brightness(1.08);
+}
 
 @media (max-width: 767px) {
   .bar__spot { display: none; }
