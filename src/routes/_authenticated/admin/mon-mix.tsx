@@ -127,6 +127,8 @@ function MixAdminPage() {
           price_cents: f.price_cents,
           published: f.is_published,
           stock_status: f.stock_status,
+          liquid_color: (f as { liquid_color?: string | null }).liquid_color ?? null,
+          raw_name: f.name,
         }))}
         editKind="eliquide"
         onDone={refresh}
