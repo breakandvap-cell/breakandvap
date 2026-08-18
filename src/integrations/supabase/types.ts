@@ -721,6 +721,7 @@ export type Database = {
           id: string
           is_nicotine_booster: boolean
           is_published: boolean
+          liquid_color: string | null
           low_stock_notified_at: string | null
           name: string
           nicotine_mg: number | null
@@ -757,6 +758,7 @@ export type Database = {
           id?: string
           is_nicotine_booster?: boolean
           is_published?: boolean
+          liquid_color?: string | null
           low_stock_notified_at?: string | null
           name: string
           nicotine_mg?: number | null
@@ -793,6 +795,7 @@ export type Database = {
           id?: string
           is_nicotine_booster?: boolean
           is_published?: boolean
+          liquid_color?: string | null
           low_stock_notified_at?: string | null
           name?: string
           nicotine_mg?: number | null
@@ -1514,6 +1517,7 @@ export type Database = {
           id: string
           is_nicotine_booster: boolean
           is_published: boolean
+          liquid_color: string | null
           low_stock_notified_at: string | null
           name: string
           nicotine_mg: number | null
