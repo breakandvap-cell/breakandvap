@@ -31,7 +31,7 @@ export const adminMixConfig = createServerFn({ method: "POST" })
         .order("volume_ml", { ascending: true }),
       supabaseAdmin
         .from("products")
-        .select("id, name, slug, brand, range_name, subcategory, price_cents, currency, stock_status, is_published, photos")
+        .select("id, name, slug, brand, range_name, subcategory, price_cents, currency, stock_status, is_published, photos, liquid_color")
         .eq("subcategory", "Mon Mix")
         .order("name", { ascending: true }),
       supabaseAdmin
@@ -324,7 +324,47 @@ const quickFlavorSchema = z.object({
   flavor: z.string().trim().min(2).max(60),
   price_cents: z.number().int().min(0).max(1_000_000),
   photo_url: z.string().url().nullable().optional(),
+  liquid_color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/)
+    .nullable()
+    .optional(),
 });
+
+/** Couleur du liquide (rendu visuel du flacon) d'un arôme « Mon Mix ». */
+export const adminUpdateMixFlavorColor = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        product_id: z.string().uuid(),
+        liquid_color: z
+          .string()
+          .regex(/^#[0-9a-fA-F]{6}$/)
+          .nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const supabaseAdmin = await db();
+    const { data: p, error } = await supabaseAdmin
+      .from("products")
+      .select("id, category, subcategory")
+      .eq("id", data.product_id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!p) throw new Error("Produit introuvable.");
+    if (p.subcategory !== "Mon Mix" && p.category !== "accessoire_vape") {
+      throw new Error("Ce produit ne fait pas partie du configurateur Mon Mix.");
+    }
+    const { error: upErr } = await supabaseAdmin
+      .from("products")
+      .update({ liquid_color: data.liquid_color?.toUpperCase() ?? null })
+      .eq("id", data.product_id);
+    if (upErr) throw new Error(upErr.message);
+    return { ok: true as const };
+  });
 
 function slugify(input: string): string {
   return input
@@ -368,6 +408,7 @@ export const adminCreateMixFlavor = createServerFn({ method: "POST" })
       stock_status: "out_of_stock" as const,
       is_published: true,
       photos: data.photo_url ? [data.photo_url] : [],
+      liquid_color: data.liquid_color ? data.liquid_color.toUpperCase() : null,
     };
 
     const { data: ins, error } = await supabaseAdmin
