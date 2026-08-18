@@ -128,6 +128,7 @@ export type MixFlavorOption = {
   price_cents: number;
   currency: string;
   photos: string[] | null;
+  liquid_color?: string | null;
   stock_status: Database["public"]["Enums"]["stock_status"];
 };
 
@@ -141,7 +142,7 @@ export const mixFlavorsByBrandQueryOptions = () =>
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, slug, brand, range_name, subcategory, price_cents, currency, photos, stock_status",
+          "id, name, slug, brand, range_name, subcategory, price_cents, currency, photos, liquid_color, stock_status",
         )
         .eq("subcategory", MIX_SUBCATEGORY)
         .eq("is_published", true)
