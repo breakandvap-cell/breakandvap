@@ -23,6 +23,9 @@ import {
   computeMixTotalCents,
   nicotineVolumeRatio,
   flavorFillColor,
+  resolveLiquidColor,
+  blendLiquidColors,
+  NICOTINE_LIQUID_COLOR,
   type MixBrand,
   type MixFlavorOption,
 } from "@/lib/custom-mix";
@@ -147,15 +150,19 @@ function FloatingBottle({
                   style={{
                     bottom: `${bottom}%`,
                     height: `${h}%`,
-                    backgroundColor: l.color,
+                    ["--liq" as string]: l.color,
                   }}
-                />
+                >
+                  <span className="bar-fill__shine" />
+                </span>
               );
             })}
             <span
               className="bar-fill__top"
               style={{ bottom: `${8 + total * 64}%` }}
-            />
+            >
+              <span className="bar-fill__wave" />
+            </span>
           </span>
         )}
       </span>
