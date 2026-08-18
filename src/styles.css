@@ -874,7 +874,23 @@ html, body { overflow-x: hidden; }
     inset 0 0 34px -12px color-mix(in oklab, var(--accent) 45%, transparent);
   transition: transform .3s ease, box-shadow .3s ease, border-color .3s ease;
 }
-.bar-brand:hover:not(:disabled) { transform: translateY(-2px) scale(1.03); }
+.bar-brand:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  border-color: color-mix(in oklab, var(--accent) 85%, white 15%);
+  box-shadow:
+    0 0 42px -4px color-mix(in oklab, var(--accent) 75%, transparent),
+    inset 0 0 40px -10px color-mix(in oklab, var(--accent) 55%, transparent);
+}
+.bar-brand:focus-visible:not(:disabled) {
+  transform: translateY(-2px) scale(1.03);
+  border-color: color-mix(in oklab, var(--accent) 95%, white 20%);
+  outline: none;
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--background) 100%, transparent),
+    0 0 0 5px color-mix(in oklab, var(--accent) 80%, transparent),
+    0 0 46px -2px color-mix(in oklab, var(--accent) 85%, transparent),
+    inset 0 0 40px -10px color-mix(in oklab, var(--accent) 60%, transparent);
+}
 .bar-brand--active {
   border-color: color-mix(in oklab, var(--accent) 95%, white 5%);
   box-shadow:
@@ -890,6 +906,7 @@ html, body { overflow-x: hidden; }
   transition: filter 300ms ease, transform 300ms ease;
 }
 .bar-brand:hover:not(:disabled) .bar-brand__img,
+.bar-brand:focus-visible:not(:disabled) .bar-brand__img,
 .bar-brand--active .bar-brand__img {
   filter: drop-shadow(0 0 22px rgba(0, 255, 140, 0.7)) brightness(1.08);
 }

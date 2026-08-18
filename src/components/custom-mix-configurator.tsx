@@ -597,9 +597,10 @@ export function CustomMixConfigurator() {
                           setStep(3);
                         }}
                         aria-pressed={active}
+                        aria-label={available ? `Choisir la marque ${b}` : `Marque ${b} bientôt disponible`}
                         className={`bar-brand ${active ? "bar-brand--active" : "opacity-85 hover:opacity-100"} ${
                           available ? "" : "cursor-not-allowed opacity-40"
-                        }`}
+                        } focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background`}
                         style={active ? { borderColor: MIX_BRAND_COLORS[b].from } : undefined}
                       >
                         <span className="flex flex-col items-center gap-1">
