@@ -553,6 +553,9 @@ function PriceTable({
                 <th className="px-3 py-2">Produit</th>
                 <th className="px-3 py-2">Statut</th>
                 <th className="px-3 py-2">Prix (€)</th>
+                {editKind === "eliquide" && (
+                  <th className="px-3 py-2">Couleur liquide</th>
+                )}
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -578,6 +581,11 @@ function PriceTable({
                         className="w-28 rounded-md border border-border bg-background px-2 py-1 text-base sm:text-sm"
                       />
                     </td>
+                    {editKind === "eliquide" && (
+                      <td className="px-3 py-2">
+                        <LiquidColorCell row={r} onDone={onDone} />
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-right">
                       <button
                         type="button"
