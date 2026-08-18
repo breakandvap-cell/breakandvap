@@ -13,6 +13,7 @@ import {
   adminCreateMixFlavor,
   adminDeleteMixProduct,
   adminSetMixBulkBoosterPrice,
+  adminUpdateMixFlavorColor,
 } from "@/lib/custom-mix-admin.functions";
 import { adminUploadProductPhoto } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
@@ -24,6 +25,8 @@ import {
   computeMixTotalCents,
   formatMixNicotine,
   mixFamilyOf,
+  guessLiquidColor,
+  resolveLiquidColor,
   type MixBrand,
 } from "@/lib/custom-mix";
 import { formatPrice } from "@/lib/products";
