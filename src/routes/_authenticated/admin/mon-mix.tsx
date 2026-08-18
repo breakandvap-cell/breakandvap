@@ -213,12 +213,14 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const [price, setPrice] = useState("17.90");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [color, setColor] = useState<string | null>(null);
 
   const reset = () => {
     setOpen(null);
     setFlavor("");
     setPrice("17.90");
     setPhotoUrl(null);
+    setColor(null);
   };
 
   const m = useMutation({
@@ -233,6 +235,7 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
           flavor: flavor.trim(),
           price_cents: cents,
           photo_url: photoUrl,
+          liquid_color: color,
         },
       });
     },
@@ -353,6 +356,34 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
                 className="mt-2 h-16 w-16 rounded object-cover"
               />
             )}
+          </div>
+
+          <div className="sm:col-span-3">
+            <label className="text-sm font-medium" htmlFor="quick-flavor-color">
+              Couleur du liquide
+            </label>
+            <div className="mt-1 flex items-center gap-3">
+              <input
+                id="quick-flavor-color"
+                type="color"
+                value={color ?? guessLiquidColor(flavor)}
+                onChange={(e) => setColor(e.target.value.toUpperCase())}
+                className="h-10 w-14 cursor-pointer rounded border border-input bg-background"
+              />
+              {color ? (
+                <button
+                  type="button"
+                  onClick={() => setColor(null)}
+                  className="text-xs text-muted-foreground underline"
+                >
+                  Revenir à la couleur automatique
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Déduite automatiquement du nom du goût.
+                </span>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:col-span-3">
