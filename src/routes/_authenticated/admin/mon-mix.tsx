@@ -13,6 +13,7 @@ import {
   adminCreateMixFlavor,
   adminDeleteMixProduct,
   adminSetMixBulkBoosterPrice,
+  adminUpdateMixFlavorColor,
 } from "@/lib/custom-mix-admin.functions";
 import { adminUploadProductPhoto } from "@/lib/admin.functions";
 import { optimizeImage } from "@/lib/image-optimize";
@@ -24,6 +25,8 @@ import {
   computeMixTotalCents,
   formatMixNicotine,
   mixFamilyOf,
+  guessLiquidColor,
+  resolveLiquidColor,
   type MixBrand,
 } from "@/lib/custom-mix";
 import { formatPrice } from "@/lib/products";
@@ -124,6 +127,8 @@ function MixAdminPage() {
           price_cents: f.price_cents,
           published: f.is_published,
           stock_status: f.stock_status,
+          liquid_color: (f as { liquid_color?: string | null }).liquid_color ?? null,
+          raw_name: f.name,
         }))}
         editKind="eliquide"
         onDone={refresh}
@@ -208,12 +213,14 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const [price, setPrice] = useState("17.90");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [color, setColor] = useState<string | null>(null);
 
   const reset = () => {
     setOpen(null);
     setFlavor("");
     setPrice("17.90");
     setPhotoUrl(null);
+    setColor(null);
   };
 
   const m = useMutation({
@@ -228,6 +235,7 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
           flavor: flavor.trim(),
           price_cents: cents,
           photo_url: photoUrl,
+          liquid_color: color,
         },
       });
     },
@@ -350,6 +358,34 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
             )}
           </div>
 
+          <div className="sm:col-span-3">
+            <label className="text-sm font-medium" htmlFor="quick-flavor-color">
+              Couleur du liquide
+            </label>
+            <div className="mt-1 flex items-center gap-3">
+              <input
+                id="quick-flavor-color"
+                type="color"
+                value={color ?? guessLiquidColor(flavor)}
+                onChange={(e) => setColor(e.target.value.toUpperCase())}
+                className="h-10 w-14 cursor-pointer rounded border border-input bg-background"
+              />
+              {color ? (
+                <button
+                  type="button"
+                  onClick={() => setColor(null)}
+                  className="text-xs text-muted-foreground underline"
+                >
+                  Revenir à la couleur automatique
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Déduite automatiquement du nom du goût.
+                </span>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center gap-2 sm:col-span-3">
             <button
               type="submit"
@@ -416,7 +452,68 @@ type PriceRow = {
   price_cents: number;
   published: boolean;
   stock_status: string;
+  liquid_color?: string | null;
+  raw_name?: string;
 };
+
+/** Édition de la couleur du liquide affichée dans le flacon du configurateur. */
+function LiquidColorCell({
+  row,
+  onDone,
+}: {
+  row: PriceRow;
+  onDone: () => void;
+}) {
+  const fn = useServerFn(adminUpdateMixFlavorColor);
+  const name = row.raw_name ?? row.name;
+  const stored = row.liquid_color ?? null;
+  const [value, setValue] = useState<string>(
+    stored ?? resolveLiquidColor({ name, liquid_color: stored }),
+  );
+  const m = useMutation({
+    mutationFn: (liquid_color: string | null) =>
+      fn({ data: { product_id: row.id, liquid_color } }),
+    onSuccess: () => {
+      toast.success("Couleur du liquide mise à jour.");
+      onDone();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        aria-label={`Couleur du liquide de ${name}`}
+        value={value}
+        onChange={(e) => setValue(e.target.value.toUpperCase())}
+        className="h-8 w-10 cursor-pointer rounded border border-border bg-background"
+      />
+      <button
+        type="button"
+        disabled={m.isPending}
+        onClick={() => m.mutate(value)}
+        className="rounded-md border border-border px-2 py-1 text-xs hover:border-primary"
+      >
+        OK
+      </button>
+      <button
+        type="button"
+        disabled={m.isPending || !stored}
+        onClick={() => {
+          setValue(guessLiquidColor(name));
+          m.mutate(null);
+        }}
+        className="text-xs text-muted-foreground underline disabled:opacity-40"
+        title="Revenir à la couleur déduite du nom du goût"
+      >
+        auto
+      </button>
+      {!stored && (
+        <span className="text-[11px] text-muted-foreground">auto</span>
+      )}
+    </div>
+  );
+}
 
 function PriceTable({
   title,
@@ -487,6 +584,9 @@ function PriceTable({
                 <th className="px-3 py-2">Produit</th>
                 <th className="px-3 py-2">Statut</th>
                 <th className="px-3 py-2">Prix (€)</th>
+                {editKind === "eliquide" && (
+                  <th className="px-3 py-2">Couleur liquide</th>
+                )}
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -512,6 +612,11 @@ function PriceTable({
                         className="w-28 rounded-md border border-border bg-background px-2 py-1 text-base sm:text-sm"
                       />
                     </td>
+                    {editKind === "eliquide" && (
+                      <td className="px-3 py-2">
+                        <LiquidColorCell row={r} onDone={onDone} />
+                      </td>
+                    )}
                     <td className="px-3 py-2 text-right">
                       <button
                         type="button"

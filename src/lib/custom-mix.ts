@@ -128,6 +128,7 @@ export type MixFlavorOption = {
   price_cents: number;
   currency: string;
   photos: string[] | null;
+  liquid_color?: string | null;
   stock_status: Database["public"]["Enums"]["stock_status"];
 };
 
@@ -141,7 +142,7 @@ export const mixFlavorsByBrandQueryOptions = () =>
       const { data, error } = await supabase
         .from("products")
         .select(
-          "id, name, slug, brand, range_name, subcategory, price_cents, currency, photos, stock_status",
+          "id, name, slug, brand, range_name, subcategory, price_cents, currency, photos, liquid_color, stock_status",
         )
         .eq("subcategory", MIX_SUBCATEGORY)
         .eq("is_published", true)
@@ -227,6 +228,137 @@ export function flavorFillColor(brand: MixBrand | null, index: number): string {
   const list = brand ? hues[brand] : [140, 168, 96];
   const h = list[index % list.length] ?? 140;
   return `hsl(${h} 78% 58%)`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Couleur réaliste du liquide                                         */
+/* ------------------------------------------------------------------ */
+
+/** Teinte neutre légèrement dorée des boosters de nicotine. */
+export const NICOTINE_LIQUID_COLOR = "#D9C48A";
+
+/** Couleur par défaut d'un arôme non reconnu : doré translucide. */
+export const DEFAULT_LIQUID_COLOR = "#E4C77A";
+
+/** Dictionnaire mot-clé → couleur de liquide (ordre = priorité). */
+export const LIQUID_COLOR_KEYWORDS: Array<[string, string]> = [
+  ["fruit du dragon", "#E91E63"],
+  ["pitaya", "#E91E63"],
+  ["bubble gum", "#FF80AB"],
+  ["bubblegum", "#FF80AB"],
+  ["chewing", "#FF80AB"],
+  ["barbe a papa", "#FF9EC4"],
+  ["cerise", "#8B0000"],
+  ["griotte", "#8B0000"],
+  ["fraise", "#E53935"],
+  ["framboise", "#C2185B"],
+  ["grenade", "#B71C1C"],
+  ["pasteque", "#EF5350"],
+  ["cassis", "#4A148C"],
+  ["myrtille", "#3F51B5"],
+  ["mure", "#4527A0"],
+  ["raisin", "#6A1B9A"],
+  ["violette", "#7E57C2"],
+  ["citron", "#FFEB3B"],
+  ["citronnade", "#FFEB3B"],
+  ["limonade", "#FFF176"],
+  ["banane", "#FDD835"],
+  ["ananas", "#FFC107"],
+  ["mangue", "#FF9800"],
+  ["peche", "#FFAB70"],
+  ["abricot", "#FFB74D"],
+  ["orange", "#FB8C00"],
+  ["mandarine", "#FB8C00"],
+  ["fruits exotiques", "#FFB300"],
+  ["fruits rouges", "#C62828"],
+  ["tropical", "#FFA726"],
+  ["menthe", "#4CAF50"],
+  ["mentho", "#4CAF50"],
+  ["glacial", "#4DD0E1"],
+  ["polaire", "#4DD0E1"],
+  ["fresh", "#26C6DA"],
+  ["ice", "#4DD0E1"],
+  ["kiwi", "#8BC34A"],
+  ["pomme", "#7CB342"],
+  ["poire", "#C0CA33"],
+  ["eucalyptus", "#66BB6A"],
+  ["vanille", "#D7A86E"],
+  ["caramel", "#C68642"],
+  ["noisette", "#A1724A"],
+  ["cafe", "#6F4E37"],
+  ["chocolat", "#5D4037"],
+  ["tabac", "#795548"],
+  ["biscuit", "#D2A679"],
+  ["speculoos", "#B87333"],
+  ["coco", "#F5F0E1"],
+  ["reglisse", "#2E2E2E"],
+  ["cola", "#6B3E1E"],
+  ["miel", "#E1A93B"],
+  ["the", "#B49B57"],
+  ["litchi", "#F8BBD0"],
+  ["melon", "#AED581"],
+  ["pamplemousse", "#EF6C6C"],
+];
+
+function normalizeLabel(input: string): string {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Déduit une couleur logique à partir du nom d'un arôme. */
+export function guessLiquidColor(name: string | null | undefined): string {
+  const label = normalizeLabel(name ?? "");
+  for (const [kw, color] of LIQUID_COLOR_KEYWORDS) {
+    if (label.includes(kw)) return color;
+  }
+  return DEFAULT_LIQUID_COLOR;
+}
+
+/** Couleur retenue pour un arôme : valeur saisie en admin, sinon déduite du nom. */
+export function resolveLiquidColor(flavor: {
+  name?: string | null;
+  liquid_color?: string | null;
+}): string {
+  const raw = (flavor.liquid_color ?? "").trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw.toUpperCase();
+  return guessLiquidColor(flavor.name);
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16),
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const c = (n: number) =>
+    Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return `#${c(r)}${c(g)}${c(b)}`.toUpperCase();
+}
+
+/** Mélange visuel pondéré (moyenne des composantes RGB) de plusieurs couleurs. */
+export function blendLiquidColors(
+  parts: Array<{ color: string; weight: number }>,
+): string {
+  const valid = parts.filter((p) => p.weight > 0 && /^#[0-9a-fA-F]{6}$/.test(p.color));
+  const total = valid.reduce((s, p) => s + p.weight, 0);
+  if (!valid.length || total <= 0) return DEFAULT_LIQUID_COLOR;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  for (const p of valid) {
+    const [pr, pg, pb] = hexToRgb(p.color);
+    const w = p.weight / total;
+    r += pr * w;
+    g += pg * w;
+    b += pb * w;
+  }
+  return rgbToHex(r, g, b);
 }
 
 export type MixRecipePart = { flavor_product_id: string; percentage: number };
