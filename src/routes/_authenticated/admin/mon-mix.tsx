@@ -421,7 +421,68 @@ type PriceRow = {
   price_cents: number;
   published: boolean;
   stock_status: string;
+  liquid_color?: string | null;
+  raw_name?: string;
 };
+
+/** Édition de la couleur du liquide affichée dans le flacon du configurateur. */
+function LiquidColorCell({
+  row,
+  onDone,
+}: {
+  row: PriceRow;
+  onDone: () => void;
+}) {
+  const fn = useServerFn(adminUpdateMixFlavorColor);
+  const name = row.raw_name ?? row.name;
+  const stored = row.liquid_color ?? null;
+  const [value, setValue] = useState<string>(
+    stored ?? resolveLiquidColor({ name, liquid_color: stored }),
+  );
+  const m = useMutation({
+    mutationFn: (liquid_color: string | null) =>
+      fn({ data: { product_id: row.id, liquid_color } }),
+    onSuccess: () => {
+      toast.success("Couleur du liquide mise à jour.");
+      onDone();
+    },
+    onError: (e) => toast.error((e as Error).message),
+  });
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        aria-label={`Couleur du liquide de ${name}`}
+        value={value}
+        onChange={(e) => setValue(e.target.value.toUpperCase())}
+        className="h-8 w-10 cursor-pointer rounded border border-border bg-background"
+      />
+      <button
+        type="button"
+        disabled={m.isPending}
+        onClick={() => m.mutate(value)}
+        className="rounded-md border border-border px-2 py-1 text-xs hover:border-primary"
+      >
+        OK
+      </button>
+      <button
+        type="button"
+        disabled={m.isPending || !stored}
+        onClick={() => {
+          setValue(guessLiquidColor(name));
+          m.mutate(null);
+        }}
+        className="text-xs text-muted-foreground underline disabled:opacity-40"
+        title="Revenir à la couleur déduite du nom du goût"
+      >
+        auto
+      </button>
+      {!stored && (
+        <span className="text-[11px] text-muted-foreground">auto</span>
+      )}
+    </div>
+  );
+}
 
 function PriceTable({
   title,
