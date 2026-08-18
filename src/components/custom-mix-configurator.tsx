@@ -445,16 +445,29 @@ export function CustomMixConfigurator() {
   );
   const fillLayers: FillLayer[] = [];
   if (nicoRatio > 0) {
-    fillLayers.push({ key: "nicotine", color: "hsl(140 72% 55%)", ratio: nicoRatio });
+    fillLayers.push({ key: "nicotine", color: NICOTINE_LIQUID_COLOR, ratio: nicoRatio });
   }
   const flavorSpace = Math.max(0, 1 - nicoRatio);
-  selectedFlavors.forEach(({ part }, i) => {
+  // Couleur du mélange : moyenne pondérée RGB des couleurs d'arômes.
+  const blendedFlavorColor = blendLiquidColors(
+    selectedFlavors.map(({ part, flavor }) => ({
+      color: resolveLiquidColor(flavor!),
+      weight: part.percentage,
+    })),
+  );
+  const flavorRatio =
+    flavorSpace *
+    Math.min(
+      1,
+      selectedFlavors.reduce((s, { part }) => s + part.percentage, 0) / 100,
+    );
+  if (flavorRatio > 0) {
     fillLayers.push({
-      key: part.flavorId,
-      color: flavorFillColor(brand, i),
-      ratio: flavorSpace * (part.percentage / 100),
+      key: "flavors",
+      color: blendedFlavorColor,
+      ratio: flavorRatio,
     });
-  });
+  }
 
   return (
     <div className="grid min-w-0 gap-8 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-start">
