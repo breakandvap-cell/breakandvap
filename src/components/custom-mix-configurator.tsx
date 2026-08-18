@@ -801,10 +801,9 @@ export function CustomMixConfigurator() {
                       <span
                         className="inline-block h-3 w-3 rounded-full"
                         style={{
-                          backgroundColor: flavorFillColor(
-                            brand,
-                            parts.findIndex((x) => x.flavorId === p.flavorId),
-                          ),
+                          backgroundColor: f
+                            ? resolveLiquidColor(f)
+                            : flavorFillColor(brand, 0),
                         }}
                       />
                       {f?.name ?? "Arôme"}
