@@ -819,15 +819,58 @@ html, body { overflow-x: hidden; }
   left: 30%;
   right: 30%;
   border-radius: 0 0 40% 40% / 0 0 12% 12%;
+  overflow: hidden;
+  background-image: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--liq, #4CAF50) 68%, white 32%) 0%,
+    var(--liq, #4CAF50) 42%,
+    color-mix(in srgb, var(--liq, #4CAF50) 72%, black 28%) 100%
+  );
   transition: height 700ms cubic-bezier(.22,1,.36,1), bottom 700ms cubic-bezier(.22,1,.36,1), background-color 500ms ease;
-  opacity: .72;
+  opacity: .85;
+}
+/* Reflet translucide côté gauche (lumière traversant le verre) */
+.bar-fill__shine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6%;
+  width: 26%;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,.42),
+    rgba(255,255,255,.12) 55%,
+    transparent 100%
+  );
+  filter: blur(1.5px);
+  pointer-events: none;
 }
 .bar-fill__top {
   position: absolute;
   left: 30%; right: 30%;
-  height: 4px;
-  background: linear-gradient(180deg, rgba(255,255,255,.7), transparent);
+  height: 6px;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.05));
   transition: bottom 700ms cubic-bezier(.22,1,.36,1);
+}
+/* Ménisque : léger clapotis de surface */
+.bar-fill__wave {
+  position: absolute;
+  left: -25%;
+  right: -25%;
+  top: 0;
+  height: 100%;
+  border-radius: 50%;
+  background: linear-gradient(90deg, rgba(255,255,255,.25), rgba(255,255,255,.75), rgba(255,255,255,.25));
+  animation: bar-liquid-wave 3.6s ease-in-out infinite;
+}
+@keyframes bar-liquid-wave {
+  0%, 100% { transform: translateX(-4%) scaleY(1); }
+  50%      { transform: translateX(4%) scaleY(.7); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill__wave { animation: none; }
 }
 .bar-bottle__shadow {
   margin-top: 2px;
