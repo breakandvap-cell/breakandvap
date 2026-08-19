@@ -12,6 +12,7 @@
     "format": "prettier --write .",
     "test": "bun test tests",
     "test:smoke": "bun test tests/checkout-smoke.test.ts",
+    "test:rls": "bun test tests/variant-visibility.test.ts",
     "check:singletons": "node scripts/check-singletons.mjs"
   },
   "dependencies": {
