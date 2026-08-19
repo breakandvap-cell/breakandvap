@@ -106,7 +106,7 @@ describe("Lisibilité publique des variantes", () => {
 
   maybe("toute variante lisible appartient à un produit publié", async () => {
     const { status, body } = await rest(
-      "product_variants?select=id,is_active,product_id,products(id,is_published)&limit=200",
+      "product_variants?select=id,is_active,product_id,products!product_variants_product_id_fkey(id,is_published)&limit=200",
     );
     expect(status).toBe(200);
     const rows = body as Array<{
