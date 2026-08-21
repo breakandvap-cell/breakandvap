@@ -95,6 +95,8 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+const HYDRATION_FALLBACK_SCRIPT = `(function(){"use strict";try{var KEY="bnv_hydration_retry",MAX=3,count=0,handled=false;try{count=parseInt(window.sessionStorage.getItem(KEY)||"0",10)||0}catch(_){}function render(message,allowRetry){var s="font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:grid;place-items:center;min-height:100vh;margin:0;padding:2rem;background:#0f172a;color:#f8fafc;text-align:center;",c="max-width:28rem;",t="font-size:1.25rem;font-weight:600;margin:0 0 0.75rem;",p="color:#94a3b8;margin:0 0 1.5rem;line-height:1.5;",b="padding:0.625rem 1.25rem;border-radius:0.375rem;background:#3b82f6;color:#fff;border:none;cursor:pointer;font:inherit;font-weight:500;",h='<div style="'+s+'"><div style="'+c+'"><h1 style="'+t+'">Chargement interrompu</h1><p style="'+p+'">'+message+"</p>"+(allowRetry?'<button style="'+b+'" onclick="location.reload()">Réessayer</button>':"")+"</div></div>";if(document.body){document.body.innerHTML=h}else{document.write(h);document.close()}}function retry(){if(handled)return;handled=true;if(count<MAX){try{window.sessionStorage.setItem(KEY,String(count+1))}catch(_){}render("La page n'a pas pu s'initialiser correctement. Nouvelle tentative automatique...",false);setTimeout(function(){window.location.reload()},1200)}else{try{window.sessionStorage.removeItem(KEY)}catch(_){}render("Impossible de charger la page après plusieurs tentatives. Veuillez réessayer manuellement.",true)}}function isBootstrapError(msg){return typeof msg==="string"&&msg.indexOf("Expected to find bootstrap data")!==-1}window.addEventListener("error",function(e){if(isBootstrapError(e.message)){e.preventDefault();retry()}});window.addEventListener("unhandledrejection",function(e){var r=e.reason,msg=r&&(r.message||(r.toString&&r.toString()))||"";if(isBootstrapError(msg)){e.preventDefault();retry()}});function backup(){if(handled)return;if(!window.$_TSR){retry()}else{try{window.sessionStorage.removeItem(KEY)}catch(_){}}}if(document.readyState==="complete"){setTimeout(backup,500)}else{window.addEventListener("load",function(){setTimeout(backup,500)})}}catch(_){}})();`;
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -127,6 +129,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "text/javascript",
+        children: HYDRATION_FALLBACK_SCRIPT,
       },
     ],
   }),
