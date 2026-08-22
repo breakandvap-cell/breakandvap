@@ -385,6 +385,22 @@ export const adminCreateMixFlavor = createServerFn({ method: "POST" })
 
     const name = `${data.brand} ${data.flavor}`;
     const base = slugify(name) || "arome-mon-mix";
+
+    // Doublon explicite : même nom ou même slug déjà en base.
+    const { data: existing, error: dupErr } = await supabaseAdmin
+      .from("products")
+      .select("id, slug, name")
+      .or(`slug.eq.${base},name.eq.${name}`)
+      .limit(1)
+      .maybeSingle();
+    if (dupErr) throw new Error(dupErr.message);
+    if (existing) {
+      return {
+        status: "duplicate" as const,
+        existing: { id: existing.id, slug: existing.slug, name: existing.name },
+      };
+    }
+
     const { data: taken } = await supabaseAdmin
       .from("products")
       .select("slug")
@@ -416,6 +432,24 @@ export const adminCreateMixFlavor = createServerFn({ method: "POST" })
       .insert(row)
       .select("id, slug, name")
       .single();
-    if (error) throw new Error(error.message);
-    return ins;
+    if (error) {
+      // Course entre deux créations simultanées → conflit d'unicité.
+      if (error.code === "23505" || /duplicate key value/i.test(error.message)) {
+        const { data: conflict } = await supabaseAdmin
+          .from("products")
+          .select("id, slug, name")
+          .or(`slug.eq.${slug},name.eq.${name}`)
+          .limit(1)
+          .maybeSingle();
+        return {
+          status: "duplicate" as const,
+          existing: conflict
+            ? { id: conflict.id, slug: conflict.slug, name: conflict.name }
+            : { id: null, slug: null, name },
+        };
+      }
+      throw new Error(error.message);
+    }
+    return { status: "created" as const, product: ins };
   });
+
