@@ -214,6 +214,9 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [color, setColor] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<
+    { id: string | null; name: string } | null
+  >(null);
 
   const reset = () => {
     setOpen(null);
@@ -221,6 +224,7 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
     setPrice("17.90");
     setPhotoUrl(null);
     setColor(null);
+    setDuplicate(null);
   };
 
   const m = useMutation({
@@ -239,13 +243,20 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
         },
       });
     },
-    onSuccess: (p) => {
-      toast.success(`« ${p.name} » créé.`);
+    onMutate: () => setDuplicate(null),
+    onSuccess: (res) => {
+      if (res.status === "duplicate") {
+        setDuplicate({ id: res.existing.id, name: res.existing.name });
+        toast.error("Un arôme avec ce nom existe déjà.");
+        return;
+      }
+      toast.success(`« ${res.product.name} » créé.`);
       reset();
       onDone();
     },
     onError: (e) => toast.error((e as Error).message),
   });
+
 
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
