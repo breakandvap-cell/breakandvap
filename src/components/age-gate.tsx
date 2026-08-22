@@ -55,7 +55,7 @@ export function AgeGate({ children }: { children: React.ReactNode }) {
           mais masqué et inerte tant que la vérification n'est pas passée. */}
       <div
         aria-hidden={showOverlay ? "true" : undefined}
-        {...(showOverlay ? { inert: "" as unknown as boolean } : {})}
+        inert={showOverlay || undefined}
         style={showOverlay ? { visibility: "hidden" } : undefined}
       >
         {children}
