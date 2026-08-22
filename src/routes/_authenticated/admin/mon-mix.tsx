@@ -316,7 +316,26 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
             m.mutate();
           }}
         >
+          {duplicate && (
+            <div
+              role="alert"
+              className="sm:col-span-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              Un arôme avec ce nom existe déjà. Choisissez un autre nom ou
+              modifiez le produit existant.
+              {duplicate.id && (
+                <Link
+                  to="/admin/produits/eliquide/$id"
+                  params={{ id: duplicate.id }}
+                  className="ml-1 font-medium underline underline-offset-2"
+                >
+                  Ouvrir « {duplicate.name} »
+                </Link>
+              )}
+            </div>
+          )}
           <div className="sm:col-span-1">
+
             <label className="text-sm font-medium" htmlFor="quick-flavor-name">
               Nom du goût *
             </label>
