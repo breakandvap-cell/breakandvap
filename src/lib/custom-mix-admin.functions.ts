@@ -376,6 +376,32 @@ function slugify(input: string): string {
     .slice(0, 80);
 }
 
+/** Vérifie la disponibilité d'un nom d'arôme avant création (slug ou nom déjà pris). */
+export const adminCheckMixFlavorAvailability = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        brand: z.enum(MIX_BRANDS),
+        flavor: z.string().trim().min(2).max(60),
+      })
+      .parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const supabaseAdmin = await db();
+    const name = `${data.brand} ${data.flavor}`;
+    const base = slugify(name) || "arome-mon-mix";
+    const { data: existing, error } = await supabaseAdmin
+      .from("products")
+      .select("id, slug, name")
+      .or(`slug.eq.${base},name.eq.${name}`)
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { available: !existing, existing: existing ?? null };
+  });
+
 export const adminCreateMixFlavor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => quickFlavorSchema.parse(d))
