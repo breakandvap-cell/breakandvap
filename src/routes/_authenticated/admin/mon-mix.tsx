@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import {
   adminUpdateMixProductPrice,
   adminDeleteMixRecipe,
   adminCreateMixFlavor,
+  adminCheckMixFlavorAvailability,
   adminDeleteMixProduct,
   adminSetMixBulkBoosterPrice,
   adminUpdateMixFlavorColor,
@@ -207,6 +208,7 @@ function BulkBoosterPrice({
 
 function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const create = useServerFn(adminCreateMixFlavor);
+  const checkAvailability = useServerFn(adminCheckMixFlavorAvailability);
   const upload = useServerFn(adminUploadProductPhoto);
   const [open, setOpen] = useState<MixBrand | null>(null);
   const [flavor, setFlavor] = useState("");
@@ -217,6 +219,31 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const [duplicate, setDuplicate] = useState<
     { id: string | null; name: string } | null
   >(null);
+  const [checking, setChecking] = useState(false);
+
+  // Vérification côté client (débouncée) de l'unicité du slug/nom avant envoi.
+  useEffect(() => {
+    setDuplicate(null);
+    const trimmed = flavor.trim();
+    if (!open || trimmed.length < 2) {
+      setChecking(false);
+      return;
+    }
+    setChecking(true);
+    const t = setTimeout(() => {
+      checkAvailability({ data: { brand: open, flavor: trimmed } })
+        .then((res) => {
+          if (!res.available && res.existing) {
+            setDuplicate({ id: res.existing.id, name: res.existing.name });
+          }
+        })
+        .catch(() => {
+          // Silencieux : la validation serveur reste la barrière finale.
+        })
+        .finally(() => setChecking(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [flavor, open, checkAvailability]);
 
   const reset = () => {
     setOpen(null);
@@ -344,11 +371,24 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
               value={flavor}
               onChange={(e) => setFlavor(e.target.value)}
               placeholder="Fruit du Dragon"
-              className="mt-1 h-11 w-full rounded-md border border-input bg-background px-3 text-base"
+              aria-invalid={duplicate != null}
+              className={`mt-1 h-11 w-full rounded-md border bg-background px-3 text-base ${
+                duplicate ? "border-destructive" : "border-input"
+              }`}
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Nom final : {open} {flavor.trim() || "…"}
+              {checking && (
+                <span className="ml-2 inline-flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Vérification…
+                </span>
+              )}
             </p>
+            {duplicate && (
+              <p className="mt-1 text-xs font-medium text-destructive">
+                Ce nom est déjà utilisé.
+              </p>
+            )}
           </div>
 
           <div>
@@ -419,7 +459,13 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
           <div className="flex items-center gap-2 sm:col-span-3">
             <button
               type="submit"
-              disabled={m.isPending || uploading || flavor.trim().length < 2}
+              disabled={
+                m.isPending ||
+                uploading ||
+                checking ||
+                duplicate != null ||
+                flavor.trim().length < 2
+              }
               className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
             >
               {m.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
