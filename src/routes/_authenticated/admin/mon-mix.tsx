@@ -207,6 +207,7 @@ function BulkBoosterPrice({
 
 function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const create = useServerFn(adminCreateMixFlavor);
+  const checkAvailability = useServerFn(adminCheckMixFlavorAvailability);
   const upload = useServerFn(adminUploadProductPhoto);
   const [open, setOpen] = useState<MixBrand | null>(null);
   const [flavor, setFlavor] = useState("");
@@ -217,6 +218,31 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const [duplicate, setDuplicate] = useState<
     { id: string | null; name: string } | null
   >(null);
+  const [checking, setChecking] = useState(false);
+
+  // Vérification côté client (débouncée) de l'unicité du slug/nom avant envoi.
+  useEffect(() => {
+    setDuplicate(null);
+    const trimmed = flavor.trim();
+    if (!open || trimmed.length < 2) {
+      setChecking(false);
+      return;
+    }
+    setChecking(true);
+    const t = setTimeout(() => {
+      checkAvailability({ data: { brand: open, flavor: trimmed } })
+        .then((res) => {
+          if (!res.available && res.existing) {
+            setDuplicate({ id: res.existing.id, name: res.existing.name });
+          }
+        })
+        .catch(() => {
+          // Silencieux : la validation serveur reste la barrière finale.
+        })
+        .finally(() => setChecking(false));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [flavor, open, checkAvailability]);
 
   const reset = () => {
     setOpen(null);
