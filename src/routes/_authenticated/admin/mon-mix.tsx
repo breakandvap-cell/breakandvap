@@ -273,12 +273,13 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
     },
     onMutate: () => setDuplicate(null),
     onSuccess: (res) => {
-      if (res.status === "duplicate") {
-        setDuplicate({ id: res.existing.id, name: res.existing.name });
+      const outcome = duplicateFromCreate(res);
+      if (outcome.kind === "duplicate") {
+        setDuplicate(outcome.duplicate);
         toast.error("Un arôme avec ce nom existe déjà.");
         return;
       }
-      toast.success(`« ${res.product.name} » créé.`);
+      toast.success(`« ${res.status === "created" ? res.product.name : ""} » créé.`);
       reset();
       onDone();
     },
