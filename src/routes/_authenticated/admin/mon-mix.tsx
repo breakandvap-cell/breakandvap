@@ -1,5 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  FlavorAvailabilityChecker,
+  duplicateFromCreate,
+} from "@/lib/mix-flavor-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -222,27 +226,24 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
   const [checking, setChecking] = useState(false);
 
   // Vérification côté client (débouncée) de l'unicité du slug/nom avant envoi.
+  const checkerRef = useRef<FlavorAvailabilityChecker | null>(null);
   useEffect(() => {
     setDuplicate(null);
-    const trimmed = flavor.trim();
-    if (!open || trimmed.length < 2) {
+    if (!open) {
+      checkerRef.current?.cancel();
       setChecking(false);
       return;
     }
-    setChecking(true);
-    const t = setTimeout(() => {
-      checkAvailability({ data: { brand: open, flavor: trimmed } })
-        .then((res) => {
-          if (!res.available && res.existing) {
-            setDuplicate({ id: res.existing.id, name: res.existing.name });
-          }
-        })
-        .catch(() => {
-          // Silencieux : la validation serveur reste la barrière finale.
-        })
-        .finally(() => setChecking(false));
-    }, 400);
-    return () => clearTimeout(t);
+    const checker =
+      checkerRef.current ??
+      (checkerRef.current = new FlavorAvailabilityChecker((input) =>
+        checkAvailability({ data: { brand: input.brand as MixBrand, flavor: input.flavor } }),
+      ));
+    checker.schedule(
+      { brand: open, flavor },
+      { onChecking: setChecking, onResult: setDuplicate },
+    );
+    return () => checker.cancel();
   }, [flavor, open, checkAvailability]);
 
   const reset = () => {
@@ -272,12 +273,13 @@ function QuickFlavorCreator({ onDone }: { onDone: () => void }) {
     },
     onMutate: () => setDuplicate(null),
     onSuccess: (res) => {
-      if (res.status === "duplicate") {
-        setDuplicate({ id: res.existing.id, name: res.existing.name });
+      const outcome = duplicateFromCreate(res);
+      if (outcome.kind === "duplicate") {
+        setDuplicate(outcome.duplicate);
         toast.error("Un arôme avec ce nom existe déjà.");
         return;
       }
-      toast.success(`« ${res.product.name} » créé.`);
+      toast.success(`« ${res.status === "created" ? res.product.name : ""} » créé.`);
       reset();
       onDone();
     },
